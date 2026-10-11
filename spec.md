@@ -12,7 +12,7 @@ This document is the source of truth for the project. It is built in phases acro
 
 | Phase | Title | Status |
 |---|---|---|
-| 1 | Foundations (core packages + minimal CLI) | ☐ not started |
+| 1 | Foundations (core packages + minimal CLI) | ✅ done |
 | 2 | TUI shell + Jobs view | ☐ not started |
 | 3 | Job editor + schedule builder | ☐ not started |
 | 4 | Runs: exec wrapper, history, logs | ☐ not started |
@@ -20,6 +20,14 @@ This document is the source of truth for the project. It is built in phases acro
 | 6 | Polish, notifications, release | ☐ not started |
 
 Session notes (append newest first):
+- _2026-10-11_: **Phase 1 done** (branch `feat/phase-1`). Packages: `cronexpr`, `crontab`, `config` (paths), `doctor`, `humanize` (relative times, for CLI + TUI), `version`; CLI `list`, `describe`, `doctor`, `version`.
+  - Decision: `cronexpr` has its **own Vixie/cronie-compatible parser and `Next()`**; `robfig/cron/v3` is a test-only oracle. Reasons: robfig rejects dow `7`, treats `*/N` in dom/dow differently for the OR rule, accepts `?`/`@every`, and doesn't follow cron's DST behavior.
+  - DST rules implemented (match cron daemons): a fixed-time job (minute and hour both non-`*`) in a spring-forward gap fires once right after the jump; in a fall-back overlap it fires only in the first pass. Wildcard jobs skip gap minutes and fire in both overlap passes.
+  - `N/step` follows cronie (`N`-max; dow max is 7, so `1/2` in dow = Mon, Wed, Fri, Sun).
+  - `crontab.Store.Save` appends a final newline if missing (crontab(1) rejects an unterminated last line). Saving an unchanged crontab is a no-op (no backup).
+  - Known edge: cron cannot express a literal backslash immediately before `%`; gocron's `\%` escaping round-trips in gocron but cron would read it differently. Worth a Phase 3 lint.
+  - `crontab.Job` already carries the §5 fields + `Bin`, `TZ`, `Expr`, and `NextRuns()` (honors a preceding `CRON_TZ=` line). Mutations exist: `SetEnabled`, `RemoveJob`, `AddJob`, `UpdateJob` (minimal-diff tested). `Adopt`/`Undo` are still Phase 2.
+  - Short schedule phrasing for list rows ("Sundays at 04:00") isn't built yet; `Describe` gives the full form.
 - _2026-10-11_: Spec written. No code yet.
 
 ---
@@ -57,7 +65,7 @@ Remote hosts over SSH, multi-user or auth, systemd timers as a backend, a web UI
 | Styling | `charmbracelet/lipgloss` | Adaptive colors, borders, layout. |
 | Components | `charmbracelet/bubbles` | textinput, viewport, spinner, key, help, list (or a custom list). |
 | Forms | Hand-rolled on top of bubbles (`huh` only if it doesn't fight the design) | The schedule builder needs custom rendering. |
-| Cron parsing | `robfig/cron/v3` (`cron.ParseStandard`) | 5-field, descriptors (`@daily`…), `CRON_TZ=` prefix. |
+| Cron parsing | Our own `cronexpr` (Vixie/cronie semantics); `robfig/cron/v3` only as a test oracle | 5-field, names, dow 7, descriptors (`@daily`…), `CRON_TZ=` prefix, cron-daemon DST rules. |
 | Human descriptions | Our own `cronexpr.Describe` | Phrasing we control, table-tested. |
 | Run storage | `modernc.org/sqlite` | Pure Go (no cgo), WAL mode, `busy_timeout=5000`. |
 | Config | TOML (`BurntSushi/toml` or `pelletier/go-toml/v2`) | |
@@ -543,13 +551,13 @@ Every phase ends with `go vet ./...` and `go test ./...` passing, the Progress t
 Scope: `git init`, `go mod init`, packages `cronexpr`, `crontab`, `config` (paths only), the CLI skeleton with `list`, `describe`, `doctor` (crontab/daemon checks only), `version`.
 
 Acceptance:
-- [ ] `cronexpr.Describe` produces natural English for ≥ 40 table-tested expressions (steps, ranges, lists, names, descriptors, dom/dow OR, `@reboot`).
-- [ ] `cronexpr.Next(expr, from, n)` is correct across DST transitions and the dom/dow OR case (tests).
-- [ ] `cronexpr.Lint` implements the schedule-level lints from §6.3.
-- [ ] The crontab parser round-trips every fixture byte-for-byte. There are ≥ 10 fixtures, covering env lines, `CRON_TZ`, comments, `@reboot`, tabs, CRLF, no trailing newline, managed and disabled jobs, orphan meta, and wrapped commands containing quotes and `%`.
-- [ ] Meta grammar encode/decode, wrapped-command encode/decode, and `%` escaping are each property- or fuzz-tested (`go test -fuzz` target for round-trip).
-- [ ] `Store.Save` implements the full safe-write protocol. A test proves that an external modification yields `ErrConflict` and that a backup is created on each save.
-- [ ] `gocron list`, `gocron describe "*/15 9-17 * * 1-5"`, and `gocron doctor` work against `GOCRON_CRONTAB_FILE` and against the real crontab (read-only).
+- [x] `cronexpr.Describe` produces natural English for ≥ 40 table-tested expressions (steps, ranges, lists, names, descriptors, dom/dow OR, `@reboot`).
+- [x] `cronexpr.Next(expr, from, n)` is correct across DST transitions and the dom/dow OR case (tests).
+- [x] `cronexpr.Lint` implements the schedule-level lints from §6.3.
+- [x] The crontab parser round-trips every fixture byte-for-byte. There are ≥ 10 fixtures, covering env lines, `CRON_TZ`, comments, `@reboot`, tabs, CRLF, no trailing newline, managed and disabled jobs, orphan meta, and wrapped commands containing quotes and `%`.
+- [x] Meta grammar encode/decode, wrapped-command encode/decode, and `%` escaping are each property- or fuzz-tested (`go test -fuzz` target for round-trip).
+- [x] `Store.Save` implements the full safe-write protocol. A test proves that an external modification yields `ErrConflict` and that a backup is created on each save.
+- [x] `gocron list`, `gocron describe "*/15 9-17 * * 1-5"`, and `gocron doctor` work against `GOCRON_CRONTAB_FILE` and against the real crontab (read-only).
 
 ### Phase 2: TUI shell + Jobs view
 Scope: theme system, root app model, header/footer/help, responsive layout, the Jobs list + detail pane, pause/resume, delete, undo, adopt, external-change reload, and toasts.
