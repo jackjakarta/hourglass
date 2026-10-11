@@ -1,0 +1,32 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                           ● cron active · Sun 14:32:07
+
+╭─ Jobs · 6 ───────────────────────────────────────────────────────────────────────────────────────╮
+│ / filter…                                                                                        │
+│                                                                                                  │
+│ ▌● Sync photos     Every 15 minutes   in 12m 53s                                                 │
+│  ● Rotate logs     Every hour         in 27m 53s                                                 │
+│  ● Nightly b╭──────────────────────────────────────────────────────────────────────╮             │
+│  ● Say hi   │                                                                      │             │
+│  ● Prune doc│   Keys                                                               │             │
+│  ○ Weekly re│                                                                      │             │
+│             │   Navigate               Jobs                    General             │             │
+│ UNMANAGED · │                                                                      │             │
+│  · @reboot ~│   ↑/k   move up          space  pause/resume     1       jobs        │             │
+│  · */5 * * *│   ↓/j   move down        x      delete           2       timeline    │             │
+│  · 0 0 1 * 1│   g     first job        a      adopt            3       history     │             │
+│             │   G     last job         u      undo             4       crontab     │             │
+│             │   pgup  page up          /      filter           tab     next view   │             │
+│             │   pgdn  page down                                ?       help        │             │
+│             │   ↵     open                                     q       quit        │             │
+│             │   esc   back / clear                             ctrl+c  quit now    │             │
+│             │                                                                      │             │
+│             │                                                  ? or esc to close   │             │
+│             │                                                                      │             │
+│             ╰──────────────────────────────────────────────────────────────────────╯             │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+ ? close  esc close

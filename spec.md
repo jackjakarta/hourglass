@@ -13,13 +13,21 @@ This document is the source of truth for the project. It is built in phases acro
 | Phase | Title | Status |
 |---|---|---|
 | 1 | Foundations (core packages + minimal CLI) | ✅ done |
-| 2 | TUI shell + Jobs view | ☐ not started |
+| 2 | TUI shell + Jobs view | ✅ done |
 | 3 | Job editor + schedule builder | ☐ not started |
 | 4 | Runs: exec wrapper, history, logs | ☐ not started |
 | 5 | Timeline + power tools | ☐ not started |
 | 6 | Polish, notifications, release | ☐ not started |
 
 Session notes (append newest first):
+- _2026-10-11_: **Phase 2 done** (branch `feat/phase-2`). Packages: `jobs` (Service façade), `tui` (root app, `theme`, `keys`, `components`, `views/jobs`); `cronexpr.Expr.Short`, `crontab.Adopt`/`DefaultAdoptName`, `crontab.Job.Describe`/`Raw`, `doctor.DetectDaemon`.
+  - Stack: **Go 1.25**, `charm.land/bubbletea/v2 v2.0.9`, `lipgloss/v2 v2.0.6`, `bubbles/v2 v2.2.1`, `x/exp/teatest/v2`. v2.1.0 of bubbletea needs Go 1.26, so it was skipped. lipgloss v2 has no `AdaptiveColor`: the theme uses `LightDark(isDark)` from `tea.BackgroundColorMsg` and starts dark.
+  - **Adopt doesn't wrap yet** (`jobs.adoptWraps = false`): `gocron exec` arrives in Phase 4, and a wrapped line would fail until then. Phase 4 should flip this to follow `defaults.wrap`. `crontab.Adopt` already supports `wrap=true`.
+  - Undo: `jobs.Service` keeps a session undo stack (max 50) of the crontab before each change. Undo saves it through the safe path, so undo itself makes a backup. It refuses when the crontab changed since the change (`ErrUndoStale`), and an external reload clears the stack.
+  - Conflicts: a save that hits `ErrConflict` returns `*jobs.ConflictError` with a `Retry` that reloads and replays the change. The TUI offers **Reapply / Discard** (Discard is the default). "View diff" waits for the Crontab view (Phase 5).
+  - Views return requests (`ToggleMsg`, `DeleteMsg`, …) from `Update` synchronously instead of as Cmds, so a key typed right after (e.g. in the confirm dialog) sees the result.
+  - TUI tests wrap the model in a `spy` that publishes each rendered screen, then wait on screen content. The renderer's output stream is cursor-addressed diffs, which aren't reliable to match. Goldens are unstyled screens in `internal/tui/testdata`; `go test ./internal/tui -update` rewrites them.
+  - Not done in Phase 2 (by plan): `s` sort cycling and `#` tag filter (Phase 5), the last-result column and run strip (Phase 4), mouse (Phase 6). `/` filter is in.
 - _2026-10-11_: **Phase 1 done** (branch `feat/phase-1`). Packages: `cronexpr`, `crontab`, `config` (paths), `doctor`, `humanize` (relative times, for CLI + TUI), `version`; CLI `list`, `describe`, `doctor`, `version`.
   - Decision: `cronexpr` has its **own Vixie/cronie-compatible parser and `Next()`**; `robfig/cron/v3` is a test-only oracle. Reasons: robfig rejects dow `7`, treats `*/N` in dom/dow differently for the OR rule, accepts `?`/`@every`, and doesn't follow cron's DST behavior.
   - DST rules implemented (match cron daemons): a fixed-time job (minute and hour both non-`*`) in a spring-forward gap fires once right after the jump; in a fall-back overlap it fires only in the first pass. Wildcard jobs skip gap minutes and fire in both overlap passes.
@@ -60,17 +68,17 @@ Remote hosts over SSH, multi-user or auth, systemd timers as a backend, a web UI
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Language | Go 1.23+ | Single static binary. |
-| TUI framework | `charmbracelet/bubbletea` | Use the latest stable major at the start of Phase 2 and pin it. |
-| Styling | `charmbracelet/lipgloss` | Adaptive colors, borders, layout. |
-| Components | `charmbracelet/bubbles` | textinput, viewport, spinner, key, help, list (or a custom list). |
+| Language | Go 1.25+ | Single static binary. |
+| TUI framework | `charm.land/bubbletea/v2` v2.0.9 | Pinned in Phase 2 (needs Go 1.25). |
+| Styling | `charm.land/lipgloss/v2` v2.0.6 | `LightDark` colors, borders, layout, layer compositing for overlays. |
+| Components | `charm.land/bubbles/v2` v2.2.1 | key, help (footer); more as needed (viewport, spinner, textinput). |
 | Forms | Hand-rolled on top of bubbles (`huh` only if it doesn't fight the design) | The schedule builder needs custom rendering. |
 | Cron parsing | Our own `cronexpr` (Vixie/cronie semantics); `robfig/cron/v3` only as a test oracle | 5-field, names, dow 7, descriptors (`@daily`…), `CRON_TZ=` prefix, cron-daemon DST rules. |
 | Human descriptions | Our own `cronexpr.Describe` | Phrasing we control, table-tested. |
 | Run storage | `modernc.org/sqlite` | Pure Go (no cgo), WAL mode, `busy_timeout=5000`. |
 | Config | TOML (`BurntSushi/toml` or `pelletier/go-toml/v2`) | |
 | CLI | stdlib `flag` with small subcommand dispatch | No cobra; keep the binary lean. |
-| TUI tests | `charmbracelet/x/exp/teatest` | Golden snapshots. |
+| TUI tests | `charmbracelet/x/exp/teatest/v2` | Golden snapshots. |
 | Release | goreleaser, vhs for demo GIFs | Phase 6. |
 
 **Name note:** `go-co-op/gocron` is an unrelated Go scheduling library. Our binary name doesn't collide in practice. The module path is something like `github.com/<user>/gocron`.
@@ -287,7 +295,7 @@ type JobStats struct {     // computed from recent runs
 ### 6.1 Design direction
 **Calm, luminous, precise.** Dark-first, with a single vivid accent on a quiet neutral base, generous whitespace, and rounded panels. Color carries meaning (status) and is not used for decoration. The terminal's own background is respected; we never paint full-screen backgrounds.
 
-**Default theme "Nightshift"** (lipgloss `AdaptiveColor`, dark / light):
+**Default theme "Nightshift"** (lipgloss `LightDark`, dark / light):
 
 | Token | Dark | Light | Use |
 |---|---|---|---|
@@ -563,12 +571,12 @@ Acceptance:
 Scope: theme system, root app model, header/footer/help, responsive layout, the Jobs list + detail pane, pause/resume, delete, undo, adopt, external-change reload, and toasts.
 
 Acceptance:
-- [ ] `gocron` opens the TUI. The header shows the tabs (other tabs show a tasteful "coming soon"), the daemon status, and the clock.
-- [ ] The Jobs list shows the human schedule and a ticking next-run countdown. The detail pane shows the schedule, the command, and the next 10 runs.
-- [ ] `space`, `x`, `a`, and `u` work through the safe-write path, each with a toast. Undo restores the previous revision.
-- [ ] Layout adapts at the 120/80/60 breakpoints. The empty state and the "too small" screen exist.
-- [ ] `NO_COLOR` gives the mono theme.
-- [ ] teatest golden snapshots for the list (wide + narrow), the empty state, and the help overlay.
+- [x] `gocron` opens the TUI. The header shows the tabs (other tabs show a tasteful "coming soon"), the daemon status, and the clock.
+- [x] The Jobs list shows the human schedule and a ticking next-run countdown. The detail pane shows the schedule, the command, and the next 10 runs.
+- [x] `space`, `x`, `a`, and `u` work through the safe-write path, each with a toast. Undo restores the previous revision.
+- [x] Layout adapts at the 120/80/60 breakpoints. The empty state and the "too small" screen exist.
+- [x] `NO_COLOR` gives the mono theme.
+- [x] teatest golden snapshots for the list (wide + narrow), the empty state, and the help overlay.
 
 ### Phase 3: Editor
 Scope: the new/edit modal, schedule builder (presets + custom with a field ruler), live preview, the full lint list, `^s` save, and unsaved-changes confirmation. Also `gocron add` in the CLI.

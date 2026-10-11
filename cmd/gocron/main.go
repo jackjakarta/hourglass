@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/term"
+
 	"github.com/jackjakarta/gocron/internal/crontab"
 )
 
@@ -25,17 +27,20 @@ type app struct {
 	stdout, stderr io.Writer
 	now            func() time.Time
 	source         func() (crontab.Source, error)
+	interactive    func() bool // stdin and stdout are terminals
 }
 
 func main() {
-	a := &app{stdout: os.Stdout, stderr: os.Stderr, now: time.Now, source: crontab.SourceFromEnv}
+	a := &app{stdout: os.Stdout, stderr: os.Stderr, now: time.Now, source: crontab.SourceFromEnv, interactive: func() bool {
+		return term.IsTerminal(os.Stdin.Fd()) && term.IsTerminal(os.Stdout.Fd())
+	}}
 	os.Exit(a.run(context.Background(), os.Args[1:]))
 }
 
 const usage = `gocron — a home for your cron jobs
 
 Usage:
-  gocron                      open the TUI (coming in the next release)
+  gocron                      open the TUI
   gocron list [--json] [--all]
                               list jobs (--all includes unmanaged entries)
   gocron describe [-n N] EXPR describe a schedule and show its next runs
@@ -49,9 +54,10 @@ Environment:
 
 func (a *app) run(ctx context.Context, args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(a.stdout, "The gocron TUI isn't here yet. Meanwhile, these commands work:")
-		fmt.Fprintln(a.stdout)
-		fmt.Fprint(a.stdout, usage)
+		if a.interactive != nil && a.interactive() {
+			return a.tui(ctx)
+		}
+		fmt.Fprint(a.stdout, "The gocron TUI needs a terminal.\n\n"+usage)
 		return exitOK
 	}
 	cmd, rest := args[0], args[1:]

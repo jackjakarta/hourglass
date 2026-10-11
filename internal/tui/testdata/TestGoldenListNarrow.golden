@@ -1,0 +1,32 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                           ● cron active · Sun 14:32:07
+
+╭─ Jobs · 6 ───────────────────────────────────────────────────────────────────────────────────────╮
+│ / filter…                                                                                        │
+│                                                                                                  │
+│ ▌● Sync photos     Every 15 minutes   in 12m 53s                                                 │
+│  ● Rotate logs     Every hour         in 27m 53s                                                 │
+│  ● Nightly backup  At 02:30           in 11h 57m                                                 │
+│  ● Say hi          Weekdays at 09:00  in 18h 27m                                                 │
+│  ● Prune docker    Sundays at 04:00   in 6d 13h                                                  │
+│  ○ Weekly report   Mondays at 09:00   paused                                                     │
+│                                                                                                  │
+│ UNMANAGED · 3                                                                                    │
+│  · @reboot ~/bin/start-tmux.sh                                                                   │
+│  · */5 * * * * ~/bin/sync.sh >/dev/null 2>&1                                                     │
+│  · 0 0 1 * 1 ~/bin/first-or-monday.sh                                                            │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+ ↑↓ move  ↵ open  space pause  x delete  u undo  / filter  ? help  q quit

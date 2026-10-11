@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/jackjakarta/gocron/internal/cronexpr"
@@ -175,4 +176,117 @@ func (c *Crontab) eol() string {
 		}
 	}
 	return "\n"
+}
+
+// Adopt turns the unmanaged entry on line (1-based) into a managed job by
+// inserting a meta line above it, and returns the new job's ID. raw must
+// match the line's current text, so a stale request fails with ErrNotFound
+// instead of adopting a different line. Without wrap the cron line is kept
+// byte for byte; with wrap it is rewritten to run through "gocron exec" at
+// bin.
+func (c *Crontab) Adopt(line int, raw, name string, wrap bool, bin string) (string, error) {
+	i := line - 1
+	if i < 0 || i >= len(c.Lines) || c.Lines[i].Kind != Entry || c.Lines[i].Raw != raw {
+		return "", fmt.Errorf("%w: no unmanaged entry %q on line %d", ErrNotFound, raw, line)
+	}
+	id := c.NewID()
+	m := &Meta{Pairs: []Pair{{"id", id}}}
+	if name != "" {
+		m.Set("name", name)
+	}
+	l := c.Lines[i]
+	if wrap {
+		j := Job{
+			ID:       id,
+			Schedule: l.Entry.Schedule,
+			Command:  UnescapePercent(strings.TrimRight(l.Entry.Command, " \t")),
+			Enabled:  true,
+			Wrapped:  true,
+		}
+		text, err := renderJobLine(j, bin)
+		if err != nil {
+			return "", err
+		}
+		l = parseLine(text, l.EOL)
+	}
+	eol := l.EOL
+	if eol == "" {
+		eol = c.eol()
+	}
+	rest := append([]*Line{parseLine(m.Format(), eol), l}, c.Lines[i+1:]...)
+	c.Lines = append(c.Lines[:i], rest...)
+	c.pair()
+	return id, nil
+}
+
+// DefaultAdoptName suggests a name for adopting the entry on line
+// (1-based): a lone comment line directly above it, or else the name of
+// the program the command runs.
+func (c *Crontab) DefaultAdoptName(line int) string {
+	i := line - 1
+	if i < 0 || i >= len(c.Lines) || c.Lines[i].Entry == nil {
+		return ""
+	}
+	isComment := func(k int) bool {
+		return k >= 0 && c.Lines[k].Kind == Comment && c.Lines[k].Meta == nil && c.Lines[k].Entry == nil
+	}
+	if isComment(i-1) && !isComment(i-2) {
+		if s := strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(c.Lines[i-1].Raw), "#")); s != "" {
+			return clip(s, 40)
+		}
+	}
+	return commandName(UnescapePercent(c.Lines[i].Entry.Command))
+}
+
+// launchers are programs whose first operand is the interesting part.
+var launchers = map[string]bool{
+	"sh": true, "bash": true, "zsh": true, "dash": true, "env": true, "exec": true,
+	"nice": true, "ionice": true, "nohup": true, "timeout": true, "flock": true, "chronic": true,
+	"python": true, "python3": true, "node": true, "ruby": true, "perl": true, "php": true,
+}
+
+// commandName returns the basename of the program cmd runs, skipping env
+// assignments, launchers and their flags: "~/bin/sync.sh >/dev/null" is
+// "sync.sh", "bash -c ~/x/backup.sh" is "backup.sh".
+func commandName(cmd string) string {
+	var fields []string
+	if words, err := shellWords(cmd); err == nil {
+		for _, w := range words {
+			fields = append(fields, w.text)
+		}
+	} else {
+		fields = strings.Fields(cmd)
+	}
+	first := ""
+	for _, f := range fields {
+		base := path.Base(f)
+		switch {
+		case f == "" || strings.ContainsAny(f[:1], "<>|&;"):
+			continue
+		case first == "" && strings.Contains(f, "=") && !strings.Contains(f, "/"):
+			continue // FOO=bar
+		case first != "" && (strings.HasPrefix(f, "-") || isNumber(f)):
+			continue
+		case launchers[base] || strings.HasPrefix(base, "python"):
+			if first == "" {
+				first = base
+			}
+			continue
+		}
+		return clip(base, 40)
+	}
+	return first
+}
+
+func isNumber(s string) bool {
+	return strings.Trim(s, "0123456789.smhd") == ""
+}
+
+// clip shortens s to at most n runes, ending in "…" when cut.
+func clip(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n-1]) + "…"
 }

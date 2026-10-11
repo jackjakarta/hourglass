@@ -25,6 +25,7 @@ type Job struct {
 	Line      int    // 1-based line number of the cron line
 	Bin       string // gocron binary path in a wrapped line
 	TZ        string // CRON_TZ in effect for this line, if any
+	Raw       string `json:"-"` // the cron line as written (unmanaged entries)
 
 	Expr *cronexpr.Expr `json:"-"`
 }
@@ -35,6 +36,19 @@ func (j Job) Title() string {
 		return j.Name
 	}
 	return j.Command
+}
+
+// Describe returns the schedule in English, naming the zone of a CRON_TZ
+// line that applies to it.
+func (j Job) Describe() string {
+	if j.Expr == nil {
+		return ""
+	}
+	s := j.Expr.Describe()
+	if j.TZ != "" && j.Expr.TZ == nil {
+		s += " (" + j.TZ + ")"
+	}
+	return s
 }
 
 // NextRuns returns up to n fire times after from, evaluated in the job's
@@ -73,6 +87,7 @@ func (c *Crontab) Jobs() []Job {
 				Enabled:  true,
 				Line:     i + 1,
 				TZ:       tz,
+				Raw:      l.Raw,
 				Expr:     l.Entry.Expr,
 			})
 		case JobMeta:
