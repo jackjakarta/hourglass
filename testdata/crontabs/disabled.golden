@@ -1,0 +1,11 @@
+  1 jobmeta id="k3f9a2" name="Nightly backup" tags="backup,db"
+  2 jobline sched="30 2 * * *" cmd="/home/jack/.local/bin/gocron exec k3f9a2 -- 'pg_dump app > /bk/app.sql'" disabled
+  3 jobmeta id="w33kly" name="Weekly report"
+  4 jobline sched="0 9 * * 1" cmd="/usr/local/bin/report --weekly" disabled
+  5 comment sched="0 0 * * *" cmd="stray-disabled-line-without-meta" disabled
+--- jobs
+line=2 managed=true id="k3f9a2" name="Nightly backup" tags=["backup" "db"] enabled=false wrapped=true sched="30 2 * * *" tz=""
+    cmd="pg_dump app > /bk/app.sql" bin="/home/jack/.local/bin/gocron" timeout=0s no_overlap=false
+line=4 managed=true id="w33kly" name="Weekly report" tags=[] enabled=false wrapped=false sched="0 9 * * 1" tz=""
+    cmd="/usr/local/bin/report --weekly"
+--- problems

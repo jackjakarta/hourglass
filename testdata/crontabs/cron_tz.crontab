@@ -1,0 +1,4 @@
+CRON_TZ=Europe/Berlin
+30 2 * * * /usr/local/bin/berlin-report
+CRON_TZ=America/New_York
+0 9 * * 1-5 /usr/local/bin/ny-standup

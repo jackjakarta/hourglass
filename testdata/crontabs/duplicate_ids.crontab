@@ -1,0 +1,4 @@
+# gocron:job id=dup111 name=First
+0 1 * * * /usr/bin/first
+# gocron:job id=dup111 name="Copy pasted"
+0 2 * * * /usr/bin/second

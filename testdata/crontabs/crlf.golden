@@ -1,0 +1,12 @@
+  1 comment eol="\r\n"
+  2 env     MAILTO="" eol="\r\n"
+  3 entry   sched="*/10 * * * *" cmd="/usr/bin/ping-home" eol="\r\n"
+  4 blank   eol="\r\n"
+  5 jobmeta id="crlf01" name="CRLF job" eol="\r\n"
+  6 jobline sched="0 6 * * *" cmd="/usr/bin/morning" eol="\r\n"
+--- jobs
+line=3 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="*/10 * * * *" tz=""
+    cmd="/usr/bin/ping-home"
+line=6 managed=true id="crlf01" name="CRLF job" tags=[] enabled=true wrapped=false sched="0 6 * * *" tz=""
+    cmd="/usr/bin/morning"
+--- problems

@@ -1,0 +1,14 @@
+  1 comment
+  2 entry   sched="*/5 * * * *" cmd="~/bin/sync.sh"
+  3 entry   sched="0 3 * * 0" cmd="/usr/bin/find /tmp -mtime +7 -delete"
+  4 blank  
+  5 comment
+  6 entry   sched="30 2 * * *" cmd="/home/jack/bin/backup.sh >> /home/jack/backup.log 2>&1"
+--- jobs
+line=2 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="*/5 * * * *" tz=""
+    cmd="~/bin/sync.sh"
+line=3 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="0 3 * * 0" tz=""
+    cmd="/usr/bin/find /tmp -mtime +7 -delete"
+line=6 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="30 2 * * *" tz=""
+    cmd="/home/jack/bin/backup.sh >> /home/jack/backup.log 2>&1"
+--- problems
