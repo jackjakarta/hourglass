@@ -21,6 +21,8 @@ type (
 	ToggleMsg     struct{ Job svc.Job }
 	DeleteMsg     struct{ Job svc.Job }
 	AdoptMsg      struct{ Job svc.Job }
+	NewMsg        struct{}
+	EditMsg       struct{ Job svc.Job }
 	NeedAdoptMsg  struct{ Job svc.Job } // an action that needs a managed job
 	ComingSoonMsg struct{ What string }
 )
@@ -279,9 +281,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Msg) {
 			return m, AdoptMsg{j}
 		}
 	case key.Matches(k, km.New):
-		return m, ComingSoonMsg{"Creating jobs"}
+		return m, NewMsg{}
 	case key.Matches(k, km.Edit):
-		return m, ComingSoonMsg{"Editing jobs"}
+		return m, m.request(func(j svc.Job) tea.Msg { return EditMsg{j} })
 	case key.Matches(k, km.Run):
 		return m, ComingSoonMsg{"Run now"}
 	case key.Matches(k, km.Test):

@@ -8,8 +8,9 @@ type Map struct {
 	Up, Down, Top, Bottom, PageUp, PageDown              key.Binding
 	Open, Back, NextTab, PrevTab, Tab1, Tab2, Tab3, Tab4 key.Binding
 
-	Toggle, Delete, Adopt, Undo, Filter key.Binding
-	New, Edit, Run, Test                key.Binding // coming in later phases
+	New, Edit, Toggle, Delete, Adopt, Undo, Filter key.Binding
+	Run, Test                                      key.Binding // coming in a later phase
+	Save, TestDraft                                key.Binding // in the editor
 
 	Help, Quit, ForceQuit key.Binding
 }
@@ -45,6 +46,9 @@ func Default() Map {
 		Run:    b([]string{"r"}, "r", "run now"),
 		Test:   b([]string{"t"}, "t", "test run"),
 
+		Save:      b([]string{"ctrl+s"}, "^s", "save (editor)"),
+		TestDraft: b([]string{"ctrl+t"}, "^t", "test draft (editor)"),
+
 		Help:      b([]string{"?"}, "?", "help"),
 		Quit:      b([]string{"q"}, "q", "quit"),
 		ForceQuit: b([]string{"ctrl+c"}, "ctrl+c", "quit now"),
@@ -55,7 +59,7 @@ func Default() Map {
 func (m Map) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.Up, m.Down, m.Top, m.Bottom, m.PageUp, m.PageDown, m.Open, m.Back},
-		{m.Toggle, m.Delete, m.Adopt, m.Undo, m.Filter},
+		{m.New, m.Edit, m.Toggle, m.Delete, m.Adopt, m.Undo, m.Filter, m.Save},
 		{m.Tab1, m.Tab2, m.Tab3, m.Tab4, m.NextTab, m.Help, m.Quit, m.ForceQuit},
 	}
 }

@@ -1,0 +1,40 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                                                                   ● cron active · Sun 14:32:07
+
+╭─ Jobs · 6 ──────────────────────────────────────────────────╮ ╭─ Sync photos ────────────────────────────────────────────────────────────╮
+│ / filter…                                                   │ │ ● enabled · #photos · s7nc0p                                             │
+│                                                             │ │                                                                          │
+│ ▌● Sync photos     Every 15 minutes   in 12m 53s            │ │ SCHEDULE   */15 * * * *                                                  │
+│  ● Rotate logs     Every hour         in 27m 53s            │ │            Every 15 minutes                                              │
+│  ● Nightly backup  At 02:30           in 11h 57m            │ │                                                                          │
+│  ● Say hi          Weekdays at 09:00  in 18h 27m            │ │ COMMAND    rsync -a ~/Pictures/ nas:/photos/                             │
+│  ● Prune docker    Sundays at 04:00   in 6d 13h             │ │                                                                          │
+│  ○ Weekly report   Mondays at 09:00   paused                │ │ TRACKING   runs via gocron exec · skips if still running                 │
+│                     ╭─ New job ────────────────────────────────────────────────────────────────────────────────────╮                     │
+│ UNMANAGED · 3       │                                                                                              │                     │
+│  · @reboot ~/bin/sta│  Name      defaults to the program's name                                                    │                     │
+│  · */5 * * * * ~/bin│                                                                                              │                     │
+│  · 0 0 1 * 1 ~/bin/f│  Schedule  ‹ Every N min · Hourly · Daily · Weekdays · Weekly · Monthly · Custom ›           │                     │
+│                     │            Daily at  [09]:[00]                                                               │                     │
+│                     │            0 9 * * *           ✓ At 09:00, every day                                         │                     │
+│                     │            next  Mon 09:00 · Tue 09:00 · Wed 09:00 · Thu 09:00 · Fri 09:00                   │                     │
+│                     │                                                                                              │                     │
+│                     │  Command   e.g. pg_dump app | gzip > /backups/app.sql.gz                                     │                     │
+│                     │  Tags      e.g. backup, db                                                                   │                     │
+│                     │                                                                                              │                     │
+│                     │  Options   [ ] Track runs   Timeout [        ]   [ ] Skip if still running                   │                     │
+│                     │            Run tracking, timeouts and overlap protection arrive with gocron exec in a later  │                     │
+│                     │            release.                                                                          │                     │
+│                     │                                                                                              │                     │
+│                     │                                                              esc cancel · ^t test · ^s save  │                     │
+│                     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯                     │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+╰─────────────────────────────────────────────────────────────╯ ╰──────────────────────────────────────────────────────────────────────────╯
+ tab next  ^s save  ^t test  esc cancel

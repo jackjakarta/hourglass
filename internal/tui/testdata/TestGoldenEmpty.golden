@@ -12,13 +12,13 @@
 │   # gocron:job id=k3f9a2 name="Nightly backup"                                                   │
 │   30 2 * * * pg_dump app > /bk/app.sql                                                           │
 │                                                                                                  │
-│ Creating jobs here arrives with the editor. Until then, add a line                               │
-│ with crontab -e: gocron picks it up within seconds, and a                                        │
-│ adopts it.                                                                                       │
+│ Press n to create your first job.                                                                │
+│                                                                                                  │
+│                                                                                                  │
 │                                                                                                  │
 │                                                                                                  │
 │                                                                                                  │
 │                                                                                                  │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
- u undo  ? help  q quit
+ n new job  u undo  ? help  q quit

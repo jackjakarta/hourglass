@@ -1,0 +1,32 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                           ● cron active · Sun 14:32:07
+
+╭─ Jobs · 6 ───────────────────────────────────────────────────────────────────────────────────────╮
+│ / filter…                                                                                        │
+│                                                                                                  │
+│  ● Sync photos     Every 15 minutes   in 12m 53s                                                 │
+│  ● Rotate logs     Every hour         in 27m 53s                                                 │
+│ ╭─ Edit · Nightly backup ──────────────────────────────────────────────────────────────────────╮ │
+│ │                                                                                              │ │
+│ │  Name      Nightly backup                                                                    │ │
+│ │                                                                                              │ │
+│ │  Schedule  ‹ Every N min · Hourly · Daily · Weekdays · Weekly · Monthly · Custom ›           │ │
+│ │            Daily at  [02]:[30]                                                               │ │
+│ │            30 2 * * *          ✓ At 02:30, every day                                         │ │
+│ │            next  Mon 02:30 · Tue 02:30 · Wed 02:30 · Thu 02:30 · Fri 02:30                   │ │
+│ │                                                                                              │ │
+│ │  Command   pg_dump app | gzip > /bk/app-$(date +%F).sql.gz                                   │ │
+│ │  Tags      backup, db                                                                        │ │
+│ │                                                                                              │ │
+│ │  Options   [x] Track runs   Timeout [30m     ]   [x] Skip if still running                   │ │
+│ │                                                                                              │ │
+│ │  · % will be escaped as \% in the crontab. You don't need to do anything.                    │ │
+│ │                                                                                              │ │
+│ │                                                              esc cancel · ^t test · ^s save  │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+ tab next  ^s save  ^t test  esc cancel

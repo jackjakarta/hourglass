@@ -17,6 +17,7 @@ import (
 	"github.com/jackjakarta/gocron/internal/tui/components"
 	"github.com/jackjakarta/gocron/internal/tui/keys"
 	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/gocron/internal/tui/views/editor"
 	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
 )
 
@@ -50,12 +51,14 @@ type (
 		toast   string // overrides the default "reloaded" toast
 	}
 	mutationMsg struct {
-		verb  string // "Paused", "Deleted", … ; "" for undo
-		title string
-		res   jobs.Result
-		err   error
-		snap  jobs.Snapshot
+		verb       string // "Paused", "Deleted", … ; "" for undo
+		title      string
+		res        jobs.Result
+		err        error
+		snap       jobs.Snapshot
+		fromEditor bool // a save from the editor, which stays open on failure
 	}
+	closeEditorMsg struct{}
 )
 
 // Model is the root of the TUI.
@@ -78,6 +81,7 @@ type Model struct {
 	readErr string // last error from the external-change check
 
 	jobs    jobsview.Model
+	editor  *editor.Model // the open new/edit form
 	help    bool
 	confirm *components.Confirm
 	toasts  components.Toasts
@@ -168,6 +172,29 @@ func (m Model) mutate(verb, title string, change func(context.Context) (jobs.Res
 	}
 }
 
+// editorSave is mutate for a save from the editor.
+func (m Model) editorSave(verb, title string, change func(context.Context) (jobs.Result, error)) tea.Cmd {
+	cmd := m.mutate(verb, title, change)
+	return func() tea.Msg {
+		msg := cmd().(mutationMsg)
+		msg.fromEditor = true
+		return msg
+	}
+}
+
+func (m Model) editorConfig(env jobs.CronEnv) editor.Config {
+	return editor.Config{Theme: m.th, Now: m.now, Env: env, UserPATH: m.opts.UserPATH, PathLint: m.opts.PathLint}
+}
+
+func (m Model) openEditor(ed editor.Model) (tea.Model, tea.Cmd) {
+	ed.SetSize(m.width, m.bodyHeight())
+	m.editor = &ed
+	return m, ed.Init()
+}
+
+// editorDirty reports an open editor with unsaved changes.
+func (m Model) editorDirty() bool { return m.editor != nil && m.editor.Dirty() }
+
 func (m *Model) toast(kind components.ToastKind, glyph, text string) {
 	m.toasts.Push(components.Toast{Kind: kind, Glyph: glyph, Text: text, At: m.now})
 }
@@ -182,20 +209,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.jobs.SetSize(m.width, m.bodyHeight())
+		if m.editor != nil {
+			m.editor.SetSize(m.width, m.bodyHeight())
+		}
 		return m, nil
 
 	case tea.BackgroundColorMsg:
 		m.th = theme.Select(m.opts.NoColor, msg.IsDark())
 		m.jobs.SetTheme(m.th)
+		if m.editor != nil {
+			m.editor.SetTheme(m.th)
+		}
 		return m, nil
 
 	case tickMsg:
 		m.now = m.clock.Now()
 		m.ticks++
 		m.jobs.SetNow(m.now)
+		if m.editor != nil {
+			m.editor.SetNow(m.now)
+		}
 		m.toasts.Expire(m.now)
 		cmds := []tea.Cmd{tick()}
-		if m.ticks%externalEvery == 0 {
+		// With unsaved edits, an outside change surfaces as a conflict on
+		// save instead of a silent reload (spec §6.5).
+		if m.ticks%externalEvery == 0 && !m.editorDirty() {
 			cmds = append(cmds, m.checkExternal())
 		}
 		if m.ticks%daemonEvery == 0 {
@@ -204,6 +242,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case tea.FocusMsg:
+		if m.editorDirty() {
+			return m, nil
+		}
 		return m, m.checkExternal()
 
 	case snapshotMsg:
@@ -258,10 +299,83 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.toast(components.ToastInfo, "", msg.What+" is coming in a later release.")
 		return m, nil
 
+	case jobsview.NewMsg:
+		return m.openEditor(editor.New(m.editorConfig(m.snap.CronEnv(0))))
+
+	case jobsview.EditMsg:
+		return m.openEditor(editor.Edit(m.editorConfig(m.snap.CronEnv(msg.Job.Line)), msg.Job.Job))
+
+	case editor.SaveMsg:
+		return m.saveEditor(msg)
+
+	case editor.CancelMsg:
+		if !msg.Dirty {
+			m.editor = nil
+			return m, nil
+		}
+		m.confirm = &components.Confirm{
+			Title:  "Discard your changes?",
+			Body:   []string{"Nothing has been saved yet."},
+			Safe:   "Keep editing",
+			Action: "Discard",
+			Danger: true,
+			OnOK:   func() tea.Msg { return closeEditorMsg{} },
+		}
+		return m, nil
+
+	case closeEditorMsg:
+		m.editor = nil
+		return m, nil
+
+	case editor.TestMsg:
+		m.toast(components.ToastInfo, "", "Test runs are coming in a later release.")
+		return m, nil
+
+	case editor.BlockedMsg:
+		m.toast(components.ToastFail, "", msg.Text)
+		return m, nil
+
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
+	if m.editor != nil {
+		return m.updateEditor(msg)
+	}
 	return m, nil
+}
+
+func (m Model) saveEditor(msg editor.SaveMsg) (tea.Model, tea.Cmd) {
+	svc, d := m.opts.Service, msg.Draft
+	if svc == nil || m.editor == nil {
+		return m, nil
+	}
+	ed := *m.editor
+	ed.SetSaving(true)
+	m.editor = &ed
+	title := d.Name
+	if title == "" {
+		title = d.Command
+	}
+	if msg.ID == "" {
+		return m, m.editorSave("Created", title, func(ctx context.Context) (jobs.Result, error) {
+			return svc.Create(ctx, d)
+		})
+	}
+	return m, m.editorSave("Saved", title, func(ctx context.Context) (jobs.Result, error) {
+		return svc.Update(ctx, msg.ID, d)
+	})
+}
+
+// updateEditor passes a message to the editor and acts on its request at
+// once, like updateJobs.
+func (m Model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
+	ed, cmd, req := m.editor.Update(msg)
+	m.editor = &ed
+	if req == nil {
+		return m, cmd
+	}
+	next, reqCmd := m.Update(req)
+	return next, tea.Batch(cmd, reqCmd)
 }
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -275,6 +389,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.confirm = nil
 		}
 		return m, cmd
+	}
+	if m.editor != nil {
+		return m.updateEditor(msg)
 	}
 	if m.help {
 		if key.Matches(msg, km.Help, km.Back, km.Quit) {
@@ -347,6 +464,9 @@ func (m Model) handleExternal(msg externalMsg) Model {
 
 func (m Model) handleMutation(msg mutationMsg) (tea.Model, tea.Cmd) {
 	m.setSnapshot(msg.snap)
+	if msg.fromEditor && m.editor != nil {
+		return m.handleEditorSave(msg)
+	}
 	var conflict *jobs.ConflictError
 	switch {
 	case msg.err == nil && msg.verb == "":
@@ -386,6 +506,45 @@ func (m Model) handleMutation(msg mutationMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleEditorSave closes the editor after a save. On failure the editor
+// stays open with the draft, so nothing typed is lost.
+func (m Model) handleEditorSave(msg mutationMsg) (tea.Model, tea.Cmd) {
+	ed := *m.editor
+	ed.SetSaving(false)
+	m.editor = &ed
+	var conflict *jobs.ConflictError
+	switch {
+	case msg.err == nil:
+		m.editor = nil
+		if msg.res.Backup == "" {
+			m.toast(components.ToastInfo, "", "Nothing changed.")
+		} else {
+			m.toast(components.ToastOK, "", fmt.Sprintf("%s %q · backup created · u undo", msg.verb, clip(msg.title, 28)))
+		}
+		m.jobs.SelectJob(msg.res.ID)
+	case errors.As(msg.err, &conflict) && conflict.Retry != nil:
+		m.confirm = &components.Confirm{
+			Title: "Crontab changed outside gocron",
+			Body: []string{
+				"Someone edited your crontab after gocron loaded it,",
+				"so your job wasn't saved.",
+				"",
+				"Keep editing: load their version; your edits stay here.",
+				"Reapply: load their version and save your job into it.",
+			},
+			Safe:   "Keep editing",
+			Action: "Reapply",
+			OnSafe: m.reload("Crontab reloaded · your edits are still here · ^s saves"),
+			OnOK:   m.editorSave(msg.verb, msg.title, conflict.Retry),
+		}
+	case errors.Is(msg.err, crontab.ErrNotFound):
+		m.toast(components.ToastFail, "", "This job is no longer in the crontab, so it can't be saved. esc closes the editor.")
+	default:
+		m.toast(components.ToastFail, "", "Couldn't save: "+msg.err.Error()+".")
+	}
+	return m, nil
+}
+
 func (m Model) bodyHeight() int { return max(m.height-3, 0) }
 
 // View renders the screen.
@@ -409,6 +568,9 @@ func (m Model) render() string {
 	screen := lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top,
 		m.header()+"\n\n"+lipgloss.Place(w, m.bodyHeight(), lipgloss.Left, lipgloss.Top, body)+"\n"+m.footer())
 
+	if m.editor != nil && m.editor.Modal() {
+		screen = components.OverlayCenter(screen, m.editor.View(), w, h)
+	}
 	if t := m.toasts.View(m.th, m.now, w-2); t != "" {
 		// Bottom right, inside the body's panel border.
 		screen = components.Overlay(screen, t, w-lipgloss.Width(t)-2, h-2-lipgloss.Height(t))
@@ -479,6 +641,8 @@ func (m Model) body() string {
 		return comingSoon(m.th, "Crontab", "Your raw crontab, its revisions and diffs,", "with one-key restore.", w, h)
 	case !m.loaded:
 		return components.Panel(m.th, "Jobs", []string{"", m.th.Muted.Render("Reading your crontab…")}, w, h, true)
+	case m.editor != nil && !m.editor.Modal():
+		return lipgloss.PlaceHorizontal(w, lipgloss.Center, m.editor.View())
 	}
 	return m.jobs.View()
 }
@@ -519,6 +683,8 @@ func (m Model) footerKeys() []key.Binding {
 		return []key.Binding{hint("?", "close"), hint("esc", "close")}
 	case m.opts.LoadErr != nil:
 		return []key.Binding{hint("q", "quit")}
+	case m.editor != nil:
+		return m.editor.Hints()
 	case m.tab != tabJobs:
 		return []key.Binding{hint("1-4", "views"), hint("tab", "next view"), hint("?", "help"), hint("q", "quit")}
 	case m.jobs.Capturing():
@@ -526,7 +692,7 @@ func (m Model) footerKeys() []key.Binding {
 	}
 	j, ok := m.jobs.Selected()
 	if !ok {
-		return []key.Binding{hint("u", "undo"), hint("?", "help"), hint("q", "quit")}
+		return []key.Binding{hint("n", "new job"), hint("u", "undo"), hint("?", "help"), hint("q", "quit")}
 	}
 	var out []key.Binding
 	if m.jobs.DetailOpen() {
@@ -542,11 +708,11 @@ func (m Model) footerKeys() []key.Binding {
 		if !j.Enabled {
 			toggle = "resume"
 		}
-		out = append(out, hint("space", toggle), hint("x", "delete"))
+		out = append(out, hint("e", "edit"), hint("space", toggle), hint("x", "delete"))
 	} else {
 		out = append(out, hint("a", "adopt"))
 	}
-	out = append(out, hint("u", "undo"), hint("/", "filter"), hint("?", "help"), hint("q", "quit"))
+	out = append(out, hint("n", "new"), hint("u", "undo"), hint("/", "filter"), hint("?", "help"), hint("q", "quit"))
 	return out
 }
 

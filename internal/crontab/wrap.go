@@ -109,6 +109,20 @@ func FormatDuration(d time.Duration) string {
 	return b.String()
 }
 
+// ShellWords splits s into words like a POSIX shell, without expansions.
+// It fails on an unterminated quote.
+func ShellWords(s string) ([]string, error) {
+	words, err := shellWords(s)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(words))
+	for i, w := range words {
+		out[i] = w.text
+	}
+	return out, nil
+}
+
 type word struct {
 	text  string
 	start int // byte offset in the input

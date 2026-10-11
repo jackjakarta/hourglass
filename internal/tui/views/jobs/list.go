@@ -250,9 +250,7 @@ func (m Model) emptyView(w, h int) string {
 		"  " + th.Muted.Render(`# gocron:job id=k3f9a2 name="Nightly backup"`),
 		"  " + th.Schedule.Render("30 2 * * *") + " " + th.Text.Render("pg_dump app > /bk/app.sql"),
 		"",
-		th.Text.Render("Creating jobs here arrives with the editor. Until then, add a line"),
-		th.Text.Render("with ") + th.Key.Render("crontab -e") + th.Text.Render(": gocron picks it up within seconds, and ") + th.Key.Render("a"),
-		th.Text.Render("adopts it."),
+		th.Text.Render("Press ") + th.Key.Render("n") + th.Text.Render(" to create your first job."),
 	}
 	return components.Panel(th, "Jobs", lines, w, h, true)
 }
