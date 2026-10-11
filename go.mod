@@ -12,6 +12,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20261011004359-2acd7e345453
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/robfig/cron/v3 v3.0.1
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.59.0
 )
 
