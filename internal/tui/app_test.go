@@ -71,6 +71,7 @@ type harness struct {
 	backups string
 	tm      *teatest.TestModel
 	screenV *atomic.Value // the latest rendered screen, unstyled
+	daemon  *atomic.Bool  // the daemon probe's result has arrived
 }
 
 // spy publishes every rendered screen so tests can wait for UI states
@@ -78,9 +79,13 @@ type harness struct {
 type spy struct {
 	Model
 	screen *atomic.Value
+	daemon *atomic.Bool
 }
 
 func (s spy) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(daemonMsg); ok {
+		defer s.daemon.Store(true)
+	}
 	m, cmd := s.Model.Update(msg)
 	s.Model = m.(Model)
 	return s, cmd
@@ -156,7 +161,8 @@ func (hs *harness) run(opts Options, w, h int) {
 	}
 	hs.screenV = &atomic.Value{}
 	hs.screenV.Store("")
-	hs.tm = teatest.NewTestModel(hs.t, spy{New(context.Background(), opts), hs.screenV}, teatest.WithInitialTermSize(w, h))
+	hs.daemon = &atomic.Bool{}
+	hs.tm = teatest.NewTestModel(hs.t, spy{New(context.Background(), opts), hs.screenV, hs.daemon}, teatest.WithInitialTermSize(w, h))
 }
 
 func (hs *harness) write(s string) {
@@ -229,6 +235,10 @@ func (hs *harness) keys(keys ...string) {
 // spaces trimmed.
 func (hs *harness) screen() string {
 	hs.t.Helper()
+	// The header's daemon status arrives asynchronously; goldens need it.
+	for deadline := time.Now().Add(5 * time.Second); !hs.daemon.Load() && time.Now().Before(deadline); {
+		time.Sleep(5 * time.Millisecond)
+	}
 	if err := hs.tm.Quit(); err != nil {
 		hs.t.Fatal(err)
 	}
