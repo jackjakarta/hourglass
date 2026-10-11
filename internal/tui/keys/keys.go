@@ -10,12 +10,17 @@ type Map struct {
 
 	New, Edit, Toggle, Delete, Adopt, Undo, Filter key.Binding
 	Run, Test, History                             key.Binding
+	Sort, TagFilter, Copy, CopySchedule, Palette   key.Binding
 	Save, TestDraft                                key.Binding // in the editor
 
 	// The History view and log viewer.
 	Failures, Trigger, Pager, NextMatch, PrevMatch key.Binding
 	// The run pane.
 	Stop, Compare key.Binding
+	// The Timeline view.
+	Day, Week, Now key.Binding
+	// The Crontab view.
+	Restore, EditCrontab, Diff key.Binding
 
 	Help, Quit, ForceQuit key.Binding
 }
@@ -51,6 +56,20 @@ func Default() Map {
 		Run:     b([]string{"r"}, "r", "run now"),
 		Test:    b([]string{"t"}, "t", "test in cron's env"),
 		History: b([]string{"h"}, "h", "job's history"),
+
+		Sort:         b([]string{"s"}, "s", "cycle sort"),
+		TagFilter:    b([]string{"#"}, "#", "filter by tag"),
+		Copy:         b([]string{"y"}, "y", "copy command"),
+		CopySchedule: b([]string{"Y"}, "Y", "copy schedule"),
+		Palette:      b([]string{"ctrl+k", ":"}, "^k", "commands"),
+
+		Day:  b([]string{"d"}, "d", "next 24h"),
+		Week: b([]string{"w"}, "w", "next 7 days"),
+		Now:  b([]string{"."}, ".", "back to now"),
+
+		Restore:     b([]string{"R"}, "R", "restore revision"),
+		EditCrontab: b([]string{"E"}, "E", "edit in $EDITOR"),
+		Diff:        b([]string{"d"}, "d", "diff / full text"),
 
 		Failures:  b([]string{"f"}, "f", "failures only"),
 		Trigger:   b([]string{"c"}, "c", "cycle trigger"),

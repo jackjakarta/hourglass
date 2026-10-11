@@ -85,26 +85,48 @@ func (m *Model) clampOffset() {
 	m.offset = max(min(m.offset, total-vis), 0)
 }
 
+// filterLine shows the tag filter, the / filter, and the sort when it
+// isn't the default.
+func (m Model) filterLine(iw int) string {
+	th := m.th
+	var left string
+	if m.tag != "" {
+		left = th.Schedule.Render("#"+m.tag) + " "
+	}
+	switch {
+	case m.filtering:
+		left += th.AccentText.Render("/ ") + th.Text.Render(m.filter) + th.AccentText.Render("█")
+	case m.filter != "":
+		left += th.AccentText.Render("/ ") + th.Text.Render(m.filter) + th.Muted.Render("  · esc clears")
+	case m.tag != "":
+		left += th.Muted.Render("· esc clears")
+	default:
+		left += th.Muted.Render("/ filter…")
+	}
+	if m.sort == SortNext {
+		return left
+	}
+	right := th.Muted.Render("sort: " + m.sort.String())
+	gap := iw - lipgloss.Width(left) - lipgloss.Width(right)
+	if gap < 2 {
+		return left
+	}
+	return left + strings.Repeat(" ", gap) + right
+}
+
 func (m Model) listPanel(w, h int, layout Layout) string {
 	iw := w - 4
 	th := m.th
 	var lines []string
 
-	// Filter line.
-	switch {
-	case m.filtering:
-		lines = append(lines, th.AccentText.Render("/ ")+th.Text.Render(m.filter)+th.AccentText.Render("█"))
-	case m.filter != "":
-		lines = append(lines, th.AccentText.Render("/ ")+th.Text.Render(m.filter)+th.Muted.Render("  · esc clears"))
-	default:
-		lines = append(lines, th.Muted.Render("/ filter…"))
-	}
-	lines = append(lines, "")
+	lines = append(lines, m.filterLine(iw), "")
 
 	rows := m.rows()
 	sel := m.index(rows)
 	var body []string
 	switch {
+	case len(rows) == 0 && m.filter == "":
+		body = append(body, th.Muted.Render(fmt.Sprintf("No jobs are tagged #%s.", m.tag)))
 	case len(rows) == 0:
 		body = append(body, th.Muted.Render(fmt.Sprintf("No jobs match %q.", m.filter)))
 	default:

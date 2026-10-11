@@ -118,6 +118,8 @@ func New(ctx context.Context, opts Options) Model {
 	km := keys.Default()
 	history := historyview.New(th, km)
 	history.SetNow(opts.Clock.Now())
+	jv := jobsview.New(th, km)
+	jv.SetSort(jobsview.ParseSort(opts.UI.DefaultSort))
 	return Model{
 		ctx:      ctx,
 		opts:     opts,
@@ -125,7 +127,7 @@ func New(ctx context.Context, opts Options) Model {
 		keys:     km,
 		th:       th,
 		now:      opts.Clock.Now(),
-		jobs:     jobsview.New(th, km),
+		jobs:     jv,
 		history:  history,
 		sessions: map[int]*session{},
 	}
@@ -395,6 +397,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.mutate("Adopted", "", func(ctx context.Context) (jobs.Result, error) {
 			return svc.Adopt(ctx, j.Line, j.Raw)
 		})
+
+	case jobsview.CopyMsg:
+		if msg.Text == "" {
+			return m, nil
+		}
+		m.toast(components.ToastOK, "", "Copied the "+msg.What+" to the clipboard")
+		return m, tea.SetClipboard(msg.Text)
 
 	case jobsview.NeedAdoptMsg:
 		m.toast(components.ToastInfo, "", "That's an unmanaged entry. Press a to adopt it first.")

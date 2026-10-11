@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/jackjakarta/gocron/internal/config"
 	"github.com/jackjakarta/gocron/internal/doctor"
 	"github.com/jackjakarta/gocron/internal/jobs"
 )
@@ -33,6 +34,9 @@ type Options struct {
 	// PathLint replaces the editor's PATH check (tests); nil uses
 	// jobs.LintPath.
 	PathLint func(cmd string, env jobs.CronEnv) []jobs.Issue
+	// UI is the [ui] config: the default sort and the timeline's
+	// congestion threshold.
+	UI config.UI
 }
 
 // Run starts the TUI and blocks until it quits.

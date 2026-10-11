@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -168,4 +169,84 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: ' ', Text: " "}
 	}
 	return tea.KeyPressMsg{Code: []rune(k)[0], Text: k}
+}
+
+func TestSortCycling(t *testing.T) {
+	m := model(t, tab)
+	m, _ = m.Update(keyMsg("s"))
+	if m.Sort() != SortName {
+		t.Fatalf("sort = %v", m.Sort())
+	}
+	if got, want := titles(m), []string{"Boot", "Daily", "Hourly", "Never", "Paused", "boot-entry"}; !equal(got, want) {
+		t.Errorf("by name = %v, want %v", got, want)
+	}
+	if !strings.Contains(m.View(), "sort: name") {
+		t.Error("the list doesn't show the sort")
+	}
+	m, _ = m.Update(keyMsg("s"))
+	if got, want := titles(m), []string{"Daily", "Paused", "Hourly", "Never", "Boot", "boot-entry"}; !equal(got, want) {
+		t.Errorf("crontab order = %v, want %v", got, want)
+	}
+	m, _ = m.Update(keyMsg("s"))
+	if m.Sort() != SortNext || strings.Contains(m.View(), "sort:") {
+		t.Errorf("s didn't wrap back to next: %v", m.Sort())
+	}
+	for in, want := range map[string]Sort{"next": SortNext, "name": SortName, "crontab": SortCrontab, "bogus": SortNext} {
+		if got := ParseSort(in); got != want {
+			t.Errorf("ParseSort(%q) = %v", in, got)
+		}
+	}
+}
+
+func TestTagFilter(t *testing.T) {
+	m := model(t, tab)
+	if _, req := m.Update(keyMsg("#")); req != (TagPickerMsg{}) {
+		t.Errorf("# = %#v", req)
+	}
+	m.SetTag("ops")
+	if got := titles(m); !equal(got, []string{"Daily"}) {
+		t.Errorf("tag ops = %v", got)
+	}
+	if !strings.Contains(m.View(), "#ops") {
+		t.Error("the list doesn't show the tag")
+	}
+	m.SetTag("op") // exact, not a prefix
+	if got := titles(m); len(got) != 0 {
+		t.Errorf("tag op = %v", got)
+	}
+	m.SetTag("ops")
+	m.filter = "xyz"
+	m.rebuild()
+	m, _ = m.Update(keyMsg("esc")) // clears the text first
+	if m.Tag() != "ops" || m.filter != "" {
+		t.Errorf("first esc: tag %q filter %q", m.Tag(), m.filter)
+	}
+	m, _ = m.Update(keyMsg("esc"))
+	if m.Tag() != "" || len(titles(m)) != 6 {
+		t.Errorf("second esc: tag %q rows %v", m.Tag(), titles(m))
+	}
+}
+
+func TestCopyAndReveal(t *testing.T) {
+	m := model(t, tab)
+	if _, req := m.Update(keyMsg("y")); req != (CopyMsg{"hourly", "command"}) {
+		t.Errorf("y = %#v", req)
+	}
+	if _, req := m.Update(keyMsg("Y")); req != (CopyMsg{"0 * * * *", "schedule"}) {
+		t.Errorf("Y = %#v", req)
+	}
+	m.SetTag("ops")
+	never := m.snap.Jobs[4]
+	m.Reveal(never)
+	if j, _ := m.Selected(); j.ID != "dddddd" || m.Tag() != "" {
+		t.Errorf("Reveal selected %q, tag %q", j.Title(), m.Tag())
+	}
+	if m.DetailOpen() {
+		t.Error("Reveal opened the detail in the split layout")
+	}
+	m.SetSize(100, 30)
+	m.Reveal(never)
+	if !m.DetailOpen() {
+		t.Error("Reveal didn't open the detail in the list layout")
+	}
 }
