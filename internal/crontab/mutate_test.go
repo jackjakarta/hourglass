@@ -210,3 +210,81 @@ func TestNextRunsHonorsCronTZ(t *testing.T) {
 		t.Errorf("New York job next = %v", got)
 	}
 }
+
+func TestAdoptInsertsOnlyAMetaLine(t *testing.T) {
+	orig := loadFixture(t, "realistic_mixed")
+	c := Parse(orig)
+	// Line 9: */5 * * * * ~/bin/sync.sh >/dev/null 2>&1
+	raw := c.Lines[8].Raw
+	id, err := c.Adopt(9, raw, "Sync", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.SplitAfter(string(orig), "\n")
+	want := strings.Join(lines[:8], "") + "# gocron:job id=" + id + " name=Sync\n" + strings.Join(lines[8:], "")
+	if got := string(c.Serialize()); got != want {
+		t.Errorf("adopt:\n%s\nwant:\n%s", got, want)
+	}
+	j, ok := c.Job(id)
+	if !ok || !j.Managed || j.Wrapped || j.Name != "Sync" || j.Command != "~/bin/sync.sh >/dev/null 2>&1" || j.Line != 10 {
+		t.Errorf("job = %+v", j)
+	}
+}
+
+func TestAdoptWrapped(t *testing.T) {
+	c := Parse([]byte("0 3 * * * echo 50% > /tmp/x\n"))
+	id, err := c.Adopt(1, "0 3 * * * echo 50% > /tmp/x", "", true, "/usr/bin/gocron")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "# gocron:job id=" + id + "\n0 3 * * * /usr/bin/gocron exec " + id + ` -- 'echo 50\% > /tmp/x'` + "\n"
+	if got := string(c.Serialize()); got != want {
+		t.Errorf("got %q\nwant %q", got, want)
+	}
+	if j, _ := c.Job(id); !j.Wrapped || j.Command != "echo 50% > /tmp/x" {
+		t.Errorf("job = %+v", j)
+	}
+}
+
+func TestAdoptCRLFAndNoTrailingNewline(t *testing.T) {
+	c := Parse([]byte("A=1\r\n@daily x"))
+	id, err := c.Adopt(2, "@daily x", "", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(c.Serialize()); got != "A=1\r\n# gocron:job id="+id+"\r\n@daily x" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestAdoptStale(t *testing.T) {
+	c := Parse([]byte("# c\n@daily x\n# gocron:job id=abc234\n@daily y\n"))
+	for _, tt := range []struct {
+		line int
+		raw  string
+	}{{2, "@daily changed"}, {1, "# c"}, {4, "@daily y"}, {0, ""}, {9, ""}} {
+		if _, err := c.Adopt(tt.line, tt.raw, "", false, ""); !errors.Is(err, ErrNotFound) {
+			t.Errorf("Adopt(%d, %q): err = %v", tt.line, tt.raw, err)
+		}
+	}
+}
+
+func TestDefaultAdoptName(t *testing.T) {
+	c := Parse([]byte(`# header
+# more header
+@reboot ~/bin/start-tmux.sh
+
+# Back up photos
+0 1 * * * rsync -a ~/p nas:/p
+#
+0 2 * * * FOO=1 nice -n 10 python3 -u /opt/jobs/report.py --weekly
+0 3 * * * bash -c "~/x/backup.sh" >/dev/null 2>&1
+0 4 * * * timeout 30m /usr/local/bin/sync-mail
+`))
+	want := map[int]string{3: "start-tmux.sh", 6: "Back up photos", 8: "report.py", 9: "backup.sh", 10: "sync-mail", 1: ""}
+	for line, name := range want {
+		if got := c.DefaultAdoptName(line); got != name {
+			t.Errorf("line %d: %q, want %q", line, got, name)
+		}
+	}
+}

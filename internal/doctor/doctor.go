@@ -218,13 +218,20 @@ var units = []struct {
 	{"crond", DaemonCronie},
 }
 
-func checkDaemon(ctx context.Context, env Env) (Check, Daemon) {
-	c := Check{Name: "cron daemon"}
+// DaemonStatus is what DetectDaemon found.
+type DaemonStatus struct {
+	Daemon  Daemon // DaemonNone when nothing runs
+	Running bool
+	Via     string // "systemd unit cron", "process crond"
+}
+
+// DetectDaemon looks for an active cron daemon: systemd units first, then
+// running processes.
+func DetectDaemon(ctx context.Context, env Env) DaemonStatus {
 	if _, err := env.LookPath("systemctl"); err == nil {
 		for _, u := range units {
 			if out, code, err := env.Run(ctx, "systemctl", "is-active", u.name); err == nil && code == 0 && out == "active" {
-				c.Status, c.Detail = OK, fmt.Sprintf("%s is active (systemd unit %s)", u.daemon, u.name)
-				return c, u.daemon
+				return DaemonStatus{u.daemon, true, "systemd unit " + u.name}
 			}
 		}
 	}
@@ -241,12 +248,24 @@ func checkDaemon(ctx context.Context, env Env) (Check, Daemon) {
 		default:
 			continue
 		}
-		c.Status, c.Detail = OK, fmt.Sprintf("%s is running (process %s)", d, p)
-		return c, d
+		return DaemonStatus{d, true, "process " + p}
 	}
-	c.Status, c.Detail = Fail, "no cron daemon is running, so no jobs will run"
-	c.Hint = "start it, e.g. sudo systemctl enable --now cron (or cronie / crond)"
-	return c, DaemonNone
+	return DaemonStatus{}
+}
+
+func checkDaemon(ctx context.Context, env Env) (Check, Daemon) {
+	c := Check{Name: "cron daemon"}
+	st := DetectDaemon(ctx, env)
+	switch {
+	case !st.Running:
+		c.Status, c.Detail = Fail, "no cron daemon is running, so no jobs will run"
+		c.Hint = "start it, e.g. sudo systemctl enable --now cron (or cronie / crond)"
+	case strings.HasPrefix(st.Via, "systemd"):
+		c.Status, c.Detail = OK, fmt.Sprintf("%s is active (%s)", st.Daemon, st.Via)
+	default:
+		c.Status, c.Detail = OK, fmt.Sprintf("%s is running (%s)", st.Daemon, st.Via)
+	}
+	return c, st.Daemon
 }
 
 func checkProblems(tab *crontab.Crontab) Check {
