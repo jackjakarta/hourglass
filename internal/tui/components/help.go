@@ -22,8 +22,10 @@ func Footer(th *theme.Theme, bindings []key.Binding, width int) string {
 	return h.ShortHelpView(bindings)
 }
 
-// HelpOverlay renders the grouped key bindings in a box.
-func HelpOverlay(th *theme.Theme, groups [][]key.Binding, titles []string) string {
+// HelpOverlay renders the grouped key bindings in a box at most maxWidth
+// wide, wrapping the groups onto more rows when they don't fit side by side.
+func HelpOverlay(th *theme.Theme, groups [][]key.Binding, titles []string, maxWidth int) string {
+	const sep = "     "
 	var cols []string
 	for i, g := range groups {
 		keyW := 0
@@ -40,7 +42,22 @@ func HelpOverlay(th *theme.Theme, groups [][]key.Binding, titles []string) strin
 		}
 		cols = append(cols, strings.Join(lines, "\n"))
 	}
-	body := lipgloss.JoinHorizontal(lipgloss.Top, intersperse(cols, "     ")...)
+	avail := maxWidth - 8 // border and padding
+	var rows, row []string
+	width := 0
+	for _, c := range cols {
+		w := lipgloss.Width(c)
+		if len(row) > 0 && width+len(sep)+w > avail {
+			rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, intersperse(row, sep)...))
+			row, width = nil, 0
+		}
+		if len(row) > 0 {
+			width += len(sep)
+		}
+		row, width = append(row, c), width+w
+	}
+	rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, intersperse(row, sep)...))
+	body := strings.Join(rows, "\n\n")
 	foot := th.Muted.Render("? or esc to close")
 	content := th.Title.Render("Keys") + "\n\n" + body + "\n\n" + lipgloss.PlaceHorizontal(lipgloss.Width(body), lipgloss.Right, foot)
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(th.Accent).Padding(1, 3).Render(content)

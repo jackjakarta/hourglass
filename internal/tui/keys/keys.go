@@ -93,11 +93,13 @@ func Default() Map {
 func (m Map) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.Up, m.Down, m.Top, m.Bottom, m.PageUp, m.PageDown, m.Open, m.Back},
-		{m.New, m.Edit, m.Toggle, m.Delete, m.Adopt, m.Run, m.Test, m.History, m.Undo, m.Filter},
+		{m.New, m.Edit, m.Toggle, m.Delete, m.Adopt, m.Run, m.Test, m.History, m.Undo},
+		{m.Filter, m.TagFilter, m.Sort, m.Copy, m.CopySchedule},
 		{m.Failures, m.Trigger, m.Pager, m.NextMatch, m.PrevMatch, m.Save, m.TestDraft},
-		{m.Tab1, m.Tab2, m.Tab3, m.Tab4, m.NextTab, m.Help, m.Quit, m.ForceQuit},
+		{m.Day, m.Week, m.Now, m.Restore, m.EditCrontab, m.Diff},
+		{m.Tab1, m.Tab2, m.Tab3, m.Tab4, m.NextTab, m.Palette, m.Help, m.Quit, m.ForceQuit},
 	}
 }
 
 // GroupTitles name the FullHelp columns.
-var GroupTitles = []string{"Navigate", "Jobs", "History", "General"}
+var GroupTitles = []string{"Navigate", "Jobs", "List", "History", "Timeline · Crontab", "General"}

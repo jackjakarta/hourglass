@@ -854,7 +854,7 @@ func (m Model) render() string {
 	case m.confirm != nil:
 		screen = components.OverlayCenter(screen, m.confirm.View(m.th), w, h)
 	case m.help:
-		screen = components.OverlayCenter(screen, components.HelpOverlay(m.th, m.keys.FullHelp(), keys.GroupTitles), w, h)
+		screen = components.OverlayCenter(screen, components.HelpOverlay(m.th, m.keys.FullHelp(), keys.GroupTitles, w), w, h)
 	}
 	if m.diff != nil {
 		screen = components.OverlayCenter(screen, m.diff.view(m.th, w, h), w, h)
