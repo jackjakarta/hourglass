@@ -2,7 +2,9 @@ package crontab
 
 import (
 	"fmt"
+	"iter"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackjakarta/gocron/internal/cronexpr"
@@ -57,17 +59,56 @@ func (j Job) NextRuns(from time.Time, n int) []time.Time {
 	if j.Expr == nil {
 		return nil
 	}
-	eval := from
-	if j.TZ != "" && j.Expr.TZ == nil {
-		if loc, err := time.LoadLocation(j.TZ); err == nil {
-			eval = from.In(loc)
-		}
-	}
-	out := j.Expr.Next(eval, n)
+	out := j.Expr.Next(j.evalTime(from), n)
 	for i := range out {
 		out[i] = out[i].In(from.Location())
 	}
 	return out
+}
+
+// Between yields the fire times t with from <= t < to, evaluated like
+// NextRuns and returned in from's location.
+func (j Job) Between(from, to time.Time) iter.Seq[time.Time] {
+	return func(yield func(time.Time) bool) {
+		if j.Expr == nil {
+			return
+		}
+		for t := range j.Expr.Between(j.evalTime(from), to) {
+			if !yield(t.In(from.Location())) {
+				return
+			}
+		}
+	}
+}
+
+// evalTime is from in the zone of a CRON_TZ line that applies to the job.
+func (j Job) evalTime(from time.Time) time.Time {
+	if j.TZ != "" && j.Expr.TZ == nil {
+		if loc, err := loadLocation(j.TZ); err == nil {
+			return from.In(loc)
+		}
+	}
+	return from
+}
+
+var locations sync.Map // zone name → *time.Location or error
+
+// loadLocation is time.LoadLocation, cached: it reads the zoneinfo
+// database on every call, and the timeline asks for every job each minute.
+func loadLocation(name string) (*time.Location, error) {
+	if v, ok := locations.Load(name); ok {
+		if loc, ok := v.(*time.Location); ok {
+			return loc, nil
+		}
+		return nil, v.(error)
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		locations.Store(name, err)
+		return nil, err
+	}
+	locations.Store(name, loc)
+	return loc, nil
 }
 
 // Jobs returns managed jobs and unmanaged entries in crontab order.

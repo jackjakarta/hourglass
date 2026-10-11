@@ -1,6 +1,7 @@
 package cronexpr
 
 import (
+	"iter"
 	"sort"
 	"time"
 )
@@ -33,24 +34,114 @@ func (e *Expr) Next(from time.Time, n int) []time.Time {
 	if e.Reboot || n <= 0 {
 		return nil
 	}
-	loc := e.TZ
-	if loc == nil {
-		loc = from.Location()
-	}
-	fixed := !e.Minute.Star && !e.Hour.Star
+	loc := e.location(from)
 	fromUnix := from.Unix()
-
-	// Instants after a fall-back can carry wall times earlier than from's,
-	// so start the wall-clock walk early by the size of any nearby shift.
-	start := wallUnix(fromUnix, loc)
-	start -= maxOffsetSpread(fromUnix, loc)
-
 	var out []time.Time
+	e.walk(fromUnix, loc, func(w time.Time) time.Time { return w.AddDate(searchYears, 0, 0) },
+		func(insts []int64, earliest int64) bool {
+			for _, t := range insts {
+				if t > fromUnix {
+					out = append(out, time.Unix(t, 0).In(loc))
+				}
+			}
+			if len(out) < n {
+				return true
+			}
+			out = sortDedupe(out)
+			// The earliest instant of each successive wall time never
+			// decreases, so once it passes the n-th result nothing later
+			// can displace it.
+			return len(out) < n || earliest < out[n-1].Unix()
+		})
+	out = sortDedupe(out)
+	if len(out) > n {
+		out = out[:n]
+	}
+	return out
+}
+
+// Between yields every fire time t with from <= t < to, in ascending order,
+// with the same zone and daylight-saving rules as Next. Unlike Next it never
+// searches past to, so sparse schedules cost nothing.
+func (e *Expr) Between(from, to time.Time) iter.Seq[time.Time] {
+	return func(yield func(time.Time) bool) {
+		if e.Reboot || !from.Before(to) {
+			return
+		}
+		loc := e.location(from)
+		// Fire times are whole seconds: t >= from and t < to.
+		lo, hi := from.Unix(), to.Unix()
+		if from.Nanosecond() > 0 {
+			lo++
+		}
+		if to.Nanosecond() > 0 {
+			hi++
+		}
+		limit := time.Unix(wallUnix(hi, loc)+maxOffsetSpread(hi, loc), 0).UTC()
+
+		// A fall-back can map a wall time to an instant earlier than the
+		// previous wall time's, so hold instants until the walk's earliest
+		// instant passes them.
+		var pending []int64
+		flush := func(upto int64) bool {
+			i := 0
+			for ; i < len(pending) && pending[i] < upto; i++ {
+				if !yield(time.Unix(pending[i], 0).In(loc)) {
+					return false
+				}
+			}
+			pending = pending[i:]
+			return true
+		}
+		stopped := false
+		e.walk(lo-1, loc, func(time.Time) time.Time { return limit },
+			func(insts []int64, earliest int64) bool {
+				if !flush(min(earliest, hi)) {
+					stopped = true
+					return false
+				}
+				if earliest >= hi {
+					return false
+				}
+				for _, t := range insts {
+					if t >= lo && t < hi {
+						pending = insertSorted(pending, t)
+					}
+				}
+				return true
+			})
+		if !stopped {
+			flush(hi)
+		}
+	}
+}
+
+// location is where e is evaluated: its own CRON_TZ, else from's zone.
+func (e *Expr) location(from time.Time) *time.Location {
+	if e.TZ != nil {
+		return e.TZ
+	}
+	return from.Location()
+}
+
+// walk visits each matching wall-clock minute whose instants may fall after
+// the instant after, in wall-clock order, until visit returns false or
+// nextWall passes limit(w). For each it passes the fire instants (DST rules
+// applied) and the earliest instant the wall time maps to; successive
+// earliest values never decrease.
+func (e *Expr) walk(after int64, loc *time.Location, limit func(w time.Time) time.Time, visit func(insts []int64, earliest int64) bool) {
+	fixed := !e.Minute.Star && !e.Hour.Star
+
+	// Instants after a fall-back can carry wall times earlier than after's,
+	// so start the wall-clock walk early by the size of any nearby shift.
+	start := wallUnix(after, loc)
+	start -= maxOffsetSpread(after, loc)
+
 	w := time.Unix(start, 0).UTC().Truncate(time.Minute)
 	for {
 		var ok bool
-		if w, ok = e.nextWall(w, w.AddDate(searchYears, 0, 0)); !ok {
-			break
+		if w, ok = e.nextWall(w, limit(w)); !ok {
+			return
 		}
 		insts, gapEnd := instants(w.Unix(), loc)
 		earliest := gapEnd
@@ -65,26 +156,21 @@ func (e *Expr) Next(from time.Time, n int) []time.Time {
 		case len(insts) == 1:
 			earliest = insts[0]
 		}
-		for _, t := range insts {
-			if t > fromUnix {
-				out = append(out, time.Unix(t, 0).In(loc))
-			}
-		}
-		if len(out) < n {
-			continue
-		}
-		out = sortDedupe(out)
-		// The earliest instant of each successive wall time never decreases,
-		// so once it passes the n-th result nothing later can displace it.
-		if len(out) >= n && earliest >= out[n-1].Unix() {
-			return out[:n]
+		if !visit(insts, earliest) {
+			return
 		}
 	}
-	out = sortDedupe(out)
-	if len(out) > n {
-		out = out[:n]
+}
+
+func insertSorted(s []int64, v int64) []int64 {
+	i := sort.Search(len(s), func(i int) bool { return s[i] >= v })
+	if i < len(s) && s[i] == v {
+		return s
 	}
-	return out
+	s = append(s, 0)
+	copy(s[i+1:], s[i:])
+	s[i] = v
+	return s
 }
 
 // nextWall returns the first matching wall-clock minute strictly after w.

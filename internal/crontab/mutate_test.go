@@ -211,6 +211,21 @@ func TestNextRunsHonorsCronTZ(t *testing.T) {
 	}
 }
 
+func TestBetweenHonorsCronTZ(t *testing.T) {
+	jobs := Parse(loadFixture(t, "cron_tz")).Jobs()
+	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	var got []time.Time
+	for at := range jobs[0].Between(from, from.Add(48*time.Hour)) {
+		got = append(got, at)
+	}
+	if len(got) != 2 || !got[0].Equal(time.Date(2026, 6, 1, 0, 30, 0, 0, time.UTC)) || got[0].Location() != time.UTC {
+		t.Errorf("Berlin job fires = %v", got)
+	}
+	for range (Job{}).Between(from, from.Add(time.Hour)) {
+		t.Error("a job without a schedule fired")
+	}
+}
+
 func TestAdoptInsertsOnlyAMetaLine(t *testing.T) {
 	orig := loadFixture(t, "realistic_mixed")
 	c := Parse(orig)
