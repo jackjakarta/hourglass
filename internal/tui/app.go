@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"github.com/jackjakarta/gocron/internal/tui/components"
 	"github.com/jackjakarta/gocron/internal/tui/keys"
 	"github.com/jackjakarta/gocron/internal/tui/theme"
+	crontabview "github.com/jackjakarta/gocron/internal/tui/views/crontab"
 	"github.com/jackjakarta/gocron/internal/tui/views/editor"
 	historyview "github.com/jackjakarta/gocron/internal/tui/views/history"
 	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
@@ -75,7 +77,12 @@ type (
 		content []byte
 		err     error
 	}
-	pagerDoneMsg struct{ err error }
+	pagerDoneMsg  struct{ err error }
+	revisionsMsg struct {
+		content []byte // the crontab they were loaded against
+		revs    []jobs.Revision
+		err     error
+	}
 )
 
 // Model is the root of the TUI.
@@ -100,6 +107,7 @@ type Model struct {
 	jobs     jobsview.Model
 	timeline timeline.Model
 	history  historyview.Model
+	crontab  crontabview.Model
 	editor   *editor.Model // the open new/edit form
 	help     bool
 	palette  *paletteState // the open command palette or tag picker
@@ -125,6 +133,8 @@ func New(ctx context.Context, opts Options) Model {
 	jv.SetSort(jobsview.ParseSort(opts.UI.DefaultSort))
 	tl := timeline.New(th, km, opts.UI.CongestionThreshold)
 	tl.SetNow(opts.Clock.Now())
+	cv := crontabview.New(th, km)
+	cv.SetNow(opts.Clock.Now())
 	return Model{
 		ctx:      ctx,
 		opts:     opts,
@@ -134,6 +144,7 @@ func New(ctx context.Context, opts Options) Model {
 		now:      opts.Clock.Now(),
 		jobs:     jv,
 		timeline: tl,
+		crontab:  cv,
 		history:  history,
 		sessions: map[int]*session{},
 	}
@@ -241,6 +252,7 @@ func (m *Model) setSnapshot(s jobs.Snapshot) {
 	m.snap, m.loaded = s, true
 	m.jobs.SetSnapshot(s, m.now)
 	m.timeline.SetSnapshot(s)
+	m.crontab.SetContent(s.Content, s.Source)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -249,6 +261,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.jobs.SetSize(m.width, m.bodyHeight())
 		m.timeline.SetSize(m.width, m.bodyHeight())
+		m.crontab.SetSize(m.width, m.bodyHeight())
 		m.history.SetSize(m.width, m.bodyHeight())
 		if m.editor != nil {
 			m.editor.SetSize(m.width, m.bodyHeight())
@@ -262,6 +275,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.th = theme.Select(m.opts.NoColor, msg.IsDark())
 		m.jobs.SetTheme(m.th)
 		m.timeline.SetTheme(m.th)
+		m.crontab.SetTheme(m.th)
 		m.history.SetTheme(m.th)
 		if m.editor != nil {
 			m.editor.SetTheme(m.th)
@@ -276,6 +290,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ticks++
 		m.jobs.SetNow(m.now)
 		m.timeline.SetNow(m.now)
+		m.crontab.SetNow(m.now)
 		m.history.SetNow(m.now)
 		if m.editor != nil {
 			m.editor.SetNow(m.now)
@@ -374,10 +389,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case externalMsg:
-		return m.handleExternal(msg), nil
+		m = m.handleExternal(msg)
+		if msg.changed && m.tab == tabCrontab {
+			return m, m.loadRevisions()
+		}
+		return m, nil
 
 	case mutationMsg:
-		return m.handleMutation(msg)
+		next, cmd := m.handleMutation(msg)
+		if nm := next.(Model); nm.tab == tabCrontab && msg.err == nil {
+			return nm, tea.Batch(cmd, nm.loadRevisions())
+		}
+		return next, cmd
+
+	case editorDoneMsg:
+		return m.handleEditorDone(msg)
+
+	case crontabEditMsg:
+		return m.handleCrontabEdit(msg)
 
 	case jobsview.ToggleMsg:
 		j, svc := msg.Job, m.opts.Service
@@ -408,6 +437,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.mutate("Adopted", "", func(ctx context.Context) (jobs.Result, error) {
 			return svc.Adopt(ctx, j.Line, j.Raw)
 		})
+
+	case revisionsMsg:
+		// A load from before the latest change would show stale summaries.
+		if bytes.Equal(msg.content, m.snap.Content) {
+			m.crontab.SetRevisions(msg.revs, msg.err)
+		}
+		return m, nil
+
+	case crontabview.RestoreMsg:
+		return m.confirmRestore(msg.Rev)
+
+	case crontabview.EditMsg:
+		return m.editCrontab()
 
 	case timeline.OpenMsg:
 		m.tab = tabJobs
@@ -578,6 +620,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.updateHistory(msg)
 	case m.tab == tabTimeline && m.opts.Service != nil:
 		return m.updateTimeline(msg)
+	case m.tab == tabCrontab && m.opts.Service != nil:
+		return m.updateCrontab(msg)
 	}
 	return m, nil
 }
@@ -602,8 +646,33 @@ func (m Model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	switch t {
 	case tabHistory:
 		return m, m.loadHistory()
+	case tabCrontab:
+		return m, m.loadRevisions()
 	}
 	return m, nil
+}
+
+// loadRevisions reads the crontab's backups for the Crontab view.
+func (m Model) loadRevisions() tea.Cmd {
+	svc, ctx := m.opts.Service, m.ctx
+	if svc == nil {
+		return nil
+	}
+	content := m.snap.Content
+	return func() tea.Msg {
+		revs, err := svc.Revisions(ctx)
+		return revisionsMsg{content: content, revs: revs, err: err}
+	}
+}
+
+// updateCrontab passes a key to the Crontab view and acts on its request.
+func (m Model) updateCrontab(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	var req tea.Msg
+	m.crontab, req = m.crontab.Update(msg)
+	if req == nil {
+		return m, nil
+	}
+	return m.Update(req)
 }
 
 // updateHistory passes a key to the History view and acts on its request.
@@ -830,8 +899,8 @@ func (m Model) body() string {
 		return m.timeline.View()
 	case m.tab == tabHistory:
 		return m.history.View()
-	case m.tab == tabCrontab:
-		return comingSoon(m.th, "Crontab", "Your raw crontab, its revisions and diffs,", "with one-key restore.", w, h)
+	case m.tab == tabCrontab && m.loaded:
+		return m.crontab.View()
 	case !m.loaded:
 		return components.Panel(m.th, "Jobs", []string{"", m.th.Muted.Render("Reading your crontab…")}, w, h, true)
 	case m.editor != nil && !m.editor.Modal():
@@ -852,12 +921,6 @@ func (m Model) loadError(w, h int) string {
 	}
 	lines = append(lines, "", th.Muted.Render("Run ")+th.Key.Render("gocron doctor")+th.Muted.Render(" to see what's wrong. Press q to quit."))
 	return components.Panel(th, "Jobs", lines, w, h, true)
-}
-
-func comingSoon(th *theme.Theme, name, line1, line2 string, w, h int) string {
-	card := th.Heading.Render(name) + "\n\n" + th.Text.Render(line1) + "\n" + th.Text.Render(line2) + "\n\n" + th.Muted.Render("Coming soon · press 1 for Jobs")
-	card = lipgloss.NewStyle().Align(lipgloss.Center).Render(card)
-	return components.Panel(th, name, strings.Split(components.Center(card, w-4, h-2), "\n"), w, h, false)
 }
 
 func (m Model) footer() string {
@@ -886,6 +949,8 @@ func (m Model) footerKeys() []key.Binding {
 		return m.history.Hints()
 	case m.tab == tabTimeline && m.opts.Service != nil:
 		return m.timeline.Hints()
+	case m.tab == tabCrontab && m.opts.Service != nil:
+		return m.crontab.Hints()
 	case m.tab != tabJobs:
 		return []key.Binding{hint("1-4", "views"), hint("tab", "next view"), hint("?", "help"), hint("q", "quit")}
 	case m.jobs.Capturing():

@@ -158,6 +158,10 @@ func (m Model) paletteItems() []paletteAction {
 			act("History: only manual runs", km.Trigger, onHistory(func(m *Model) { m.history.SetTrigger(store.TriggerManual) })),
 			act("History: only test runs", km.Trigger, onHistory(func(m *Model) { m.history.SetTrigger(store.TriggerTest) })),
 			act("History: every run", none, onHistory(func(m *Model) { m.history.ClearFilters() })),
+			act("Edit the crontab in $EDITOR", km.EditCrontab, func(m Model) (tea.Model, tea.Cmd) {
+				return m.editCrontab()
+			}),
+			act("Crontab: revisions and restore", km.Restore, goTab(tabCrontab)),
 			act("Timeline: next 24 hours (day)", km.Day, func(m Model) (tea.Model, tea.Cmd) {
 				m.tab = tabTimeline
 				m.timeline.SetMode(timeline.ModeDay)

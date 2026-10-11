@@ -1,0 +1,24 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                           ● cron active · Sun 14:32:07
+
+╭─ Revision · Sat 10 Oct 09:00:00 ─────────────────────────────────────────────────────────────────╮
+│ RESTORING WOULD                                                                                  │
+│                                                                                                  │
+│ --- current                                                                                      │
+│ +++ revision                                                                                     │
+│ @@ -19,5 +19,3 @@                                                                                │
+│  # gocron:job id=wkrp7t name="Weekly report"                                                     │
+│  #gocron:off 0 9 * * 1 /home/jack/.local/bin/gocron exec wkrp7t -- '~/bin/report --weekly'       │
+│ -# gocron:job id=p7m2qd name="Say hi"                                                            │
+│ -0 9 * * 1-5 notify-send "hi"                                                                    │
+│  0 0 1 * 1 ~/bin/first-or-monday.sh                                                              │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+ ↑↓ scroll  esc back  d full text  R restore  E edit in $EDITOR  u undo  ^k commands  ? help

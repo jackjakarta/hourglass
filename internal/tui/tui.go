@@ -37,6 +37,9 @@ type Options struct {
 	// UI is the [ui] config: the default sort and the timeline's
 	// congestion threshold.
 	UI config.UI
+	// RunEditor opens path in the user's editor and reports back with
+	// done; nil runs $VISUAL or $EDITOR (tests replace it).
+	RunEditor func(path string, done func(error) tea.Msg) tea.Cmd
 }
 
 // Run starts the TUI and blocks until it quits.

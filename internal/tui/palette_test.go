@@ -102,7 +102,7 @@ func TestPaletteHistoryOfJob(t *testing.T) {
 	hs := startRuns(t, 140, 32, nil)
 	hs.waitFor("Nightly backup")
 	hs.keys(":", "history nightly", "enter")
-	hs.waitFor("History · Nightly backup")
+	hs.waitFor("job: Nightly backup")
 	hs.screen()
 }
 
