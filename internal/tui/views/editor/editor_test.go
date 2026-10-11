@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	gocfg "github.com/jackjakarta/gocron/internal/config"
 	"github.com/jackjakarta/gocron/internal/cronexpr"
 	"github.com/jackjakarta/gocron/internal/crontab"
 	svc "github.com/jackjakarta/gocron/internal/jobs"
@@ -235,8 +237,19 @@ func TestEditUnmatchedScheduleIsCustom(t *testing.T) {
 
 func TestTrackingOptions(t *testing.T) {
 	m := newEditor()
-	if m.canTrack != svc.WrapNew {
-		t.Errorf("new job canTrack = %v", m.canTrack)
+	if !m.canTrack || m.track {
+		t.Errorf("new job canTrack = %v, track = %v (defaults say no tracking)", m.canTrack, m.track)
+	}
+	cfg := config()
+	cfg.Defaults = gocfg.Defaults{Wrap: true, NoOverlap: true, Timeout: gocfg.Duration(time.Hour)}
+	if d := New(cfg).draft(); !d.Wrapped || !d.NoOverlap || d.Timeout != time.Hour {
+		t.Errorf("draft from defaults = %+v", d)
+	}
+	cfg.WrapErr = errors.New("run tracking needs the binary to be named gocron, not gocron.test")
+	m = New(cfg)
+	m.SetSize(120, 40)
+	if m.canTrack || m.draft().Wrapped || !strings.Contains(ansi.Strip(m.View()), "Run tracking needs the binary") {
+		t.Errorf("an unwrappable gocron still offers tracking:\n%s", m.View())
 	}
 	j := crontab.Job{ID: "abc234", Schedule: "@daily", Command: "x", Managed: true, Wrapped: true, Timeout: 30 * time.Minute, NoOverlap: true}
 	m = Edit(config(), j)

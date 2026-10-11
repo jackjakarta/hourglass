@@ -8,16 +8,21 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/jackjakarta/gocron/internal/config"
 	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/gocron/internal/runner"
+	"github.com/jackjakarta/gocron/internal/store"
 )
 
-// Job is a crontab job as the UI shows it. Run statistics join it in a
-// later phase.
+// Job is a crontab job as the UI shows it. Its run statistics come
+// separately, from Stats.
 type Job struct {
 	crontab.Job
 }
@@ -37,7 +42,7 @@ type EnvLine struct {
 }
 
 // DefaultCronPATH is the PATH cron gives jobs when the crontab sets none.
-const DefaultCronPATH = "/usr/bin:/bin"
+const DefaultCronPATH = runner.DefaultCronPATH
 
 // CronEnv is the environment cron gives a job, as far as gocron uses it.
 type CronEnv struct {
@@ -62,6 +67,19 @@ func (s Snapshot) CronEnv(line int) CronEnv {
 		}
 	}
 	return env
+}
+
+// EnvAt returns the environment lines cron applies to a job on line
+// (1-based), in order; line 0 means a new job, after every line.
+func (s Snapshot) EnvAt(line int) []crontab.EnvVar {
+	var out []crontab.EnvVar
+	for _, e := range s.Env {
+		if line > 0 && e.Line >= line {
+			break
+		}
+		out = append(out, e.EnvVar)
+	}
+	return out
 }
 
 // Draft is a job as the editor or the CLI describes it.
@@ -114,15 +132,6 @@ type ConflictError struct {
 func (e *ConflictError) Error() string { return crontab.ErrConflict.Error() }
 func (e *ConflictError) Unwrap() error { return crontab.ErrConflict }
 
-// adoptWraps decides whether adopting rewrites an entry to run through
-// "gocron exec". It stays off until exec exists; a wrapped line would fail.
-const adoptWraps = false
-
-// WrapNew decides whether new jobs, or jobs gaining run tracking, can be
-// wrapped. It stays off until gocron exec exists, for the same reason.
-// Jobs that are already wrapped keep their wrapping.
-const WrapNew = false
-
 const maxUndo = 50
 
 type undoEntry struct {
@@ -130,18 +139,66 @@ type undoEntry struct {
 	after  [32]byte // hash of the crontab the change produced
 }
 
+// Options configures a Service.
+type Options struct {
+	// Bin is the gocron binary path written into wrapped job lines.
+	Bin string
+	// Defaults apply to new and adopted jobs.
+	Defaults config.Defaults
+	// OpenRuns opens the run history; nil means there is none. It is
+	// called once, on first use, outside the UI's render path.
+	OpenRuns func(context.Context) (*store.DB, error)
+	// Launcher starts runs; nil means runs can't be started.
+	Launcher runner.Launcher
+	// Identity is who cron runs jobs as; the default is the current user.
+	Identity *runner.Identity
+	// Environ is the user's own environment; the default is os.Environ().
+	Environ []string
+}
+
 // Service reads and changes jobs. It is safe for concurrent use.
 type Service struct {
 	mu    sync.Mutex
 	store *crontab.Store
-	bin   string // gocron binary for wrapped lines
+	opts  Options
 	undo  []undoEntry
+
+	runsOnce sync.Once
+	runs     *store.DB
+	runsErr  error
 }
 
-// New returns a Service over store. bin is the gocron binary path written
-// into wrapped job lines.
-func New(store *crontab.Store, bin string) *Service {
-	return &Service{store: store, bin: bin}
+// New returns a Service over store.
+func New(store *crontab.Store, opts Options) *Service {
+	if opts.Identity == nil {
+		id := runner.CurrentIdentity()
+		opts.Identity = &id
+	}
+	if opts.Environ == nil {
+		opts.Environ = os.Environ()
+	}
+	return &Service{store: store, opts: opts}
+}
+
+// Defaults are the settings for new jobs.
+func (s *Service) Defaults() config.Defaults { return s.opts.Defaults }
+
+// WrapError says why jobs can't be wrapped to track their runs, or is nil
+// when they can: cron must be able to run gocron at a lasting path whose
+// name gocron recognizes.
+func (s *Service) WrapError() error { return CheckBin(s.opts.Bin) }
+
+// CheckBin reports whether bin can be written into wrapped job lines.
+func CheckBin(bin string) error {
+	switch {
+	case bin == "" || !filepath.IsAbs(bin):
+		return errors.New("run tracking needs gocron's full path, and it can't be found")
+	case filepath.Base(bin) != "gocron":
+		return fmt.Errorf("run tracking needs the binary to be named gocron, not %s", filepath.Base(bin))
+	case strings.HasPrefix(bin, filepath.Clean(os.TempDir())+string(filepath.Separator)):
+		return fmt.Errorf("run tracking needs gocron installed at a lasting path; %s is a temporary build (go run?)", bin)
+	}
+	return nil
 }
 
 // Snapshot returns the jobs and problems of the loaded crontab.
@@ -184,12 +241,15 @@ func (s *Service) Create(ctx context.Context, d Draft) (Result, error) {
 			Command:  d.Command,
 			Tags:     d.Tags,
 			Enabled:  true,
-			Wrapped:  d.Wrapped && WrapNew,
+			Wrapped:  d.Wrapped,
 		}
 		if j.Wrapped {
+			if err := s.WrapError(); err != nil {
+				return "", err
+			}
 			j.Timeout, j.NoOverlap = d.Timeout, d.NoOverlap
 		}
-		return c.AddJob(j, s.bin)
+		return c.AddJob(j, s.opts.Bin)
 	})
 }
 
@@ -205,7 +265,7 @@ func (s *Service) Update(ctx context.Context, id string, d Draft) (Result, error
 		}
 		next := cur
 		next.Name, next.Schedule, next.Command, next.Tags = d.Name, d.Schedule, d.Command, d.Tags
-		next.Wrapped = d.Wrapped && (cur.Wrapped || WrapNew)
+		next.Wrapped = d.Wrapped
 		next.Timeout, next.NoOverlap = 0, false
 		if next.Wrapped {
 			next.Timeout, next.NoOverlap = d.Timeout, d.NoOverlap
@@ -215,7 +275,10 @@ func (s *Service) Update(ctx context.Context, id string, d Draft) (Result, error
 		}
 		bin := "" // keep the path a wrapped line already has
 		if next.Wrapped && next.Bin == "" {
-			bin = s.bin
+			if err := s.WrapError(); err != nil {
+				return id, err
+			}
+			bin = s.opts.Bin
 		}
 		return id, c.UpdateJob(next, bin)
 	})
@@ -235,10 +298,12 @@ func (s *Service) Delete(ctx context.Context, id string) (Result, error) {
 }
 
 // Adopt makes the unmanaged entry on line (1-based) with text raw a managed
-// job, named after the comment above it or its program.
+// job, named after the comment above it or its program. It wraps the
+// entry to track its runs when the defaults say so and gocron can.
 func (s *Service) Adopt(ctx context.Context, line int, raw string) (Result, error) {
+	wrap := s.opts.Defaults.Wrap && s.WrapError() == nil
 	return s.apply(ctx, func(c *crontab.Crontab) (string, error) {
-		return c.Adopt(line, raw, c.DefaultAdoptName(line), adoptWraps, s.bin)
+		return c.Adopt(line, raw, c.DefaultAdoptName(line), wrap, s.opts.Bin)
 	})
 }
 

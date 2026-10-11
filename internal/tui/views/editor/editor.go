@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
+	gocfg "github.com/jackjakarta/gocron/internal/config"
 	"github.com/jackjakarta/gocron/internal/cronexpr"
 	"github.com/jackjakarta/gocron/internal/crontab"
 	svc "github.com/jackjakarta/gocron/internal/jobs"
@@ -27,8 +28,13 @@ type (
 	// CancelMsg asks to close the editor; Dirty means there are unsaved
 	// changes to confirm discarding.
 	CancelMsg struct{ Dirty bool }
-	// TestMsg asks for a cron-environment test run of the draft.
-	TestMsg struct{ Draft svc.Draft }
+	// TestMsg asks for a cron-environment test run of the draft. ID is ""
+	// for a new job; Line is where the job is in the crontab (0 for new).
+	TestMsg struct {
+		ID    string
+		Line  int
+		Draft svc.Draft
+	}
 	// BlockedMsg explains why a save didn't happen.
 	BlockedMsg struct{ Text string }
 )
@@ -71,6 +77,10 @@ type Config struct {
 	// in the background after typing pauses. nil uses jobs.LintPath with
 	// a cache that lives as long as the editor.
 	PathLint func(cmd string, env svc.CronEnv) []svc.Issue
+	// Defaults are the run options a new job starts with.
+	Defaults gocfg.Defaults
+	// WrapErr says why run tracking can't be turned on; nil means it can.
+	WrapErr error
 }
 
 // Model is the editor.
@@ -81,9 +91,11 @@ type Model struct {
 	pathLint func(cmd string, env svc.CronEnv) []svc.Issue
 
 	id        string // "" for a new job
+	line      int    // the job's line in the crontab; 0 for a new job
 	editTitle string
 	orig      svc.Draft
-	canTrack  bool // run options are available (an already wrapped job)
+	canTrack  bool  // run options are available
+	wrapErr   error // why they aren't, when they aren't
 
 	name, raw, command, tags, timeout textinput.Model
 
@@ -131,11 +143,14 @@ func New(cfg Config) Model {
 // Edit returns an editor for an existing managed job.
 func Edit(cfg Config, j crontab.Job) Model {
 	m := newModel(cfg)
-	m.id, m.editTitle = j.ID, j.Title()
+	m.id, m.line, m.editTitle = j.ID, j.Line, j.Title()
 	m.name.SetValue(j.Name)
 	m.command.SetValue(j.Command)
 	m.tags.SetValue(strings.Join(j.Tags, ", "))
-	m.canTrack, m.track, m.overlap = j.Wrapped || svc.WrapNew, j.Wrapped, j.NoOverlap
+	m.canTrack, m.track, m.overlap = j.Wrapped || cfg.WrapErr == nil, j.Wrapped, j.NoOverlap
+	if !j.Wrapped {
+		m.overlap = cfg.Defaults.NoOverlap // what turning tracking on offers
+	}
 	if j.Timeout > 0 {
 		m.timeout.SetValue(crontab.FormatDuration(j.Timeout))
 	}
@@ -180,11 +195,15 @@ func newModel(cfg Config) Model {
 		command:  input("e.g. pg_dump app | gzip > /backups/app.sql.gz", 0),
 		tags:     input("e.g. backup, db", 200),
 		timeout:  input("none", 12),
-		canTrack: svc.WrapNew,
-		track:    svc.WrapNew,
-		overlap:  svc.WrapNew,
+		canTrack: cfg.WrapErr == nil,
+		wrapErr:  cfg.WrapErr,
+		track:    cfg.WrapErr == nil && cfg.Defaults.Wrap,
+		overlap:  cfg.Defaults.NoOverlap,
 		p:        cronexpr.Preset{Every: 15, Hour: 9, Dom: 1, Days: 1 << time.Monday},
 		lit:      cronexpr.Custom,
+	}
+	if t := time.Duration(cfg.Defaults.Timeout); t > 0 {
+		m.timeout.SetValue(crontab.FormatDuration(t))
 	}
 	m.SetTheme(cfg.Theme)
 	return m
@@ -359,7 +378,7 @@ func (m Model) handleKey(k tea.KeyPressMsg) (Model, tea.Cmd, tea.Msg) {
 	case "ctrl+s":
 		return m.save()
 	case "ctrl+t":
-		return m, nil, TestMsg{m.draft()}
+		return m, nil, TestMsg{ID: m.id, Line: m.line, Draft: m.draft()}
 	case "esc":
 		return m, nil, CancelMsg{Dirty: m.Dirty()}
 	case "tab", "down", "enter":

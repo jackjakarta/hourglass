@@ -4,26 +4,26 @@
 │ / filter…                                                                                        │
 │                                                                                                  │
 │ ▌● Sync photos     Every 15 minutes   in 12m 53s                                                 │
-│  ● Rotate logs     Every hour         in 27m 53s                                                 │
-│  ● Nightly ╭───────────────────────────────────────────────────────────────────────╮             │
-│  ● Say hi  │                                                                       │             │
-│  ● Prune do│   Keys                                                                │             │
-│  ○ Weekly r│                                                                       │             │
-│            │   Navigate               Jobs                     General             │             │
-│ UNMANAGED ·│                                                                       │             │
-│  · @reboot │   ↑/k   move up          n      new job           1       jobs        │             │
-│  · */5 * * │   ↓/j   move down        e      edit              2       timeline    │             │
-│  · 0 0 1 * │   g     first job        space  pause/resume      3       history     │             │
-│            │   G     last job         x      delete            4       crontab     │             │
-│            │   pgup  page up          a      adopt             tab     next view   │             │
-│            │   pgdn  page down        u      undo              ?       help        │             │
-│            │   ↵     open             /      filter            q       quit        │             │
-│            │   esc   back / clear     ^s     save (editor)     ctrl+c  quit now    │             │
-│            │                                                                       │             │
-│            │                                                   ? or esc to close   │             │
-│            │                                                                       │             │
-│            ╰───────────────────────────────────────────────────────────────────────╯             │
-│                                                                                                  │
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                        │
+│   Keys                                                                                                 │
+│                                                                                                        │
+│   Navigate               Jobs                          History                     General             │
+│                                                                                                        │
+│   ↑/k   move up          n      new job                f   failures only           1       jobs        │
+│   ↓/j   move down        e      edit                   c   cycle trigger           2       timeline    │
+│   g     first job        space  pause/resume           o   open in $PAGER          3       history     │
+│   G     last job         x      delete                 n   next match              4       crontab     │
+│   pgup  page up          a      adopt                  N   previous match          tab     next view   │
+│   pgdn  page down        r      run now                ^s  save (editor)           ?       help        │
+│   ↵     open             t      test in cron's env     ^t  test draft (editor)     q       quit        │
+│   esc   back / clear     h      job's history                                      ctrl+c  quit now    │
+│                          u      undo                                                                   │
+│                          /      filter                                                                 │
+│                                                                                                        │
+│                                                                                    ? or esc to close   │
+│                                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 │                                                                                                  │
 │                                                                                                  │
 │                                                                                                  │

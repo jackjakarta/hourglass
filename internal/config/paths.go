@@ -1,5 +1,5 @@
-// Package config resolves gocron's files and directories. Loading
-// config.toml arrives in a later phase.
+// Package config resolves gocron's files and directories and loads
+// config.toml.
 package config
 
 import (
@@ -22,22 +22,31 @@ type Paths struct {
 // Resolve applies, in order: GOCRON_CONFIG / GOCRON_STATE_DIR, then
 // XDG_CONFIG_HOME / XDG_STATE_HOME, then ~/.config and ~/.local/state.
 func Resolve() (Paths, error) {
-	home, homeErr := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = ""
+	}
+	return ResolveEnv(os.Getenv, home)
+}
+
+// ResolveEnv is Resolve over another environment, such as the one cron
+// gives a job. An empty home means it is unknown.
+func ResolveEnv(getenv func(string) string, home string) (Paths, error) {
 	dir := func(override, xdg, fallback string) (string, error) {
-		if v := os.Getenv(override); v != "" {
+		if v := getenv(override); override != "" && v != "" {
 			return v, nil
 		}
-		if v := os.Getenv(xdg); filepath.IsAbs(v) { // XDG says relative values are invalid
+		if v := getenv(xdg); filepath.IsAbs(v) { // XDG says relative values are invalid
 			return filepath.Join(v, "gocron"), nil
 		}
-		if homeErr != nil {
+		if home == "" {
 			return "", errors.New("can't find your home directory; set " + override)
 		}
 		return filepath.Join(home, fallback, "gocron"), nil
 	}
 
 	var p Paths
-	if v := os.Getenv("GOCRON_CONFIG"); v != "" {
+	if v := getenv("GOCRON_CONFIG"); v != "" {
 		p.ConfigFile = v
 	} else {
 		cfgDir, err := dir("", "XDG_CONFIG_HOME", ".config")

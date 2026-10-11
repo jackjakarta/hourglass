@@ -5,19 +5,16 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jackjakarta/gocron/internal/config"
 	"github.com/jackjakarta/gocron/internal/crontab"
 	"github.com/jackjakarta/gocron/internal/doctor"
 	"github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/gocron/internal/runner"
 	"github.com/jackjakarta/gocron/internal/tui"
 )
 
 func (a *app) tui(ctx context.Context) int {
-	paths, err := config.Resolve()
+	paths, cfg, err := a.setup()
 	if err != nil {
-		return a.fail(err)
-	}
-	if err := paths.EnsureStateDirs(); err != nil {
 		return a.fail(err)
 	}
 	src, err := a.source()
@@ -31,11 +28,17 @@ func (a *app) tui(ctx context.Context) int {
 			return doctor.DetectDaemon(ctx, doctor.DefaultEnv(src))
 		},
 	}
-	store, err := crontab.Open(ctx, src, crontab.Options{BackupDir: paths.BackupsDir})
+	store, err := crontab.Open(ctx, src, crontab.Options{BackupDir: paths.BackupsDir, Keep: cfg.Backups.Keep})
 	if err != nil {
 		opts.LoadErr = err // shown in the TUI, which stays read-only
 	} else {
-		opts.Service = jobs.New(store, selfPath())
+		bin := a.binPath()
+		opts.Service = jobs.New(store, jobs.Options{
+			Bin:      bin,
+			Defaults: cfg.Defaults,
+			OpenRuns: openRuns(paths),
+			Launcher: runner.SpawnLauncher{Bin: bin, Paths: paths},
+		})
 	}
 	if err := tui.Run(ctx, opts); err != nil {
 		return a.fail(err)

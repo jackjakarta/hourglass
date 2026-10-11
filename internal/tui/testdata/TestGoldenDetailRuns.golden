@@ -1,0 +1,32 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                           ● cron active · Sun 14:32:07
+
+╭─ Nightly backup ─────────────────────────────────────────────────────────────────────────────────╮
+│ ● enabled · #backup #db · k3f9a2                                                                 │
+│ Dump app DB to /bk                                                                               │
+│                                                                                                  │
+│ SCHEDULE   30 2 * * *                                                                            │
+│            At 02:30, every day                                                                   │
+│                                                                                                  │
+│ COMMAND    pg_dump app | gzip > /bk/app-$(date +%F).sql.gz                                       │
+│                                                                                                  │
+│ TRACKING   runs via gocron exec · timeout 30m · skips if still running                           │
+│                                                                                                  │
+│ RECENT     ■■■■■■■■■■■■■■■■■■■■  19/20 ok                                                        │
+│            ▅▆▆▅▅▇▆▆▅▅  avg 1m 14s · last 12h 2m ago ✓                                            │
+│                                                                                                  │
+│ NEXT       Mon 12 Oct 02:30  in 11h 57m                                                          │
+│            Tue 13 Oct 02:30  in 1d 11h                                                           │
+│            Wed 14 Oct 02:30  in 2d 11h                                                           │
+│            Thu 15 Oct 02:30  in 3d 11h                                                           │
+│            Fri 16 Oct 02:30  in 4d 11h                                                           │
+│            Sat 17 Oct 02:30  in 5d 11h                                                           │
+│            Sun 18 Oct 02:30  in 6d 11h                                                           │
+│            Mon 19 Oct 02:30  in 7d 11h                                                           │
+│            Tue 20 Oct 02:30  in 8d 11h                                                           │
+│            Wed 21 Oct 02:30  in 9d 11h                                                           │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+ esc back  e edit  space pause  r run  t test  h history  x delete  n new  u undo  / filter  ? help  q quit

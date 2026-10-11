@@ -16,9 +16,11 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
+	"github.com/jackjakarta/gocron/internal/config"
 	"github.com/jackjakarta/gocron/internal/crontab"
 	"github.com/jackjakarta/gocron/internal/doctor"
 	"github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/gocron/internal/runner"
 )
 
 // pkgDir is the package directory; tests chdir away from it.
@@ -99,7 +101,16 @@ func start(t *testing.T, fixture string, w, h int) *harness {
 // startWith is start with a hook to adjust the options.
 func startWith(t *testing.T, fixture string, w, h int, adjust func(*Options)) *harness {
 	t.Helper()
+	return startFull(t, fixture, w, h, nil, adjust)
+}
+
+// startFull is start with hooks for the service's options and the TUI's.
+func startFull(t *testing.T, fixture string, w, h int, svcOpts func(*jobs.Options), adjust func(*Options)) *harness {
+	t.Helper()
 	var content []byte
+	if c, ok := strings.CutPrefix(fixture, "inline:"); ok {
+		content, fixture = []byte(c), ""
+	}
 	if fixture != "" {
 		b, err := os.ReadFile(filepath.Join("..", "..", "testdata", "crontabs", fixture+".crontab"))
 		if err != nil {
@@ -117,7 +128,16 @@ func startWith(t *testing.T, fixture string, w, h int, adjust func(*Options)) *h
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := Options{Service: jobs.New(store, "/usr/bin/gocron")}
+	jo := jobs.Options{
+		Bin:      "/usr/bin/gocron",
+		Defaults: config.Default().Defaults,
+		Identity: &runner.Identity{Name: "jack", Home: "/home/jack"},
+		Environ:  []string{"HOME=/home/jack", "PATH=/usr/local/bin:/usr/bin:/bin"},
+	}
+	if svcOpts != nil {
+		svcOpts(&jo)
+	}
+	opts := Options{Service: jobs.New(store, jo)}
 	if adjust != nil {
 		adjust(&opts)
 	}
@@ -282,9 +302,9 @@ func TestLoadError(t *testing.T) {
 func TestComingSoonTabs(t *testing.T) {
 	hs := start(t, "realistic_mixed", 100, 24)
 	hs.waitFor("Nightly backup")
-	hs.keys("3")
-	hs.waitFor("Every run with its exit code")
-	hs.keys("tab")
+	hs.keys("2")
+	hs.waitFor("See when your jobs fire")
+	hs.keys("4")
 	hs.waitFor("Your raw crontab")
 	if s := hs.screen(); !strings.Contains(s, "Coming soon") {
 		t.Errorf("screen:\n%s", s)
@@ -347,7 +367,8 @@ func TestAdopt(t *testing.T) {
 	hs.keys("G", "a") // last row: the unmanaged first-or-monday.sh entry
 	hs.waitFor(`Adopted "first-or-monday.sh"`)
 	got := hs.read()
-	if ok, _ := regexp.MatchString(`# gocron:job id=[a-z2-7]{6} name=first-or-monday.sh\n0 0 1 \* 1 ~/bin/first-or-monday.sh\n$`, got); !ok {
+	// Adopting wraps the entry to track its runs (defaults.wrap).
+	if ok, _ := regexp.MatchString(`# gocron:job id=([a-z2-7]{6}) name=first-or-monday.sh\n0 0 1 \* 1 /usr/bin/gocron exec [a-z2-7]{6} -- '~/bin/first-or-monday.sh'\n$`, got); !ok {
 		t.Errorf("adopt:\n%s", got)
 	}
 	s := hs.screen()

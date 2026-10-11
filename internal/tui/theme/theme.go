@@ -23,7 +23,14 @@ const (
 	GlyphReload  = "↻"
 	GlyphInfo    = "·"
 	GlyphClock   = "◷"
+	GlyphCell    = "■" // one run in a run strip
 )
+
+// Spinner is the running glyph's animation, one frame per tick.
+var Spinner = []string{"◐", "◓", "◑", "◒"}
+
+// Sparks are the bar heights of a duration sparkline, lowest first.
+var Sparks = []string{"▁", "▂", "▃", "▄", "▅", "▆", "▇"}
 
 // Theme is a palette and the styles built from it.
 type Theme struct {

@@ -11,13 +11,15 @@ import (
 	"github.com/jackjakarta/gocron/internal/crontab"
 	"github.com/jackjakarta/gocron/internal/humanize"
 	svc "github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/gocron/internal/store"
 	"github.com/jackjakarta/gocron/internal/tui/components"
 	"github.com/jackjakarta/gocron/internal/tui/theme"
 )
 
 const (
 	labelWidth = 11
-	nextCount  = 10
+	nextCount  = 10 // next runs shown when there's room
+	nextMin    = 3
 )
 
 func (m Model) detailPanel(w, h int, focused bool) string {
@@ -29,10 +31,10 @@ func (m Model) detailPanel(w, h int, focused bool) string {
 	if !j.Managed {
 		title = "Unmanaged entry"
 	}
-	return components.Panel(m.th, title, m.detailLines(j, w-4), w, h, focused)
+	return components.Panel(m.th, title, m.detailLines(j, w-4, h-2), w, h, focused)
 }
 
-func (m Model) detailLines(j svc.Job, iw int) []string {
+func (m Model) detailLines(j svc.Job, iw, ih int) []string {
 	th := m.th
 	var out []string
 	add := func(lines ...string) { out = append(out, lines...) }
@@ -83,8 +85,12 @@ func (m Model) detailLines(j svc.Job, iw int) []string {
 	if j.Managed {
 		field("TRACKING", th.Text.Render(tracking(j.Job)))
 		add("")
+		if recent := m.recentLines(j, vw); len(recent) > 0 {
+			field("RECENT", recent...)
+			add("")
+		}
 	}
-	field("NEXT", m.nextLines(j)...)
+	nextAt := len(out)
 
 	var notes []string
 	for _, is := range cronexpr.Lint(j.Schedule) {
@@ -101,10 +107,74 @@ func (m Model) detailLines(j svc.Job, iw int) []string {
 		add("")
 		add(notes...)
 	}
+	// NEXT gives way to everything else on a short screen.
+	n := min(max(ih-len(out), nextMin), nextCount)
+	var next []string
+	for i, v := range m.nextLines(j, n) {
+		l := ""
+		if i == 0 {
+			l = "NEXT"
+		}
+		next = append(next, th.Label.Render(components.Fit(l, labelWidth))+v)
+	}
+	return append(out[:nextAt], append(next, out[nextAt:]...)...)
+}
+
+// recentLines summarizes the job's recent runs: the run strip, then
+// durations and the last result.
+func (m Model) recentLines(j svc.Job, vw int) []string {
+	th := m.th
+	st, ok := m.stats[j.ID]
+	var out []string
+	if since, running := m.running[j.ID]; running {
+		out = append(out, th.Warn.Render(theme.GlyphRunning+" running")+th.Muted.Render(" · "+components.Elapsed(m.now.Sub(since))))
+	}
+	if !ok || len(st.Recent) == 0 {
+		switch {
+		case !j.Wrapped:
+			out = append(out, wrapPlain(th.Muted, "cron runs aren't tracked · e, then Track runs, to keep their history", vw)...)
+		case len(out) == 0:
+			out = append(out, th.Muted.Render("no runs yet · r runs it now"))
+		}
+		return out
+	}
+	strip := components.RunStrip(th, st.Recent)
+	if st.Counted > 0 {
+		strip += th.Muted.Render(fmt.Sprintf("  %d/%d ok", st.OK, st.Counted))
+	}
+	out = append(out, strip)
+
+	var durs []time.Duration
+	for _, r := range st.Recent {
+		if r.EndedAt != nil && r.Status != store.StatusSkipped {
+			durs = append(durs, r.EndedAt.Sub(r.StartedAt))
+		}
+	}
+	var parts []string
+	if len(durs) > 0 {
+		parts = append(parts, "avg "+humanize.Duration(st.AvgDur))
+	}
+	line := ""
+	if len(durs) > 1 {
+		line = components.Sparkline(th, durs[max(len(durs)-10, 0):]) + "  "
+	}
+	result := ""
+	if last := st.Last; last != nil {
+		glyph, style := components.StatusGlyph(th, last.Status)
+		parts = append(parts, "last "+humanize.Duration(m.now.Sub(last.StartedAt))+" ago")
+		result = " " + style.Render(glyph)
+		if last.ExitCode != nil && *last.ExitCode != 0 {
+			result += style.Render(fmt.Sprintf(" exit %d", *last.ExitCode))
+		}
+	}
+	out = append(out, line+th.Muted.Render(strings.Join(parts, " · "))+result)
+	if !j.Wrapped {
+		out = append(out, wrapPlain(th.Muted, "only runs started from gocron · cron runs aren't tracked", vw)...)
+	}
 	return out
 }
 
-func (m Model) nextLines(j svc.Job) []string {
+func (m Model) nextLines(j svc.Job, count int) []string {
 	th := m.th
 	switch {
 	case j.Managed && !j.Enabled:
@@ -114,7 +184,7 @@ func (m Model) nextLines(j svc.Job) []string {
 	case j.Expr.Reboot:
 		return []string{th.Text.Render("at boot")}
 	}
-	runs := j.NextRuns(m.now, nextCount)
+	runs := j.NextRuns(m.now, count)
 	if len(runs) == 0 {
 		return []string{th.Muted.Render("never: no date matches this schedule")}
 	}

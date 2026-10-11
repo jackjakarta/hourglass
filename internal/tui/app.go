@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -14,10 +17,12 @@ import (
 	"github.com/jackjakarta/gocron/internal/crontab"
 	"github.com/jackjakarta/gocron/internal/doctor"
 	"github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/gocron/internal/store"
 	"github.com/jackjakarta/gocron/internal/tui/components"
 	"github.com/jackjakarta/gocron/internal/tui/keys"
 	"github.com/jackjakarta/gocron/internal/tui/theme"
 	"github.com/jackjakarta/gocron/internal/tui/views/editor"
+	historyview "github.com/jackjakarta/gocron/internal/tui/views/history"
 	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
 )
 
@@ -59,6 +64,17 @@ type (
 		fromEditor bool // a save from the editor, which stays open on failure
 	}
 	closeEditorMsg struct{}
+	historyMsg     struct {
+		filter  store.Filter // what was loaded; a stale load is dropped
+		entries []historyview.Entry
+		err     error
+	}
+	logMsg struct {
+		entry   historyview.Entry
+		content []byte
+		err     error
+	}
+	pagerDoneMsg struct{ err error }
 )
 
 // Model is the root of the TUI.
@@ -81,10 +97,16 @@ type Model struct {
 	readErr string // last error from the external-change check
 
 	jobs    jobsview.Model
+	history historyview.Model
 	editor  *editor.Model // the open new/edit form
 	help    bool
 	confirm *components.Confirm
 	toasts  components.Toasts
+
+	stats    map[string]store.JobStats // recent runs by job id
+	sessions map[int]*session          // runs started here
+	runSeq   int
+	paneID   int // the session whose pane shows; 0 for none
 }
 
 // New returns the root model.
@@ -94,19 +116,23 @@ func New(ctx context.Context, opts Options) Model {
 	}
 	th := theme.Select(opts.NoColor, true)
 	km := keys.Default()
+	history := historyview.New(th, km)
+	history.SetNow(opts.Clock.Now())
 	return Model{
-		ctx:   ctx,
-		opts:  opts,
-		clock: opts.Clock,
-		keys:  km,
-		th:    th,
-		now:   opts.Clock.Now(),
-		jobs:  jobsview.New(th, km),
+		ctx:      ctx,
+		opts:     opts,
+		clock:    opts.Clock,
+		keys:     km,
+		th:       th,
+		now:      opts.Clock.Now(),
+		jobs:     jobsview.New(th, km),
+		history:  history,
+		sessions: map[int]*session{},
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(tick(), m.loadSnapshot(), m.probeDaemon(), tea.RequestBackgroundColor)
+	return tea.Batch(tick(), m.loadSnapshot(), m.loadStats(), m.probeDaemon(), tea.RequestBackgroundColor)
 }
 
 func tick() tea.Cmd {
@@ -183,7 +209,11 @@ func (m Model) editorSave(verb, title string, change func(context.Context) (jobs
 }
 
 func (m Model) editorConfig(env jobs.CronEnv) editor.Config {
-	return editor.Config{Theme: m.th, Now: m.now, Env: env, UserPATH: m.opts.UserPATH, PathLint: m.opts.PathLint}
+	svc := m.opts.Service
+	return editor.Config{
+		Theme: m.th, Now: m.now, Env: env, UserPATH: m.opts.UserPATH, PathLint: m.opts.PathLint,
+		Defaults: svc.Defaults(), WrapErr: svc.WrapError(),
+	}
 }
 
 func (m Model) openEditor(ed editor.Model) (tea.Model, tea.Cmd) {
@@ -209,16 +239,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.jobs.SetSize(m.width, m.bodyHeight())
+		m.history.SetSize(m.width, m.bodyHeight())
 		if m.editor != nil {
 			m.editor.SetSize(m.width, m.bodyHeight())
+		}
+		for _, s := range m.sessions {
+			s.pane.SetSize(m.width, m.bodyHeight())
 		}
 		return m, nil
 
 	case tea.BackgroundColorMsg:
 		m.th = theme.Select(m.opts.NoColor, msg.IsDark())
 		m.jobs.SetTheme(m.th)
+		m.history.SetTheme(m.th)
 		if m.editor != nil {
 			m.editor.SetTheme(m.th)
+		}
+		for _, s := range m.sessions {
+			s.pane.SetTheme(m.th)
 		}
 		return m, nil
 
@@ -226,8 +264,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.now = m.clock.Now()
 		m.ticks++
 		m.jobs.SetNow(m.now)
+		m.history.SetNow(m.now)
 		if m.editor != nil {
 			m.editor.SetNow(m.now)
+		}
+		for _, s := range m.sessions {
+			s.pane.SetNow(m.now, m.ticks)
 		}
 		m.toasts.Expire(m.now)
 		cmds := []tea.Cmd{tick()}
@@ -235,6 +277,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// save instead of a silent reload (spec §6.5).
 		if m.ticks%externalEvery == 0 && !m.editorDirty() {
 			cmds = append(cmds, m.checkExternal())
+		}
+		// Cron's runs land in the history without telling us; look again.
+		if m.ticks%externalEvery == 0 {
+			cmds = append(cmds, m.loadStats())
+			if m.tab == tabHistory && !m.history.LogOpen() {
+				cmds = append(cmds, m.loadHistory())
+			}
 		}
 		if m.ticks%daemonEvery == 0 {
 			cmds = append(cmds, m.probeDaemon())
@@ -250,6 +299,62 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case snapshotMsg:
 		m.setSnapshot(msg.snap)
 		return m, nil
+
+	case statsMsg:
+		if msg.err == nil {
+			m.stats = msg.stats
+			m.syncRuns()
+		}
+		return m, nil
+
+	case runLaunchedMsg:
+		return m.handleRunLaunched(msg)
+
+	case runOutputMsg:
+		return m.handleRunOutput(msg)
+
+	case runDoneMsg:
+		return m.handleRunDone(msg)
+
+	case historyMsg:
+		if sameFilter(msg.filter, m.history.Filter()) {
+			m.history.SetEntries(msg.entries, msg.err)
+		}
+		return m, nil
+
+	case logMsg:
+		m.history.OpenLog(msg.entry, msg.content, msg.err)
+		return m, nil
+
+	case pagerDoneMsg:
+		if msg.err != nil {
+			m.toast(components.ToastFail, "", "The pager failed: "+msg.err.Error()+". Set $PAGER to the one you use.")
+		}
+		return m, nil
+
+	case jobsview.RunMsg:
+		return m.startRun(msg.Job.Job, jobs.RunManual)
+
+	case jobsview.TestMsg:
+		return m.startRun(msg.Job.Job, jobs.RunCronEnv)
+
+	case jobsview.HistoryMsg:
+		m.tab = tabHistory
+		m.history.SetJob(msg.Job.ID, msg.Job.Title())
+		return m, m.loadHistory()
+
+	case historyview.ReloadMsg:
+		return m, m.loadHistory()
+
+	case historyview.OpenLogMsg:
+		e := msg.Entry
+		return m, func() tea.Msg {
+			b, err := readLog(e.Run.LogPath)
+			return logMsg{entry: e, content: b, err: err}
+		}
+
+	case historyview.PagerMsg:
+		return m, openPager(msg.Path)
 
 	case daemonMsg:
 		m.daemon = &msg.status
@@ -295,10 +400,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.toast(components.ToastInfo, "", "That's an unmanaged entry. Press a to adopt it first.")
 		return m, nil
 
-	case jobsview.ComingSoonMsg:
-		m.toast(components.ToastInfo, "", msg.What+" is coming in a later release.")
-		return m, nil
-
 	case jobsview.NewMsg:
 		return m.openEditor(editor.New(m.editorConfig(m.snap.CronEnv(0))))
 
@@ -328,8 +429,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case editor.TestMsg:
-		m.toast(components.ToastInfo, "", "Test runs are coming in a later release.")
-		return m, nil
+		if strings.TrimSpace(msg.Draft.Command) == "" {
+			m.toast(components.ToastInfo, "", "Enter a command to test first.")
+			return m, nil
+		}
+		return m.startRun(draftJob(msg), jobs.RunCronEnv)
 
 	case editor.BlockedMsg:
 		m.toast(components.ToastFail, "", msg.Text)
@@ -390,6 +494,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 	}
+	if m.paneID != 0 {
+		return m.updatePane(msg)
+	}
 	if m.editor != nil {
 		return m.updateEditor(msg)
 	}
@@ -402,6 +509,10 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.tab == tabJobs && m.jobs.Capturing() {
 		return m.updateJobs(msg)
 	}
+	if m.tab == tabHistory && m.history.Capturing() {
+		return m.updateHistory(msg)
+	}
+	prev := m.tab
 	switch {
 	case key.Matches(msg, km.Quit):
 		return m, tea.Quit
@@ -426,8 +537,23 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case m.tab == tabJobs && m.opts.Service != nil:
 		return m.updateJobs(msg)
+	case m.tab == tabHistory && m.opts.Service != nil:
+		return m.updateHistory(msg)
+	}
+	if m.tab == tabHistory && prev != tabHistory {
+		return m, m.loadHistory()
 	}
 	return m, nil
+}
+
+// updateHistory passes a key to the History view and acts on its request.
+func (m Model) updateHistory(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	var req tea.Msg
+	m.history, req = m.history.Update(msg)
+	if req == nil {
+		return m, nil
+	}
+	return m.Update(req)
 }
 
 // updateJobs passes a key to the Jobs view and acts on its request at once,
@@ -571,6 +697,9 @@ func (m Model) render() string {
 	if m.editor != nil && m.editor.Modal() {
 		screen = components.OverlayCenter(screen, m.editor.View(), w, h)
 	}
+	if s, ok := m.sessions[m.paneID]; ok {
+		screen = components.OverlayCenter(screen, s.pane.View(), w, h)
+	}
 	if t := m.toasts.View(m.th, m.now, w-2); t != "" {
 		// Bottom right, inside the body's panel border.
 		screen = components.Overlay(screen, t, w-lipgloss.Width(t)-2, h-2-lipgloss.Height(t))
@@ -636,7 +765,7 @@ func (m Model) body() string {
 	case m.tab == tabTimeline:
 		return comingSoon(m.th, "Timeline", "See when your jobs fire over the next day or week,", "and spot the minutes where too many run at once.", w, h)
 	case m.tab == tabHistory:
-		return comingSoon(m.th, "History", "Every run with its exit code, duration and log.", "It arrives with run tracking.", w, h)
+		return m.history.View()
 	case m.tab == tabCrontab:
 		return comingSoon(m.th, "Crontab", "Your raw crontab, its revisions and diffs,", "with one-key restore.", w, h)
 	case !m.loaded:
@@ -683,8 +812,12 @@ func (m Model) footerKeys() []key.Binding {
 		return []key.Binding{hint("?", "close"), hint("esc", "close")}
 	case m.opts.LoadErr != nil:
 		return []key.Binding{hint("q", "quit")}
+	case m.paneID != 0:
+		return m.sessions[m.paneID].pane.Hints()
 	case m.editor != nil:
 		return m.editor.Hints()
+	case m.tab == tabHistory:
+		return m.history.Hints()
 	case m.tab != tabJobs:
 		return []key.Binding{hint("1-4", "views"), hint("tab", "next view"), hint("?", "help"), hint("q", "quit")}
 	case m.jobs.Capturing():
@@ -708,9 +841,9 @@ func (m Model) footerKeys() []key.Binding {
 		if !j.Enabled {
 			toggle = "resume"
 		}
-		out = append(out, hint("e", "edit"), hint("space", toggle), hint("x", "delete"))
+		out = append(out, hint("e", "edit"), hint("space", toggle), hint("r", "run"), hint("t", "test"), hint("h", "history"), hint("x", "delete"))
 	} else {
-		out = append(out, hint("a", "adopt"))
+		out = append(out, hint("a", "adopt"), hint("r", "run"), hint("t", "test"))
 	}
 	out = append(out, hint("n", "new"), hint("u", "undo"), hint("/", "filter"), hint("?", "help"), hint("q", "quit"))
 	return out
@@ -723,4 +856,87 @@ func clip(s string, n int) string {
 		return s
 	}
 	return string(r[:n-1]) + "…"
+}
+
+// loadHistory reads the History feed for the view's filters, with the
+// first line of each run's output.
+func (m Model) loadHistory() tea.Cmd {
+	svc, ctx := m.opts.Service, m.ctx
+	if svc == nil {
+		return nil
+	}
+	f := m.history.Filter()
+	titles := map[string]string{}
+	for _, j := range m.snap.Jobs {
+		if j.Managed {
+			titles[j.ID] = j.Title()
+		}
+	}
+	return func() tea.Msg {
+		runs, err := svc.History(ctx, f)
+		entries := make([]historyview.Entry, 0, len(runs))
+		for _, r := range runs {
+			title := titles[r.JobID]
+			if title == "" {
+				title = r.JobID
+			}
+			entries = append(entries, historyview.Entry{Run: r, Title: title, First: firstLine(r.LogPath)})
+		}
+		return historyMsg{f, entries, err}
+	}
+}
+
+func sameFilter(a, b store.Filter) bool {
+	return a.FailuresOnly == b.FailuresOnly && a.Trigger == b.Trigger && a.Limit == b.Limit &&
+		strings.Join(a.JobIDs, ",") == strings.Join(b.JobIDs, ",")
+}
+
+// firstLine is the first non-blank line of a log, from its first bytes.
+func firstLine(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	buf := make([]byte, 512)
+	n, _ := io.ReadFull(f, buf)
+	for _, l := range strings.Split(string(buf[:n]), "\n") {
+		if l = strings.TrimSpace(components.Sanitize(l)); l != "" {
+			return l
+		}
+	}
+	return ""
+}
+
+// maxLogRead caps how much of a log the viewer loads.
+const maxLogRead = 8 << 20
+
+func readLog(path string) ([]byte, error) {
+	if path == "" {
+		return nil, errors.New("this run wasn't recorded with a log")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, errors.New("the log file is gone")
+		}
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(io.LimitReader(f, maxLogRead))
+}
+
+// openPager hands a log to $PAGER (less -R by default) and returns when it
+// exits.
+func openPager(path string) tea.Cmd {
+	pager := os.Getenv("PAGER")
+	if pager == "" {
+		pager = "less -R"
+	}
+	words, err := crontab.ShellWords(pager)
+	if err != nil || len(words) == 0 {
+		words = []string{"less", "-R"}
+	}
+	c := exec.Command(words[0], append(words[1:], path)...)
+	return tea.ExecProcess(c, func(err error) tea.Msg { return pagerDoneMsg{err} })
 }

@@ -1,0 +1,24 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                                               ● cron active · Sun 14:32:07
+
+╭─ Prune docker · run 43 ──────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✗ failed · cron · Sun 11 Oct 04:00 · took 1s · exit 1 · 142 B                                                        │
+│                                                                                                                      │
+│ Cannot connect to the Docker daemon at unix:///var/run/docker.sock.                                                  │
+│ ▌Is the docker daemon running?                                                                                       │
+│ retrying…                                                                                                            │
+│ docker daemon still unreachable                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│ / docker  2/3 · n/N                                                                                      line 1 of 4 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ ↑↓ scroll  / search  n/N next/prev  g/G top/bottom  o pager  esc back

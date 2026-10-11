@@ -27,7 +27,8 @@ type app struct {
 	stdout, stderr io.Writer
 	now            func() time.Time
 	source         func() (crontab.Source, error)
-	interactive    func() bool // stdin and stdout are terminals
+	interactive    func() bool   // stdin and stdout are terminals
+	bin            func() string // the gocron binary written into wrapped lines; default selfPath
 }
 
 func main() {
@@ -37,14 +38,25 @@ func main() {
 	os.Exit(a.run(context.Background(), os.Args[1:]))
 }
 
+func (a *app) binPath() string {
+	if a.bin != nil {
+		return a.bin()
+	}
+	return selfPath()
+}
+
 const usage = `gocron — a home for your cron jobs
 
 Usage:
   gocron                      open the TUI
   gocron list [--json] [--all]
                               list jobs (--all includes unmanaged entries)
-  gocron add [--name N] --schedule S [--tag T]… [--raw] -- CMD
+  gocron add [--name N] --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD
                               add a job (quote a pipeline as one argument)
+  gocron run [--cron-env] ID  run a job now, streaming its output
+  gocron logs [-n N] [--run R] ID
+                              show a job's recent runs, or one run's output
+  gocron exec …               the wrapper cron runs tracked jobs through
   gocron describe [-n N] EXPR describe a schedule and show its next runs
   gocron doctor               check your cron setup and crontab
   gocron version              print version information
@@ -52,6 +64,7 @@ Usage:
 Environment:
   GOCRON_CRONTAB_FILE=PATH    use a plain file instead of your real crontab
   GOCRON_STATE_DIR=PATH       override the state directory
+  GOCRON_CONFIG=PATH          override the config file
 `
 
 func (a *app) run(ctx context.Context, args []string) int {
@@ -68,6 +81,12 @@ func (a *app) run(ctx context.Context, args []string) int {
 		return a.list(ctx, rest)
 	case "add":
 		return a.add(ctx, rest)
+	case "exec":
+		return a.exec(ctx, rest)
+	case "run":
+		return a.runJob(ctx, rest)
+	case "logs":
+		return a.logs(ctx, rest)
 	case "describe":
 		return a.describe(rest)
 	case "doctor":

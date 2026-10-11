@@ -15,11 +15,50 @@ This document is the source of truth for the project. It is built in phases acro
 | 1 | Foundations (core packages + minimal CLI) | ✅ done |
 | 2 | TUI shell + Jobs view | ✅ done |
 | 3 | Job editor + schedule builder | ✅ done |
-| 4 | Runs: exec wrapper, history, logs | ☐ not started |
+| 4 | Runs: exec wrapper, history, logs | ✅ done |
 | 5 | Timeline + power tools | ☐ not started |
 | 6 | Polish, notifications, release | ☐ not started |
 
 Session notes (append newest first):
+- _2026-10-11_: **Phase 4 done** (branch `feat/phase-4`). New packages: `config` loading (`config.Load`, TOML via `BurntSushi/toml v1.6.0`), `store` (SQLite run history), `runner` (`Exec`, cron env, launchers), `lockfile` (flock). New: `jobs.Diagnose`/`Plan`/`Launch`/`Stats`/`History`, `tui/views/runpane`, `tui/views/history`, CLI `exec`, `run`, `logs`. New doctor checks: config, state directory, run history, run tracking, state seen by cron.
+  - **Deps:** `modernc.org/sqlite v1.59.0` is pinned because v1.60+ needs Go 1.26. Run `go get`/`go mod tidy` with `GOTOOLCHAIN=go1.25.0`, or tidy will jump to the newest sqlite and bump the `go` line.
+  - **Wrapping is on.**
+    - `WrapNew` and `adoptWraps` are gone. New and adopted jobs follow `[defaults] wrap/no_overlap/timeout`.
+    - `jobs.CheckBin` refuses to wrap with a binary not named `gocron`, or one under `os.TempDir()` (a `go run` build). The editor greys out the Options row and shows the reason. `add` exits 1 and suggests `--raw`.
+    - `add`: config defaults apply unless a flag is set (`fs.Visit`). `--timeout` or `--no-overlap` turns tracking on even if `wrap = false`.
+    - `cmd/gocron` `app.bin` lets tests inject the path.
+  - **SQLite:**
+    - Each connection uses `_busy_timeout=5000&_txlock=immediate&_sync=NORMAL`.
+    - Schema creation and the one-time switch to WAL run under a flock on `locks/.db.lock`. Switching the journal mode can fail with BUSY even when a busy timeout is set.
+    - Writes are `BEGIN IMMEDIATE`. `INSERT … RETURNING` and `DELETE … RETURNING log_path` are used for prune.
+    - A newer `schema_version` is best-effort, not an error.
+  - **exec never refuses to run the command.**
+    - Arguments are parsed leniently: unknown flags and a bad `--timeout` are logged to `gocron-errors.log` (rotated at 1 MiB).
+    - An id that isn't path-safe runs unrecorded. The id check is `[A-Za-z0-9][A-Za-z0-9_-]*`, not just base32, because fixtures and hand edits use ids like `k3f9a2`.
+    - If the DB is unusable, the job runs unrecorded with its output on stdout, like plain cron.
+    - Signals are caught first thing, with `signal.Notify` and never `Ignore`, which the child would inherit. SIGPIPE is caught so a closed `--tee` reader can't kill exec.
+    - Exit codes: timeout 124, a shell that won't start 127 (status `error`), a signal 128+n. Stopping a run (`x`) records `failed`/143. `StatusLost = "unknown"` is only computed at read time, through an injectable `Alive`.
+    - Hidden flags: `--no-record`, and `--status-fd=N`. On the status fd, exec writes `ready`, `start <id>` and `done <status> <exit> <ms>`.
+  - **Runs from the TUI outlive it** (user's choice).
+    - `runner.SpawnLauncher` starts `gocron exec --tee --status-fd=3` with `Setsid`. It passes `GOCRON_STATE_DIR` and `GOCRON_CONFIG` explicitly, and holds back a stop until exec says `ready`.
+    - Tests use `runner.InProcessLauncher`, which runs a real shell and a real DB, or a fake built with `runner.NewHandle`.
+    - CLI tests run the test binary as gocron itself (`GOCRON_TEST_MAIN=1` in `TestMain`), so the concurrency, SIGPIPE and spawn tests use separate processes.
+  - **Environments** (`jobs.Plan`):
+    - Run now (`RunManual`) uses the user's env plus the crontab's env lines, `SHELL` from the crontab (default `/bin/sh`, never the user's zsh), from `$HOME`.
+    - Test (`RunCronEnv`) uses `env -i` style: HOME, LOGNAME, USER, `SHELL=/bin/sh`, `PATH=/usr/bin:/bin`, then the crontab's lines in order (`Snapshot.EnvAt`).
+    - Compare (`RunUserEnv`) uses the user's env untouched.
+    - Unmanaged entries and unsaved drafts run unrecorded. Managed jobs that aren't wrapped still record their manual and test runs.
+  - **Deviation from §4.3:** a failed test is diagnosed **statically** (`jobs.Diagnose`), because rerunning could repeat side effects (user's choice).
+    - It checks every program in the pipeline against both PATHs (exit 127 or "not found"), looks for `$VAR`s set only in the user's env, DISPLAY/DBUS for desktop tools, ssh-agent, and bashisms under `/bin/sh`. Single-quoted text is ignored.
+    - The pane offers **c** to rerun the job in the user's shell and compare, opt-in.
+  - **TUI:**
+    - The run pane (`views/runpane`) is a modal sized to its content. Output passes through `components.Lines` (ANSI stripped, `\r` keeps the last frame, runes split across chunks are buffered, 1000-line ring) and is coalesced into 100 ms batches.
+    - `esc` hides the pane while the run continues; a toast reports how it ended. `r` on a running job reopens its pane. The pane takes keys before the editor, so `^t` stacks on it.
+    - Stats reload every 5 s and when a run ends. The History feed reloads every 5 s while it's open. A `historyMsg` carries its filter and is dropped if stale.
+    - The list has a last-result glyph column and running rows (`◐ running 0:41`). The detail's RECENT section shows the run strip (Mono uses `■×!·?◐`), a sparkline of the last 10 durations, the average, and the last run. NEXT shrinks to fit.
+    - Keys: `h` opens the job's history. History: `f` failures, `c` cycles the trigger, `/` filters (job, id, first output line), `↵` opens the log, `o` opens `$PAGER` (default `less -R`). Log viewer: `/` search, `n/N`, `g/G`.
+  - **doctor:** `State` holds the paths, config errors and warnings, and home. "State seen by cron" resolves the paths with the crontab's env lines and `$HOME` only (`config.ResolveEnv`), and warns when they differ from the shell's.
+  - **Not done:** `exec` doesn't fire notifications (Phase 6). The TUI shows the trigger as plain colored text rather than a badge. The History job filter only comes from `h`; there's no picker yet (the Phase 5 palette could add one).
 - _2026-10-11_: **Phase 3 done** (branch `feat/phase-3`). New: `cronexpr` presets (`Preset`, `DetectPreset`, `FieldAt`, `FieldHelp`); `jobs.Draft`, `Service.Create`/`Update`, `Snapshot.Env` + `CronEnv(line)`, `jobs.LintDraft`/`LintPath`/`PathCache`; `tui/views/editor`; CLI `gocron add`. `crontab.ShellWords` and `crontab.CommandName` are exported.
   - **No wrapping yet** (`jobs.WrapNew = false`, next to `adoptWraps`). New jobs are plain lines. The editor shows the Options row dimmed, with a note. An already-wrapped job keeps its wrapping, and its Timeout and Skip options stay editable (unchecking Track runs unwraps it). `gocron add --timeout/--no-overlap` exits 2 until then. **Phase 4: flip `WrapNew` and `adoptWraps`.** The editor, `add`, and the help text follow automatically. Then add a config `[defaults]` lookup.
   - `^t` in the editor shows a "coming in a later release" toast. Phase 4 should handle `editor.TestMsg` (it carries the draft).
@@ -94,8 +133,8 @@ Remote hosts over SSH, multi-user or auth, systemd timers as a backend, a web UI
 | Forms | Hand-rolled on top of bubbles (`huh` only if it doesn't fight the design) | The schedule builder needs custom rendering. |
 | Cron parsing | Our own `cronexpr` (Vixie/cronie semantics); `robfig/cron/v3` only as a test oracle | 5-field, names, dow 7, descriptors (`@daily`…), `CRON_TZ=` prefix, cron-daemon DST rules. |
 | Human descriptions | Our own `cronexpr.Describe` | Phrasing we control, table-tested. |
-| Run storage | `modernc.org/sqlite` | Pure Go (no cgo), WAL mode, `busy_timeout=5000`. |
-| Config | TOML (`BurntSushi/toml` or `pelletier/go-toml/v2`) | |
+| Run storage | `modernc.org/sqlite` v1.59.0 | Pure Go (no cgo), WAL mode, `busy_timeout=5000`. Pinned: v1.60+ needs Go 1.26. |
+| Config | TOML (`BurntSushi/toml` v1.6.0) | |
 | CLI | stdlib `flag` with small subcommand dispatch | No cobra; keep the binary lean. |
 | TUI tests | `charmbracelet/x/exp/teatest/v2` | Golden snapshots. |
 | Release | goreleaser, vhs for demo GIFs | Phase 6. |
@@ -262,7 +301,7 @@ CREATE INDEX runs_started     ON runs(started_at DESC);
 - cwd = `$HOME`, no TTY, stdin = `/dev/null`
 - recorded as `trigger=test`, with output streamed live into a pane
 
-When a test run fails but the same command succeeds in the user's environment, the result pane suggests likely causes, such as a command not found on cron's `PATH` (it lists the binary's real location from the user's `PATH`) or a missing env var.
+When a test run fails, the result pane suggests likely causes, such as a command not found on cron's `PATH` (it lists the binary's real location from the user's `PATH`) or a missing env var. The diagnosis is static, so the job isn't run twice behind the user's back. The pane offers to rerun it in the user's own shell to compare.
 
 ---
 
@@ -610,11 +649,11 @@ Acceptance:
 Scope: `store` package, `gocron exec`, run now (`r`) and cron-env test (`t`) with streamed output panes, the History view, the log viewer, run strips and sparklines, last-status glyphs, `gocron run` and `gocron logs`.
 
 Acceptance:
-- [ ] `exec` records success/failed/timeout/skipped correctly, honors the timeout (process-group kill) and `--no-overlap`, caps logs, prunes by retention, and passes through the exit code. Integration tests use real short-lived shell commands.
-- [ ] If the DB is unavailable, `exec` still runs the command and exits with its code (test).
-- [ ] A cron-env test run of `command-only-in-local-bin` fails, and the UI suggests the PATH fix.
-- [ ] Concurrent `exec`s (10 at once) don't error on DB locking.
-- [ ] History filters and log search work. teatest snapshots for History and the log viewer.
+- [x] `exec` records success/failed/timeout/skipped correctly, honors the timeout (process-group kill) and `--no-overlap`, caps logs, prunes by retention, and passes through the exit code. Integration tests use real short-lived shell commands.
+- [x] If the DB is unavailable, `exec` still runs the command and exits with its code (test).
+- [x] A cron-env test run of `command-only-in-local-bin` fails, and the UI suggests the PATH fix.
+- [x] Concurrent `exec`s (10 at once) don't error on DB locking.
+- [x] History filters and log search work. teatest snapshots for History and the log viewer.
 
 ### Phase 5: Timeline + power tools
 Scope: the Timeline view (day/week, density, congestion warnings), command palette, tag filter, sort cycling, the Crontab view (highlighting, revisions, diff, restore, `$EDITOR` round-trip with validation), `export`/`import`, clipboard copy.
