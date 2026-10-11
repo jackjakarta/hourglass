@@ -1,0 +1,8 @@
+# valid first
+0 0 * * * /usr/bin/ok
+this is not a cron line
+61 * * * * /usr/bin/bad-minute
+* * * * 
+@every 5m /usr/bin/robfig-only
+0 0 * * * /usr/bin/ok-again
+0 0 ? * * /usr/bin/quartz-style

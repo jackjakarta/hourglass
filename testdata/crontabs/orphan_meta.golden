@@ -1,0 +1,25 @@
+  1 comment id="orph01" name="Before blank" ORPHAN
+  2 blank  
+  3 comment id="orph02" name="Before comment" ORPHAN
+  4 comment
+  5 comment id="orph03" name="Before another meta" ORPHAN
+  6 jobmeta id="good04" name="Has its line"
+  7 jobline sched="0 * * * *" cmd="/usr/bin/true"
+  8 comment id="orph05" name="Before invalid" ORPHAN
+  9 invalid err="minute: \"99\" is out of range (0-59)"
+ 10 comment err="gocron meta line has no id"
+ 11 entry   sched="0 1 * * *" cmd="/usr/bin/unmanaged-after-bad-meta"
+ 12 comment id="orph06" name="At EOF" ORPHAN
+--- jobs
+line=7 managed=true id="good04" name="Has its line" tags=[] enabled=true wrapped=false sched="0 * * * *" tz=""
+    cmd="/usr/bin/true"
+line=11 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="0 1 * * *" tz=""
+    cmd="/usr/bin/unmanaged-after-bad-meta"
+--- problems
+line 1: gocron job orph01 has no cron line below it [orphan-meta]
+line 3: gocron job orph02 has no cron line below it [orphan-meta]
+line 5: gocron job orph03 has no cron line below it [orphan-meta]
+line 8: gocron job orph05 has no cron line below it [orphan-meta]
+line 9: not a valid cron line: minute: "99" is out of range (0-59) [invalid-line]
+line 10: gocron meta line has no id [bad-meta]
+line 12: gocron job orph06 has no cron line below it [orphan-meta]

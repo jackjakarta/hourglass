@@ -1,0 +1,7 @@
+MAILTO=""
+# gocron:job id=k3f9a2 name="Nightly backup" tags=backup,db desc="Dump app DB to /bk"
+30 2 * * * /home/jack/.local/bin/gocron exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\%F).sql.gz'
+# gocron:job id=p7m2qd name="Say hi"
+0 9 * * 1-5 notify-send "hi"
+# gocron:job id=zz7aaq name=Sync tags=photos future_key="kept as is"
+*/15 * * * * /usr/local/bin/gocron exec zz7aaq -- 'rsync -a ~/Pictures/ nas:/photos/'

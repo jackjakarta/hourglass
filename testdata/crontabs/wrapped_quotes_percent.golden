@@ -1,0 +1,22 @@
+  1 jobmeta id="q1a2b3" name="Quotes and pipes"
+  2 jobline sched="0 * * * *" cmd="/opt/gocron/gocron exec q1a2b3 -- 'echo \"it'\\''s $(date +\\%H:\\%M)\" | tee -a /tmp/o.log >/dev/null'"
+  3 jobmeta id="q4c5d6" name="Percent raw"
+  4 jobline sched="0 0 * * *" cmd="printf '\\%s\\n' \"$(date +\\%F)\" > /tmp/date.txt"
+  5 jobmeta id="q7e8f9" name="Path with spaces"
+  6 jobline sched="5 * * * *" cmd="'/home/jack/my tools/gocron' exec --timeout=1h30m q7e8f9 -- 'cd ~/proj && make'"
+  7 jobmeta id="qahand" name="Hand edited"
+  8 jobline sched="10 * * * *" cmd="gocron exec qahand -- echo two words"
+  9 jobmeta id="qbflag" name="Unknown flag"
+ 10 jobline sched="15 * * * *" cmd="gocron exec --tee qbflag -- 'echo tee'"
+--- jobs
+line=2 managed=true id="q1a2b3" name="Quotes and pipes" tags=[] enabled=true wrapped=true sched="0 * * * *" tz=""
+    cmd="echo \"it's $(date +%H:%M)\" | tee -a /tmp/o.log >/dev/null" bin="/opt/gocron/gocron" timeout=0s no_overlap=false
+line=4 managed=true id="q4c5d6" name="Percent raw" tags=[] enabled=true wrapped=false sched="0 0 * * *" tz=""
+    cmd="printf '%s\\n' \"$(date +%F)\" > /tmp/date.txt"
+line=6 managed=true id="q7e8f9" name="Path with spaces" tags=[] enabled=true wrapped=true sched="5 * * * *" tz=""
+    cmd="cd ~/proj && make" bin="/home/jack/my tools/gocron" timeout=1h30m0s no_overlap=false
+line=8 managed=true id="qahand" name="Hand edited" tags=[] enabled=true wrapped=true sched="10 * * * *" tz=""
+    cmd="echo two words" bin="gocron" timeout=0s no_overlap=false
+line=10 managed=true id="qbflag" name="Unknown flag" tags=[] enabled=true wrapped=false sched="15 * * * *" tz=""
+    cmd="gocron exec --tee qbflag -- 'echo tee'"
+--- problems

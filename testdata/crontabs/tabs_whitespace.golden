@@ -1,0 +1,14 @@
+  1 comment
+  2 entry   sched="*/15\t*\t*\t*\t*" cmd="/usr/bin/sync   --flag  "
+  3 entry   sched="0 4 * * *" cmd="/usr/bin/two-spaces-lead"
+  4 blank  
+  5 blank  
+  6 entry   sched="0 5 * * *" cmd="/usr/bin/trailing-tab\t"
+--- jobs
+line=2 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="*/15 * * * *" tz=""
+    cmd="/usr/bin/sync   --flag"
+line=3 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="0 4 * * *" tz=""
+    cmd="/usr/bin/two-spaces-lead"
+line=6 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="0 5 * * *" tz=""
+    cmd="/usr/bin/trailing-tab"
+--- problems

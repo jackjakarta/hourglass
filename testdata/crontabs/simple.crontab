@@ -1,0 +1,6 @@
+# m h  dom mon dow   command
+*/5 * * * * ~/bin/sync.sh
+0 3 * * 0 /usr/bin/find /tmp -mtime +7 -delete
+
+# backups
+30 2 * * * /home/jack/bin/backup.sh >> /home/jack/backup.log 2>&1

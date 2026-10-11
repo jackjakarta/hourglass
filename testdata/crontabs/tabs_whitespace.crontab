@@ -1,0 +1,6 @@
+	# indented comment
+*/15	*	*	*	*	/usr/bin/sync   --flag  
+  0 4 * * *    /usr/bin/two-spaces-lead
+   
+	
+0 5 * * * /usr/bin/trailing-tab	

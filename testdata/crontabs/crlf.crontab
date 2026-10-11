@@ -1,0 +1,6 @@
+# written on windows
+MAILTO=""
+*/10 * * * * /usr/bin/ping-home
+
+# gocron:job id=crlf01 name="CRLF job"
+0 6 * * * /usr/bin/morning

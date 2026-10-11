@@ -1,0 +1,7 @@
+  1 comment
+  2 jobmeta id="nonl22" name="Tail"
+  3 jobline sched="0 1 * * *" cmd="/usr/bin/tail-job" eol=""
+--- jobs
+line=3 managed=true id="nonl22" name="Tail" tags=[] enabled=true wrapped=false sched="0 1 * * *" tz=""
+    cmd="/usr/bin/tail-job"
+--- problems

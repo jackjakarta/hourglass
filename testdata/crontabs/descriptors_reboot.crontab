@@ -1,0 +1,8 @@
+@reboot ~/bin/start-tmux.sh
+@hourly /usr/bin/true
+@daily  /usr/local/bin/rotate
+@WEEKLY /usr/local/bin/weekly
+@monthly /usr/local/bin/monthly
+@yearly /usr/local/bin/yearly
+@annually /usr/local/bin/annually
+@midnight /usr/local/bin/midnight

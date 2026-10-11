@@ -1,0 +1,11 @@
+  1 jobmeta id="dup111" name="First"
+  2 jobline sched="0 1 * * *" cmd="/usr/bin/first"
+  3 jobmeta id="dup111" name="Copy pasted"
+  4 jobline sched="0 2 * * *" cmd="/usr/bin/second"
+--- jobs
+line=2 managed=true id="dup111" name="First" tags=[] enabled=true wrapped=false sched="0 1 * * *" tz=""
+    cmd="/usr/bin/first"
+line=4 managed=true id="dup111" name="Copy pasted" tags=[] enabled=true wrapped=false sched="0 2 * * *" tz=""
+    cmd="/usr/bin/second"
+--- problems
+line 3: job id dup111 is also used on line 1 [duplicate-id]

@@ -1,0 +1,19 @@
+  1 comment
+  2 entry   sched="0 0 * * *" cmd="/usr/bin/ok"
+  3 invalid err="minute: \"this\" is not a number"
+  4 invalid err="minute: \"61\" is out of range (0-59)"
+  5 invalid err="not a cron entry (too few fields)"
+  6 invalid err="@every isn't supported by cron; use a step like */15"
+  7 entry   sched="0 0 * * *" cmd="/usr/bin/ok-again"
+  8 invalid err="day-of-month: \"?\" uses ?, which cron doesn't support; use *"
+--- jobs
+line=2 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="0 0 * * *" tz=""
+    cmd="/usr/bin/ok"
+line=7 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="0 0 * * *" tz=""
+    cmd="/usr/bin/ok-again"
+--- problems
+line 3: not a valid cron line: minute: "this" is not a number [invalid-line]
+line 4: not a valid cron line: minute: "61" is out of range (0-59) [invalid-line]
+line 5: not a valid cron line: not a cron entry (too few fields) [invalid-line]
+line 6: not a valid cron line: @every isn't supported by cron; use a step like */15 [invalid-line]
+line 8: not a valid cron line: day-of-month: "?" uses ?, which cron doesn't support; use * [invalid-line]

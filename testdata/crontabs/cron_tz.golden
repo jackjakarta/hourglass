@@ -1,0 +1,10 @@
+  1 env     CRON_TZ="Europe/Berlin"
+  2 entry   sched="30 2 * * *" cmd="/usr/local/bin/berlin-report"
+  3 env     CRON_TZ="America/New_York"
+  4 entry   sched="0 9 * * 1-5" cmd="/usr/local/bin/ny-standup"
+--- jobs
+line=2 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="30 2 * * *" tz="Europe/Berlin"
+    cmd="/usr/local/bin/berlin-report"
+line=4 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="0 9 * * 1-5" tz="America/New_York"
+    cmd="/usr/local/bin/ny-standup"
+--- problems
