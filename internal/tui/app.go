@@ -24,6 +24,7 @@ import (
 	"github.com/jackjakarta/gocron/internal/tui/views/editor"
 	historyview "github.com/jackjakarta/gocron/internal/tui/views/history"
 	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
+	"github.com/jackjakarta/gocron/internal/tui/views/timeline"
 )
 
 const (
@@ -96,13 +97,14 @@ type Model struct {
 	daemon  *doctor.DaemonStatus
 	readErr string // last error from the external-change check
 
-	jobs    jobsview.Model
-	history historyview.Model
-	editor  *editor.Model // the open new/edit form
-	help    bool
-	palette *paletteState // the open command palette or tag picker
-	confirm *components.Confirm
-	toasts  components.Toasts
+	jobs     jobsview.Model
+	timeline timeline.Model
+	history  historyview.Model
+	editor   *editor.Model // the open new/edit form
+	help     bool
+	palette  *paletteState // the open command palette or tag picker
+	confirm  *components.Confirm
+	toasts   components.Toasts
 
 	stats    map[string]store.JobStats // recent runs by job id
 	sessions map[int]*session          // runs started here
@@ -121,6 +123,8 @@ func New(ctx context.Context, opts Options) Model {
 	history.SetNow(opts.Clock.Now())
 	jv := jobsview.New(th, km)
 	jv.SetSort(jobsview.ParseSort(opts.UI.DefaultSort))
+	tl := timeline.New(th, km, opts.UI.CongestionThreshold)
+	tl.SetNow(opts.Clock.Now())
 	return Model{
 		ctx:      ctx,
 		opts:     opts,
@@ -129,6 +133,7 @@ func New(ctx context.Context, opts Options) Model {
 		th:       th,
 		now:      opts.Clock.Now(),
 		jobs:     jv,
+		timeline: tl,
 		history:  history,
 		sessions: map[int]*session{},
 	}
@@ -235,6 +240,7 @@ func (m *Model) toast(kind components.ToastKind, glyph, text string) {
 func (m *Model) setSnapshot(s jobs.Snapshot) {
 	m.snap, m.loaded = s, true
 	m.jobs.SetSnapshot(s, m.now)
+	m.timeline.SetSnapshot(s)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -242,6 +248,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.jobs.SetSize(m.width, m.bodyHeight())
+		m.timeline.SetSize(m.width, m.bodyHeight())
 		m.history.SetSize(m.width, m.bodyHeight())
 		if m.editor != nil {
 			m.editor.SetSize(m.width, m.bodyHeight())
@@ -254,6 +261,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		m.th = theme.Select(m.opts.NoColor, msg.IsDark())
 		m.jobs.SetTheme(m.th)
+		m.timeline.SetTheme(m.th)
 		m.history.SetTheme(m.th)
 		if m.editor != nil {
 			m.editor.SetTheme(m.th)
@@ -267,6 +275,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.now = m.clock.Now()
 		m.ticks++
 		m.jobs.SetNow(m.now)
+		m.timeline.SetNow(m.now)
 		m.history.SetNow(m.now)
 		if m.editor != nil {
 			m.editor.SetNow(m.now)
@@ -307,6 +316,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			m.stats = msg.stats
 			m.syncRuns()
+			m.timeline.SetRuns(m.stats)
 		}
 		return m, nil
 
@@ -398,6 +408,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.mutate("Adopted", "", func(ctx context.Context) (jobs.Result, error) {
 			return svc.Adopt(ctx, j.Line, j.Raw)
 		})
+
+	case timeline.OpenMsg:
+		m.tab = tabJobs
+		m.jobs.Reveal(msg.Job)
+		return m, nil
 
 	case jobsview.TagPickerMsg:
 		return m.openTagPicker()
@@ -561,8 +576,20 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.updateJobs(msg)
 	case m.tab == tabHistory && m.opts.Service != nil:
 		return m.updateHistory(msg)
+	case m.tab == tabTimeline && m.opts.Service != nil:
+		return m.updateTimeline(msg)
 	}
 	return m, nil
+}
+
+// updateTimeline passes a key to the Timeline view and acts on its request.
+func (m Model) updateTimeline(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	var req tea.Msg
+	m.timeline, req = m.timeline.Update(msg)
+	if req == nil {
+		return m, nil
+	}
+	return m.Update(req)
 }
 
 // switchTab shows tab t, loading what it needs when it wasn't showing.
@@ -799,8 +826,8 @@ func (m Model) body() string {
 	switch {
 	case m.opts.LoadErr != nil:
 		return m.loadError(w, h)
-	case m.tab == tabTimeline:
-		return comingSoon(m.th, "Timeline", "See when your jobs fire over the next day or week,", "and spot the minutes where too many run at once.", w, h)
+	case m.tab == tabTimeline && m.loaded:
+		return m.timeline.View()
 	case m.tab == tabHistory:
 		return m.history.View()
 	case m.tab == tabCrontab:
@@ -857,6 +884,8 @@ func (m Model) footerKeys() []key.Binding {
 		return m.editor.Hints()
 	case m.tab == tabHistory:
 		return m.history.Hints()
+	case m.tab == tabTimeline && m.opts.Service != nil:
+		return m.timeline.Hints()
 	case m.tab != tabJobs:
 		return []key.Binding{hint("1-4", "views"), hint("tab", "next view"), hint("?", "help"), hint("q", "quit")}
 	case m.jobs.Capturing():

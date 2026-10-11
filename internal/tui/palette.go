@@ -10,6 +10,7 @@ import (
 	"github.com/jackjakarta/gocron/internal/store"
 	"github.com/jackjakarta/gocron/internal/tui/components"
 	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
+	"github.com/jackjakarta/gocron/internal/tui/views/timeline"
 )
 
 // paletteAction is a palette item and what choosing it does.
@@ -157,6 +158,16 @@ func (m Model) paletteItems() []paletteAction {
 			act("History: only manual runs", km.Trigger, onHistory(func(m *Model) { m.history.SetTrigger(store.TriggerManual) })),
 			act("History: only test runs", km.Trigger, onHistory(func(m *Model) { m.history.SetTrigger(store.TriggerTest) })),
 			act("History: every run", none, onHistory(func(m *Model) { m.history.ClearFilters() })),
+			act("Timeline: next 24 hours (day)", km.Day, func(m Model) (tea.Model, tea.Cmd) {
+				m.tab = tabTimeline
+				m.timeline.SetMode(timeline.ModeDay)
+				return m, nil
+			}),
+			act("Timeline: next 7 days (week)", km.Week, func(m Model) (tea.Model, tea.Cmd) {
+				m.tab = tabTimeline
+				m.timeline.SetMode(timeline.ModeWeek)
+				return m, nil
+			}),
 		)
 	}
 	out = append(out,

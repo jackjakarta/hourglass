@@ -302,8 +302,6 @@ func TestLoadError(t *testing.T) {
 func TestComingSoonTabs(t *testing.T) {
 	hs := start(t, "realistic_mixed", 100, 24)
 	hs.waitFor("Nightly backup")
-	hs.keys("2")
-	hs.waitFor("See when your jobs fire")
 	hs.keys("4")
 	hs.waitFor("Your raw crontab")
 	if s := hs.screen(); !strings.Contains(s, "Coming soon") {
