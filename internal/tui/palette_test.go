@@ -152,4 +152,3 @@ func TestTagPickerSortAndCopy(t *testing.T) {
 		t.Errorf("output has no OSC 52 copy of the command")
 	}
 }
-
