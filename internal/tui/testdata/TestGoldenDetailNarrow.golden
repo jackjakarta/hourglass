@@ -11,6 +11,8 @@
 │                                                                                                  │
 │ TRACKING   runs via gocron exec · timeout 30m · skips if still running                           │
 │                                                                                                  │
+│ RECENT     no runs yet · r runs it now                                                           │
+│                                                                                                  │
 │ NEXT       Mon 12 Oct 02:30  in 11h 57m                                                          │
 │            Tue 13 Oct 02:30  in 1d 11h                                                           │
 │            Wed 14 Oct 02:30  in 2d 11h                                                           │
@@ -26,7 +28,5 @@
 │                                                                                                  │
 │                                                                                                  │
 │                                                                                                  │
-│                                                                                                  │
-│                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
- esc back  e edit  space pause  x delete  n new  u undo  / filter  ? help  q quit
+ esc back  e edit  space pause  r run  t test  h history  x delete  n new  u undo  / filter  ? help  q quit

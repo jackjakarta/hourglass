@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	svc "github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/gocron/internal/store"
 	"github.com/jackjakarta/gocron/internal/tui/keys"
 	"github.com/jackjakarta/gocron/internal/tui/theme"
 )
@@ -18,13 +19,15 @@ import (
 // Requests the view returns from Update for the app, which owns the
 // service, to act on right away.
 type (
-	ToggleMsg     struct{ Job svc.Job }
-	DeleteMsg     struct{ Job svc.Job }
-	AdoptMsg      struct{ Job svc.Job }
-	NewMsg        struct{}
-	EditMsg       struct{ Job svc.Job }
-	NeedAdoptMsg  struct{ Job svc.Job } // an action that needs a managed job
-	ComingSoonMsg struct{ What string }
+	ToggleMsg    struct{ Job svc.Job }
+	DeleteMsg    struct{ Job svc.Job }
+	AdoptMsg     struct{ Job svc.Job }
+	NewMsg       struct{}
+	EditMsg      struct{ Job svc.Job }
+	NeedAdoptMsg struct{ Job svc.Job } // an action that needs a managed job
+	RunMsg       struct{ Job svc.Job } // run now
+	TestMsg      struct{ Job svc.Job } // test in cron's environment
+	HistoryMsg   struct{ Job svc.Job } // show the job's runs
 )
 
 // Layout is how the view uses its width (spec §6.2).
@@ -66,8 +69,10 @@ type Model struct {
 	th   *theme.Theme
 	keys keys.Map
 
-	snap svc.Snapshot
-	now  time.Time
+	snap    svc.Snapshot
+	now     time.Time
+	stats   map[string]store.JobStats // by job id
+	running map[string]time.Time      // job id → when its current run started
 
 	width, height int
 	managed       []row // sorted by next run
@@ -102,6 +107,11 @@ func (m *Model) SetSnapshot(s svc.Snapshot, now time.Time) {
 	m.snap = s
 	m.now = now
 	m.rebuild()
+}
+
+// SetRuns sets the jobs' recent runs and which jobs are running now.
+func (m *Model) SetRuns(stats map[string]store.JobStats, running map[string]time.Time) {
+	m.stats, m.running = stats, running
 }
 
 // SetNow advances the clock: countdowns and the next-run order change.
@@ -285,9 +295,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Msg) {
 	case key.Matches(k, km.Edit):
 		return m, m.request(func(j svc.Job) tea.Msg { return EditMsg{j} })
 	case key.Matches(k, km.Run):
-		return m, ComingSoonMsg{"Run now"}
+		if j, ok := m.Selected(); ok {
+			return m, RunMsg{j}
+		}
 	case key.Matches(k, km.Test):
-		return m, ComingSoonMsg{"Test runs"}
+		if j, ok := m.Selected(); ok {
+			return m, TestMsg{j}
+		}
+	case key.Matches(k, km.History):
+		return m, m.request(func(j svc.Job) tea.Msg { return HistoryMsg{j} })
 	}
 	return m, nil
 }

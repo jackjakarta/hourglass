@@ -1,0 +1,32 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                                               ● cron active · Sun 14:32:07
+
+╭─ Jobs · 6 ─────────────────────────────────────────╮ ╭─ Sync photos ─────────────────────────────────────────────────╮
+│ / filter…                                          │ │ ● enabled · #photos · s7nc0p                                  │
+│                                                    │ │                                                               │
+│ ▌● Sync photos   Every 15 minutes   in 12m 53s   ✓ │ │ SCHEDULE   */15 * * * *                                       │
+│  ◐ Rotate logs   Every hour         running 0:41 ↷ │ │            Every 15 minutes                                   │
+│  ● Nightly bac…  At 02:30           in 11h 57m   ✓ │ │                                                               │
+│  ● Say hi        Weekdays at 09:00  in 18h 27m   ✓ │ │ COMMAND    rsync -a ~/Pictures/ nas:/photos/                  │
+│  ● Prune docker  Sundays at 04:00   in 6d 13h    ✗ │ │                                                               │
+│  ○ Weekl╭─ Run now · Sync photos ──────────────────────────────────────────────────────────────────────────╮ing      │
+│         │ ✗ failed · exit 12 · 3s                                                                   run 99 │         │
+│ UNMANAGE│ $ rsync -a ~/Pictures/ nas:/photos/                                                              │         │
+│  · @rebo│                                                                                                  │         │
+│  · */5 *│ syncing…                                                                                         │         │
+│  · 0 0 1│ photo-001.jpg                                                                                    │         │
+│         │ photo-002.jpg                                                                                    │         │
+│         │ 100%                                                                                             │         │
+│         │ rsync: connection unexpectedly closed                                                            │         │
+│         │                                                                                                  │         │
+│         │                                                                                                  │         │
+│         ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯         │
+│                                                    │ │            Sun 11 Oct 16:30  in 1h 57m                        │
+│                                                    │ │            Sun 11 Oct 16:45  in 2h 12m                        │
+│                                                    │ │            Sun 11 Oct 17:00  in 2h 27m                        │
+│                                                    │ │                                                               │
+│                                                    │ │                                                               │
+│                                                    │ │                                                               │
+│                                                    │ │                                                               │
+│                                                    │ │                                                               │
+╰────────────────────────────────────────────────────╯ ╰───────────────────────────────────────────────────────────────╯
+ ↑↓ scroll  esc close

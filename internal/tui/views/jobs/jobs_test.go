@@ -132,7 +132,25 @@ func TestRequests(t *testing.T) {
 	if r, ok := req.(ToggleMsg); !ok || r.Job.ID != "cccccc" {
 		t.Errorf("space = %#v", req)
 	}
+	if _, req := press(m, "r"); req.(RunMsg).Job.ID != "cccccc" {
+		t.Errorf("r = %#v", req)
+	}
+	if _, req := press(m, "t"); req.(TestMsg).Job.ID != "cccccc" {
+		t.Errorf("t = %#v", req)
+	}
+	if _, req := press(m, "h"); req.(HistoryMsg).Job.ID != "cccccc" {
+		t.Errorf("h = %#v", req)
+	}
 	m, _ = press(m, "G") // the unmanaged entry
+	// Unmanaged entries can run (unrecorded) but have no history.
+	if _, req := press(m, "r"); req.(RunMsg).Job.Managed {
+		t.Errorf("r on unmanaged = %#v", req)
+	}
+	if _, req := press(m, "h"); req == nil {
+		t.Error("h on an unmanaged entry sent nothing")
+	} else if _, ok := req.(NeedAdoptMsg); !ok {
+		t.Errorf("h on unmanaged = %#v", req)
+	}
 	if _, req := press(m, "x"); req == nil {
 		t.Error("x on an unmanaged entry sent nothing")
 	} else if _, ok := req.(NeedAdoptMsg); !ok {

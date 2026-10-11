@@ -37,7 +37,7 @@ func newEnv(t *testing.T, initial string) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.svc = New(store, "/usr/bin/gocron")
+	e.svc = New(store, Options{Bin: "/usr/bin/gocron"})
 	return e
 }
 

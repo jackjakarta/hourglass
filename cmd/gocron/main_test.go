@@ -13,10 +13,20 @@ import (
 	"github.com/jackjakarta/gocron/internal/crontab"
 )
 
+// envHelper makes the test binary act as gocron itself, so tests can run
+// "gocron exec" as real, separate processes.
+const envHelper = "GOCRON_TEST_MAIN"
+
 func TestMain(m *testing.M) {
+	if os.Getenv(envHelper) == "1" {
+		main()
+	}
 	time.Local = time.UTC
 	os.Exit(m.Run())
 }
+
+// testBin is the gocron path tests write into wrapped lines.
+const testBin = "/usr/local/bin/gocron"
 
 // Sun 11 Oct 2026 14:32:07 UTC
 var testNow = time.Date(2026, 10, 11, 14, 32, 7, 0, time.UTC)
@@ -26,7 +36,8 @@ func runCLI(t *testing.T, crontabFile string, args ...string) (stdout, stderr st
 	t.Setenv(crontab.EnvCrontabFile, crontabFile)
 	t.Setenv("GOCRON_STATE_DIR", t.TempDir())
 	var out, errOut bytes.Buffer
-	a := &app{stdout: &out, stderr: &errOut, now: func() time.Time { return testNow }, source: crontab.SourceFromEnv}
+	a := &app{stdout: &out, stderr: &errOut, now: func() time.Time { return testNow }, source: crontab.SourceFromEnv,
+		bin: func() string { return testBin }}
 	code = a.run(context.Background(), args)
 	return out.String(), errOut.String(), code
 }

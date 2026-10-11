@@ -36,7 +36,7 @@ func TestCreate(t *testing.T) {
 	if res.ID == "" || res.Backup == "" {
 		t.Errorf("result = %+v", res)
 	}
-	want := tab + "# gocron:job id=" + res.ID + ` name="Nightly backup" tags=backup,db` + "\n30 2 * * * pg_dump app\n"
+	want := tab + "# gocron:job id=" + res.ID + ` name="Nightly backup" tags=backup,db` + "\n30 2 * * * /usr/bin/gocron exec --timeout=1h --no-overlap " + res.ID + " -- 'pg_dump app'\n"
 	if got := e.read(t); got != want {
 		t.Errorf("crontab:\n%s\nwant:\n%s", got, want)
 	}
@@ -62,13 +62,9 @@ func TestCommandRoundTrip(t *testing.T) {
 	for _, cmd := range cmds {
 		for _, wrapped := range []bool{false, true} {
 			e := newEnv(t, "")
-			res, err := e.svc.Create(context.Background(), Draft{Name: "x", Schedule: "@daily", Command: cmd})
+			res, err := e.svc.Create(context.Background(), Draft{Name: "x", Schedule: "@daily", Command: cmd, Wrapped: wrapped})
 			if err != nil {
 				t.Fatal(err)
-			}
-			if wrapped { // as if gocron exec wrapped it (WrapNew is off until Phase 4)
-				e.write(t, "# gocron:job id="+res.ID+" name=x\n@daily "+
-					crontab.EscapePercent(crontab.Wrapped{Bin: "/usr/bin/gocron", ID: res.ID, Command: cmd}.Encode())+"\n")
 			}
 			j := reloadedJob(t, e, res.ID)
 			if j.Command != cmd || j.Wrapped != wrapped {
@@ -177,12 +173,12 @@ func TestUpdateWrapping(t *testing.T) {
 	if want := "# gocron:job id=abc234 name=A\n0 0 * * * a | b\n"; e.read(t) != want {
 		t.Errorf("crontab:\n%s", e.read(t))
 	}
-	// Turning it back on waits for gocron exec.
-	if _, err := e.svc.Update(context.Background(), "abc234", Draft{Name: "A", Schedule: "0 0 * * *", Command: "a | b", Wrapped: true}); err != nil {
+	// Turning it back on wraps it with this gocron.
+	if _, err := e.svc.Update(context.Background(), "abc234", Draft{Name: "A", Schedule: "0 0 * * *", Command: "a | b", Wrapped: true, Timeout: time.Minute}); err != nil {
 		t.Fatal(err)
 	}
-	if j := reloadedJob(t, e, "abc234"); j.Wrapped != WrapNew {
-		t.Errorf("wrapped = %v, want %v", j.Wrapped, WrapNew)
+	if want := "# gocron:job id=abc234 name=A\n0 0 * * * /usr/bin/gocron exec --timeout=1m abc234 -- 'a | b'\n"; e.read(t) != want {
+		t.Errorf("crontab:\n%s", e.read(t))
 	}
 }
 

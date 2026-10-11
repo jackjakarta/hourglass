@@ -153,7 +153,7 @@ func (m Model) columns(iw int, layout Layout) columns {
 		c.sched = max(c.sched, lipgloss.Width(r.job.Expr.Short()))
 		longest = max(longest, lipgloss.Width(r.job.Title()))
 	}
-	const fixed = 3 // bar, dot, space
+	const fixed = 3 + 2 // bar, dot, space; a space and the last result's glyph
 	if c.compact {
 		c.sched = 0
 		c.name = min(max(iw-fixed-2-c.nxt, 4), longest)
@@ -171,6 +171,9 @@ func (m Model) columns(iw int, layout Layout) columns {
 
 func (m Model) nextLabel(r row) string {
 	j := r.job
+	if since, ok := m.running[j.ID]; ok && j.Managed {
+		return "running " + components.Elapsed(m.now.Sub(since))
+	}
 	switch {
 	case !j.Enabled:
 		return "paused"
@@ -198,9 +201,13 @@ func (m Model) managedRow(r row, c columns, selected bool) string {
 	}
 	dot, dotStyle := theme.GlyphEnabled, th.OK
 	nameStyle, nextStyle := th.Text, th.Text
-	if !r.job.Enabled {
+	_, running := m.running[r.job.ID]
+	switch {
+	case running:
+		dot, dotStyle, nextStyle = theme.GlyphRunning, th.Warn, th.Warn
+	case !r.job.Enabled:
 		dot, dotStyle, nameStyle, nextStyle = theme.GlyphPaused, th.Muted, th.Muted, th.Muted
-	} else if r.next.IsZero() {
+	case r.next.IsZero():
 		nextStyle = th.Muted
 	}
 	if selected {
@@ -210,7 +217,11 @@ func (m Model) managedRow(r row, c columns, selected bool) string {
 	if !c.compact {
 		s += paint(th.Schedule, components.Fit(r.job.Expr.Short(), c.sched)) + paint(th.Text, "  ")
 	}
-	s += paint(nextStyle, components.Fit(m.nextLabel(r), c.nxt))
+	s += paint(nextStyle, components.Fit(m.nextLabel(r), c.nxt)) + paint(th.Text, " ")
+	if st, ok := m.stats[r.job.ID]; ok && st.Last != nil {
+		glyph, style := components.StatusGlyph(th, st.Last.Status)
+		s += paint(style, glyph)
+	}
 	return s + paint(th.Text, strings.Repeat(" ", max(c.width-lipgloss.Width(s), 0)))
 }
 

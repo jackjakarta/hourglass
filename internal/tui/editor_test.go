@@ -48,7 +48,8 @@ func TestEditorCreate(t *testing.T) {
 	const cmd = `pg_dump app | gzip > /bk/app-$(date +%F).sql.gz`
 	hs.keys("n", "Nightly backup", "tab", "tab", "0230", "tab", cmd, "tab", "backup, db", "ctrl+s")
 	hs.waitFor(`Created "Nightly backup" · backup created · u undo`)
-	re := regexp.MustCompile(`^# gocron:job id=[a-z2-7]{6} name="Nightly backup" tags=backup,db\n30 2 \* \* \* pg_dump app \| gzip > /bk/app-\$\(date \+\\%F\)\.sql\.gz\n$`)
+	// Tracked by default: wrapped, skipping overlaps (config defaults).
+	re := regexp.MustCompile(`^# gocron:job id=([a-z2-7]{6}) name="Nightly backup" tags=backup,db\n30 2 \* \* \* /usr/bin/gocron exec --no-overlap [a-z2-7]{6} -- 'pg_dump app \| gzip > /bk/app-\$\(date \+\\%F\)\.sql\.gz'\n$`)
 	if got := hs.read(); !re.MatchString(got) {
 		t.Errorf("crontab:\n%s", got)
 	}
@@ -178,7 +179,7 @@ func TestEditorConflictKeepEditing(t *testing.T) {
 	hs.waitFor("your edits are still here")
 	hs.keys("ctrl+s")
 	hs.waitFor(`Created "echo"`)
-	if got := hs.read(); !strings.Contains(got, "# edited elsewhere\n# gocron:job id=") || !strings.HasSuffix(got, "0 9 * * * echo hi\n") {
+	if got := hs.read(); !strings.Contains(got, "# edited elsewhere\n# gocron:job id=") || !regexp.MustCompile(`0 9 \* \* \* /usr/bin/gocron exec --no-overlap [a-z2-7]{6} -- 'echo hi'\n$`).MatchString(got) {
 		t.Errorf("crontab:\n%s", got)
 	}
 	hs.screen()

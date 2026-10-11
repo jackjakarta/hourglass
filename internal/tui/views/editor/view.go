@@ -132,8 +132,8 @@ func (m Model) lines() ([]string, int) {
 	if m.focus == stopTimeout || m.focus == stopNoOverlap {
 		focusLine = len(out) - 1
 	}
-	if !m.canTrack {
-		for _, l := range wrap("Run tracking, timeouts and overlap protection arrive with gocron exec in a later release.", vw) {
+	if !m.canTrack && m.wrapErr != nil {
+		for _, l := range wrap(capitalize(m.wrapErr.Error())+".", vw) {
 			cont(th.Muted.Render(l))
 		}
 	}
@@ -377,4 +377,11 @@ func (m Model) Hints() []key.Binding {
 		out = append(out, h("space", "toggle"))
 	}
 	return append(out, h("^s", "save"), h("^t", "test"), h("esc", "cancel"))
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }

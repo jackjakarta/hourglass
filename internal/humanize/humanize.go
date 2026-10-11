@@ -56,3 +56,17 @@ func Absolute(t, now time.Time) string {
 	}
 	return t.Format("Mon 2 Jan 15:04")
 }
+
+// Bytes renders n as "512 B", "1.5 KiB", "3.2 MiB".
+func Bytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
+}

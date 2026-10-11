@@ -10,10 +10,12 @@
 │  ● Prune docker    Sundays at 04:00   in 6d 13h             │ │                                                                          │
 │  ○ Weekly report   Mondays at 09:00   paused                │ │ TRACKING   runs via gocron exec · skips if still running                 │
 │                                                             │ │                                                                          │
-│ UNMANAGED · 3                                               │ │ NEXT       Sun 11 Oct 14:45  in 12m 53s                                  │
-│  · @reboot ~/bin/start-tmux.sh                              │ │            Sun 11 Oct 15:00  in 27m 53s                                  │
-│  · */5 * * * * ~/bin/sync.sh >/dev/null 2>&1                │ │            Sun 11 Oct 15:15  in 42m 53s                                  │
-│  · 0 0 1 * 1 ~/bin/first-or-monday.sh                       │ │            Sun 11 Oct 15:30  in 57m 53s                                  │
+│ UNMANAGED · 3                                               │ │ RECENT     no runs yet · r runs it now                                   │
+│  · @reboot ~/bin/start-tmux.sh                              │ │                                                                          │
+│  · */5 * * * * ~/bin/sync.sh >/dev/null 2>&1                │ │ NEXT       Sun 11 Oct 14:45  in 12m 53s                                  │
+│  · 0 0 1 * 1 ~/bin/first-or-monday.sh                       │ │            Sun 11 Oct 15:00  in 27m 53s                                  │
+│                                                             │ │            Sun 11 Oct 15:15  in 42m 53s                                  │
+│                                                             │ │            Sun 11 Oct 15:30  in 57m 53s                                  │
 │                                                             │ │            Sun 11 Oct 15:45  in 1h 12m                                   │
 │                                                             │ │            Sun 11 Oct 16:00  in 1h 27m                                   │
 │                                                             │ │            Sun 11 Oct 16:15  in 1h 42m                                   │
@@ -26,7 +28,5 @@
 │                                                             │ │                                                                          │
 │                                                             │ │                                                                          │
 │                                                             │ │                                                                          │
-│                                                             │ │                                                                          │
-│                                                             │ │                                                                          │
 ╰─────────────────────────────────────────────────────────────╯ ╰──────────────────────────────────────────────────────────────────────────╯
- ↑↓ move  e edit  space pause  x delete  n new  u undo  / filter  ? help  q quit
+ ↑↓ move  e edit  space pause  r run  t test  h history  x delete  n new  u undo  / filter  ? help  q quit

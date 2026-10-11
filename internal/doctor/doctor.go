@@ -68,6 +68,8 @@ type Env struct {
 	Exists func(path string) bool
 	// SelfPath is the running gocron binary, symlinks resolved.
 	SelfPath string
+	// State is gocron's own files; nil skips the checks about them.
+	State *State
 }
 
 // DefaultEnv probes the real system.
@@ -124,6 +126,9 @@ func Run(ctx context.Context, env Env) []Check {
 	daemonCheck, daemon := checkDaemon(ctx, env)
 	checks = append(checks, daemonCheck)
 	if content == nil && access.Status == Fail {
+		if env.State != nil {
+			checks = append(checks, stateChecks(ctx, env, nil)...)
+		}
 		return checks
 	}
 	tab := crontab.Parse(content)
@@ -135,6 +140,9 @@ func Run(ctx context.Context, env Env) []Check {
 		checks = append(checks, c)
 	}
 	checks = append(checks, checkMailto(tab))
+	if env.State != nil {
+		checks = append(checks, stateChecks(ctx, env, tab)...)
+	}
 	return checks
 }
 

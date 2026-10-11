@@ -41,3 +41,11 @@ func TestNext(t *testing.T) {
 		}
 	}
 }
+
+func TestBytes(t *testing.T) {
+	for n, want := range map[int64]string{0: "0 B", 1023: "1023 B", 1536: "1.5 KiB", 1 << 20: "1.0 MiB", 5 << 30: "5.0 GiB"} {
+		if got := Bytes(n); got != want {
+			t.Errorf("Bytes(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
