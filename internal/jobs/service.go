@@ -4,7 +4,6 @@
 package jobs
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -24,7 +23,6 @@ type Snapshot struct {
 	Jobs     []Job // managed jobs and unmanaged entries, in crontab order
 	Problems []crontab.Problem
 	Source   string // "user crontab" | "file: /path"
-	Empty    bool   // the crontab has no content at all
 }
 
 // Result describes a saved change.
@@ -82,11 +80,7 @@ func (s *Service) Snapshot() Snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tab := s.store.Crontab()
-	snap := Snapshot{
-		Problems: tab.Problems(),
-		Source:   s.store.Source().Name(),
-		Empty:    len(bytes.TrimSpace(s.store.Content())) == 0,
-	}
+	snap := Snapshot{Problems: tab.Problems(), Source: s.store.Source().Name()}
 	for _, j := range tab.Jobs() {
 		snap.Jobs = append(snap.Jobs, Job{j})
 	}

@@ -92,21 +92,13 @@ func (a *app) list(ctx context.Context, args []string) int {
 		case !j.Enabled:
 			state = "○ paused"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", id, truncate(j.Title(), 32), j.Schedule, describe(j), nextLabel(j, now), state)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", id, truncate(j.Title(), 32), j.Schedule, j.Describe(), nextLabel(j, now), state)
 	}
 	w.Flush()
 	if !*all && unmanaged > 0 {
 		fmt.Fprintf(a.stdout, "\n+ %d unmanaged %s (gocron list --all)\n", unmanaged, plural(unmanaged, "entry", "entries"))
 	}
 	return exitOK
-}
-
-func describe(j crontab.Job) string {
-	s := j.Expr.Describe()
-	if j.TZ != "" && j.Expr.TZ == nil {
-		s += " (" + j.TZ + ")"
-	}
-	return s
 }
 
 func nextLabel(j crontab.Job, now time.Time) string {
@@ -125,7 +117,7 @@ func nextLabel(j crontab.Job, now time.Time) string {
 
 func toJSON(j crontab.Job, now time.Time) jsonJob {
 	out := jsonJob{
-		ID: j.ID, Name: j.Name, Desc: j.Desc, Tags: j.Tags, Schedule: j.Schedule, Description: describe(j),
+		ID: j.ID, Name: j.Name, Desc: j.Desc, Tags: j.Tags, Schedule: j.Schedule, Description: j.Describe(),
 		Command: j.Command, Enabled: j.Enabled, Managed: j.Managed, Wrapped: j.Wrapped,
 		NoOverlap: j.NoOverlap, TZ: j.TZ, Line: j.Line,
 	}

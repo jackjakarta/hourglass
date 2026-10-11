@@ -69,11 +69,8 @@ func TestSnapshot(t *testing.T) {
 	if len(snap.Jobs) != 3 || snap.Jobs[0].Managed || !snap.Jobs[1].Managed || snap.Jobs[2].Enabled {
 		t.Errorf("jobs = %+v", snap.Jobs)
 	}
-	if len(snap.Problems) != 1 || snap.Empty || !strings.HasPrefix(snap.Source, "file: ") {
+	if len(snap.Problems) != 1 || !strings.HasPrefix(snap.Source, "file: ") {
 		t.Errorf("snapshot = %+v", snap)
-	}
-	if !newEnv(t, "").svc.Snapshot().Empty || !newEnv(t, "\n\n").svc.Snapshot().Empty {
-		t.Error("empty crontab not reported as Empty")
 	}
 }
 

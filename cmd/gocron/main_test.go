@@ -132,7 +132,7 @@ func TestExitCodes(t *testing.T) {
 		code int
 		out  string // in stdout or stderr
 	}{
-		{nil, 0, "isn't here yet"},
+		{nil, 0, "The gocron TUI needs a terminal."},
 		{[]string{"help"}, 0, "Usage:"},
 		{[]string{"bogus"}, 2, `unknown command "bogus"`},
 		{[]string{"describe"}, 2, "Usage: gocron describe"},

@@ -1,0 +1,32 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                                                                   ● cron active · Sun 14:32:07
+
+╭─ Jobs · 6 ──────────────────────────────────────────────────╮ ╭─ Sync photos ────────────────────────────────────────────────────────────╮
+│ / filter…                                                   │ │ ● enabled · #photos · s7nc0p                                             │
+│                                                             │ │                                                                          │
+│ ▌● Sync photos     Every 15 minutes   in 12m 53s            │ │ SCHEDULE   */15 * * * *                                                  │
+│  ● Rotate logs     Every hour         in 27m 53s            │ │            Every 15 minutes                                              │
+│  ● Nightly backup  At 02:30           in 11h 57m            │ │                                                                          │
+│  ● Say hi          Weekdays at 09:00  in 18h 27m            │ │ COMMAND    rsync -a ~/Pictures/ nas:/photos/                             │
+│  ● Prune docker    Sundays at 04:00   in 6d 13h             │ │                                                                          │
+│  ○ Weekly report   Mondays at 09:00   paused                │ │ TRACKING   runs via gocron exec · skips if still running                 │
+│                                                             │ │                                                                          │
+│ UNMANAGED · 3                                               │ │ NEXT       Sun 11 Oct 14:45  in 12m 53s                                  │
+│  · @reboot ~/bin/start-tmux.sh                              │ │            Sun 11 Oct 15:00  in 27m 53s                                  │
+│  · */5 * * * * ~/bin/sync.sh >/dev/null 2>&1                │ │            Sun 11 Oct 15:15  in 42m 53s                                  │
+│  · 0 0 1 * 1 ~/bin/first-or-monday.sh                       │ │            Sun 11 Oct 15:30  in 57m 53s                                  │
+│                                                             │ │            Sun 11 Oct 15:45  in 1h 12m                                   │
+│                                                             │ │            Sun 11 Oct 16:00  in 1h 27m                                   │
+│                                                             │ │            Sun 11 Oct 16:15  in 1h 42m                                   │
+│                                                             │ │            Sun 11 Oct 16:30  in 1h 57m                                   │
+│                                                             │ │            Sun 11 Oct 16:45  in 2h 12m                                   │
+│                                                             │ │            Sun 11 Oct 17:00  in 2h 27m                                   │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+│                                                             │ │                                                                          │
+╰─────────────────────────────────────────────────────────────╯ ╰──────────────────────────────────────────────────────────────────────────╯
+ ↑↓ move  space pause  x delete  u undo  / filter  ? help  q quit

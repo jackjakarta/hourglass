@@ -1,0 +1,24 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                           ● cron active · Sun 14:32:07
+
+╭─ Jobs ───────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                  │
+│ Welcome to gocron                                                                                │
+│                                                                                                  │
+│ There are no cron jobs in your crontab (file: crontab) yet.                                      │
+│                                                                                                  │
+│ gocron keeps jobs in your real crontab, so they run whether or not                               │
+│ gocron is open. Each job is a comment line plus a cron line:                                     │
+│                                                                                                  │
+│   # gocron:job id=k3f9a2 name="Nightly backup"                                                   │
+│   30 2 * * * pg_dump app > /bk/app.sql                                                           │
+│                                                                                                  │
+│ Creating jobs here arrives with the editor. Until then, add a line                               │
+│ with crontab -e: gocron picks it up within seconds, and a                                        │
+│ adopts it.                                                                                       │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+ u undo  ? help  q quit

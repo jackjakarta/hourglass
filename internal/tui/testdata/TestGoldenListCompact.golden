@@ -1,0 +1,24 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab             Sun 14:32:07
+
+╭─ Jobs · 6 ─────────────────────────────────────────────────────────╮
+│ / filter…                                                          │
+│                                                                    │
+│ ▌● Sync photos     in 12m 53s                                      │
+│  ● Rotate logs     in 27m 53s                                      │
+│  ● Nightly backup  in 11h 57m                                      │
+│  ● Say hi          in 18h 27m                                      │
+│  ● Prune docker    in 6d 13h                                       │
+│  ○ Weekly report   paused                                          │
+│                                                                    │
+│ UNMANAGED · 3                                                      │
+│  · @reboot ~/bin/start-tmux.sh                                     │
+│  · */5 * * * * ~/bin/sync.sh >/dev/null 2>&1                       │
+│  · 0 0 1 * 1 ~/bin/first-or-monday.sh                              │
+│                                                                    │
+│                                                                    │
+│                                                                    │
+│                                                                    │
+│                                                                    │
+│                                                                    │
+╰────────────────────────────────────────────────────────────────────╯
+ ↑↓ move  ↵ open  space pause  x delete  u undo  / filter  ? help …
