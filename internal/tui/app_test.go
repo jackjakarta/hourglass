@@ -21,6 +21,7 @@ import (
 	"github.com/jackjakarta/gocron/internal/doctor"
 	"github.com/jackjakarta/gocron/internal/jobs"
 	"github.com/jackjakarta/gocron/internal/runner"
+	"github.com/jackjakarta/gocron/internal/tui/components"
 )
 
 // pkgDir is the package directory; tests chdir away from it.
@@ -402,6 +403,55 @@ func TestConflictReapply(t *testing.T) {
 		t.Errorf("reapply:\n%s", got)
 	}
 	hs.screen()
+}
+
+func TestConflictViewDiff(t *testing.T) {
+	hs := start(t, "realistic_mixed", 140, 32)
+	hs.waitFor("Nightly backup")
+	external := hs.read() + "# by hand\n"
+	hs.write(external)
+	hs.keys("space")
+	hs.waitFor("View diff")
+	hs.keys("d")
+	hs.waitFor("The outside change")
+	hs.waitFor("+# by hand")
+	hs.keys("esc")
+	hs.waitFor("Reapply")
+	hs.keys("right", "enter") // focus starts on Discard; right is Reapply
+	hs.waitFor(`Paused "Sync photos"`)
+	if !strings.Contains(hs.read(), "# by hand") || !strings.Contains(hs.read(), "#gocron:off */15") {
+		t.Errorf("reapply after viewing the diff:\n%s", hs.read())
+	}
+	hs.screen()
+}
+
+func TestConfirmExtraButton(t *testing.T) {
+	ran := ""
+	cmd := func(s string) tea.Cmd { return func() tea.Msg { ran = s; return nil } }
+	c := &components.Confirm{Safe: "Discard", Action: "Reapply", Extra: "View diff", OnSafe: cmd("safe"), OnOK: cmd("ok"), OnExtra: cmd("extra")}
+	for _, tt := range []struct {
+		keys []tea.KeyPressMsg
+		want string
+	}{
+		{nil, "safe"},
+		{[]tea.KeyPressMsg{{Code: tea.KeyRight}}, "ok"},
+		{[]tea.KeyPressMsg{{Code: tea.KeyRight}, {Code: tea.KeyRight}}, "extra"}, // wraps
+		{[]tea.KeyPressMsg{{Code: tea.KeyLeft}}, "extra"},
+	} {
+		c2 := *c
+		for _, k := range tt.keys {
+			c2.Update(k)
+		}
+		_, got := c2.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		got()
+		if ran != tt.want {
+			t.Errorf("%v then enter ran %q, want %q", tt.keys, ran, tt.want)
+		}
+	}
+	c2 := *c
+	if done, got := c2.Update(tea.KeyPressMsg{Code: 'd', Text: "d"}); !done || got == nil {
+		t.Error("d didn't choose the extra button")
+	}
 }
 
 func TestFilterCapturesKeys(t *testing.T) {

@@ -77,7 +77,7 @@ type (
 		content []byte
 		err     error
 	}
-	pagerDoneMsg  struct{ err error }
+	pagerDoneMsg struct{ err error }
 	revisionsMsg struct {
 		content []byte // the crontab they were loaded against
 		revs    []jobs.Revision
@@ -111,6 +111,7 @@ type Model struct {
 	editor   *editor.Model // the open new/edit form
 	help     bool
 	palette  *paletteState // the open command palette or tag picker
+	diff     *diffOverlay  // an outside change, shown from a conflict dialog
 	confirm  *components.Confirm
 	toasts   components.Toasts
 
@@ -402,6 +403,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return next, cmd
 
+	case showDiffMsg:
+		if msg.err != nil {
+			m.confirm = msg.back
+			m.toast(components.ToastFail, "", "Can't read the crontab: "+msg.err.Error())
+			return m, nil
+		}
+		m.diff = &diffOverlay{lines: msg.lines, back: msg.back}
+		return m, nil
+
 	case editorDoneMsg:
 		return m.handleEditorDone(msg)
 
@@ -559,6 +569,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.palette != nil {
 		return m.updatePalette(msg)
+	}
+	if m.diff != nil {
+		return m.updateDiff(msg)
 	}
 	if m.confirm != nil {
 		done, cmd := m.confirm.Update(msg)
@@ -746,7 +759,9 @@ func (m Model) handleMutation(msg mutationMsg) (tea.Model, tea.Cmd) {
 			Action: "Reapply",
 			OnSafe: m.reload("Crontab reloaded · your change was discarded"),
 			OnOK:   m.mutate(msg.verb, msg.title, retry),
+			Extra:  "View diff",
 		}
+		m.confirm.OnExtra = m.viewDiff(m.confirm)
 	case errors.As(msg.err, &conflict):
 		return m, m.reload("Crontab changed outside gocron, so nothing was undone · reloaded")
 	case errors.Is(msg.err, jobs.ErrNothingToUndo):
@@ -791,7 +806,9 @@ func (m Model) handleEditorSave(msg mutationMsg) (tea.Model, tea.Cmd) {
 			Action: "Reapply",
 			OnSafe: m.reload("Crontab reloaded · your edits are still here · ^s saves"),
 			OnOK:   m.editorSave(msg.verb, msg.title, conflict.Retry),
+			Extra:  "View diff",
 		}
+		m.confirm.OnExtra = m.viewDiff(m.confirm)
 	case errors.Is(msg.err, crontab.ErrNotFound):
 		m.toast(components.ToastFail, "", "This job is no longer in the crontab, so it can't be saved. esc closes the editor.")
 	default:
@@ -838,6 +855,9 @@ func (m Model) render() string {
 		screen = components.OverlayCenter(screen, m.confirm.View(m.th), w, h)
 	case m.help:
 		screen = components.OverlayCenter(screen, components.HelpOverlay(m.th, m.keys.FullHelp(), keys.GroupTitles), w, h)
+	}
+	if m.diff != nil {
+		screen = components.OverlayCenter(screen, m.diff.view(m.th, w, h), w, h)
 	}
 	if m.palette != nil {
 		p := m.palette.p.View(m.th, w-8)
@@ -933,6 +953,8 @@ func hint(k, desc string) key.Binding {
 
 func (m Model) footerKeys() []key.Binding {
 	switch {
+	case m.diff != nil:
+		return []key.Binding{hint("↑↓", "scroll"), hint("esc", "back to the question")}
 	case m.palette != nil:
 		return []key.Binding{hint("type", "to search"), hint("↑↓", "choose"), hint("↵", "run"), hint("esc", "close")}
 	case m.confirm != nil:
