@@ -37,6 +37,25 @@ func (j Job) Title() string {
 	return j.Command
 }
 
+// NextRuns returns up to n fire times after from, evaluated in the job's
+// CRON_TZ when one is set and returned in from's location.
+func (j Job) NextRuns(from time.Time, n int) []time.Time {
+	if j.Expr == nil {
+		return nil
+	}
+	eval := from
+	if j.TZ != "" && j.Expr.TZ == nil {
+		if loc, err := time.LoadLocation(j.TZ); err == nil {
+			eval = from.In(loc)
+		}
+	}
+	out := j.Expr.Next(eval, n)
+	for i := range out {
+		out[i] = out[i].In(from.Location())
+	}
+	return out
+}
+
 // Jobs returns managed jobs and unmanaged entries in crontab order.
 func (c *Crontab) Jobs() []Job {
 	var out []Job

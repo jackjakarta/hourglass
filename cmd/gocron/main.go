@@ -1,0 +1,112 @@
+// Command gocron manages your crontab. With no arguments it opens the TUI.
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/jackjakarta/gocron/internal/crontab"
+)
+
+const (
+	exitOK       = 0
+	exitError    = 1
+	exitUsage    = 2
+	exitConflict = 3 // crontab changed outside gocron
+)
+
+type app struct {
+	stdout, stderr io.Writer
+	now            func() time.Time
+	source         func() (crontab.Source, error)
+}
+
+func main() {
+	a := &app{stdout: os.Stdout, stderr: os.Stderr, now: time.Now, source: crontab.SourceFromEnv}
+	os.Exit(a.run(context.Background(), os.Args[1:]))
+}
+
+const usage = `gocron — a home for your cron jobs
+
+Usage:
+  gocron                      open the TUI (coming in the next release)
+  gocron list [--json] [--all]
+                              list jobs (--all includes unmanaged entries)
+  gocron describe [-n N] EXPR describe a schedule and show its next runs
+  gocron doctor               check your cron setup and crontab
+  gocron version              print version information
+
+Environment:
+  GOCRON_CRONTAB_FILE=PATH    use a plain file instead of your real crontab
+  GOCRON_STATE_DIR=PATH       override the state directory
+`
+
+func (a *app) run(ctx context.Context, args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(a.stdout, "The gocron TUI isn't here yet. Meanwhile, these commands work:")
+		fmt.Fprintln(a.stdout)
+		fmt.Fprint(a.stdout, usage)
+		return exitOK
+	}
+	cmd, rest := args[0], args[1:]
+	switch cmd {
+	case "list":
+		return a.list(ctx, rest)
+	case "describe":
+		return a.describe(rest)
+	case "doctor":
+		return a.doctor(ctx, rest)
+	case "version", "--version":
+		return a.version(rest)
+	case "help", "-h", "--help":
+		fmt.Fprint(a.stdout, usage)
+		return exitOK
+	}
+	fmt.Fprintf(a.stderr, "gocron: unknown command %q\n\n%s", cmd, usage)
+	return exitUsage
+}
+
+// flags returns a FlagSet that reports errors to stderr with a usage line.
+func (a *app) flags(name, synopsis string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(a.stderr)
+	fs.Usage = func() {
+		fmt.Fprintf(a.stderr, "Usage: gocron %s\n", synopsis)
+		fs.PrintDefaults()
+	}
+	return fs
+}
+
+// parse parses flags, returning an exit code when the command should stop.
+func parse(fs *flag.FlagSet, args []string) (int, bool) {
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return exitOK, false
+		}
+		return exitUsage, false
+	}
+	return 0, true
+}
+
+// fail prints an error and returns the matching exit code.
+func (a *app) fail(err error) int {
+	fmt.Fprintf(a.stderr, "gocron: %v\n", err)
+	if errors.Is(err, crontab.ErrConflict) {
+		return exitConflict
+	}
+	return exitError
+}
+
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return strings.TrimSpace(string(r[:n-1])) + "…"
+}

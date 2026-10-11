@@ -198,3 +198,15 @@ func TestNewID(t *testing.T) {
 		}
 	}
 }
+
+func TestNextRunsHonorsCronTZ(t *testing.T) {
+	jobs := Parse(loadFixture(t, "cron_tz")).Jobs()
+	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	// 02:30 Berlin (CEST) = 00:30 UTC; 09:00 New York (EDT) = 13:00 UTC.
+	if got := jobs[0].NextRuns(from, 1); len(got) != 1 || !got[0].Equal(time.Date(2026, 6, 1, 0, 30, 0, 0, time.UTC)) || got[0].Location() != time.UTC {
+		t.Errorf("Berlin job next = %v", got)
+	}
+	if got := jobs[1].NextRuns(from, 1); len(got) != 1 || !got[0].Equal(time.Date(2026, 6, 1, 13, 0, 0, 0, time.UTC)) {
+		t.Errorf("New York job next = %v", got)
+	}
+}
