@@ -27,6 +27,12 @@ type Options struct {
 	// Daemon reports the cron daemon's status for the header; nil skips it.
 	Daemon  func(context.Context) doctor.DaemonStatus
 	NoColor bool // NO_COLOR is set: use the mono theme
+	// UserPATH is the user's own PATH. The editor uses it to say where a
+	// program cron can't find lives.
+	UserPATH string
+	// PathLint replaces the editor's PATH check (tests); nil uses
+	// jobs.LintPath.
+	PathLint func(cmd string, env jobs.CronEnv) []jobs.Issue
 }
 
 // Run starts the TUI and blocks until it quits.

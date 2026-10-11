@@ -14,12 +14,31 @@ This document is the source of truth for the project. It is built in phases acro
 |---|---|---|
 | 1 | Foundations (core packages + minimal CLI) | ✅ done |
 | 2 | TUI shell + Jobs view | ✅ done |
-| 3 | Job editor + schedule builder | ☐ not started |
+| 3 | Job editor + schedule builder | ✅ done |
 | 4 | Runs: exec wrapper, history, logs | ☐ not started |
 | 5 | Timeline + power tools | ☐ not started |
 | 6 | Polish, notifications, release | ☐ not started |
 
 Session notes (append newest first):
+- _2026-10-11_: **Phase 3 done** (branch `feat/phase-3`). New: `cronexpr` presets (`Preset`, `DetectPreset`, `FieldAt`, `FieldHelp`); `jobs.Draft`, `Service.Create`/`Update`, `Snapshot.Env` + `CronEnv(line)`, `jobs.LintDraft`/`LintPath`/`PathCache`; `tui/views/editor`; CLI `gocron add`. `crontab.ShellWords` and `crontab.CommandName` are exported.
+  - **No wrapping yet** (`jobs.WrapNew = false`, next to `adoptWraps`). New jobs are plain lines. The editor shows the Options row dimmed, with a note. An already-wrapped job keeps its wrapping, and its Timeout and Skip options stay editable (unchecking Track runs unwraps it). `gocron add --timeout/--no-overlap` exits 2 until then. **Phase 4: flip `WrapNew` and `adoptWraps`.** The editor, `add`, and the help text follow automatically. Then add a config `[defaults]` lookup.
+  - `^t` in the editor shows a "coming in a later release" toast. Phase 4 should handle `editor.TestMsg` (it carries the draft).
+  - **Presets:**
+    - Detection is semantic (it compares Field bits), so `mon-fri`, `1,2,3,4,5`, `@daily`, and `7` = Sunday all match.
+    - Weekly/Monthly require the other day field to be `*` because of the OR rule.
+    - When the schedule is opened in a preset, its text is kept as written (`@daily` stays `@daily`) until the user touches a preset input. Only then is the canonical form written.
+    - In Custom, a matching preset "lights up" (underlined + "matches X" hint), but the editor stays in Custom so typing isn't interrupted.
+  - `Service.Update` re-reads the job from the crontab at save time and overlays only the draft's fields. So `Enabled`, `desc`, the binary path, and unknown meta keys survive, including on Reapply after a conflict. A draft with no changes writes nothing ("Nothing changed").
+  - **Editor save conflicts:** the choices are **Keep editing** (default: reload, the draft stays) and **Reapply**. External-change reloads are paused while the editor has unsaved edits, so a later save gets a conflict instead of a silent reload (§6.5).
+  - **Lints:**
+    - `jobs.Issue` = `cronexpr.Issue` + `Field` (schedule/command/tags), so the editor can focus the broken field.
+    - Deviation from §6.3: a bare `~`/`$HOME` is **info**, because cron sets HOME and sh expands `~`. `~` inside quotes is a **warn**, because it isn't expanded there.
+    - A `\` right before `%` warns: the Phase 1 edge.
+    - The empty-command error only shows after a save attempt.
+    - Only the first program word is PATH-checked, and builtins are skipped.
+  - **PATH lint:** debounced 250 ms (`seq`-guarded tick, then a background Cmd). `PathCache` lives as long as one editor, so reopening sees newly installed programs. `tui.Options.PathLint` lets tests stub it, so TUI goldens never depend on this machine's PATH. `Options.UserPATH` is the user's PATH for the "it's in /usr/local/bin" hint.
+  - **Layout:** the editor is a centered modal (≤ 96 wide) when the terminal is ≥ 92 columns and tall enough. Otherwise it fills the body and scrolls to keep the focused row visible. The editor captures every key except `ctrl+c`.
+  - A new job with no name gets the program's name (`crontab.CommandName`), in both the editor and `add`. `desc` has no editor field yet; it's preserved on edit.
 - _2026-10-11_: **Phase 2 done** (branch `feat/phase-2`). Packages: `jobs` (Service façade), `tui` (root app, `theme`, `keys`, `components`, `views/jobs`); `cronexpr.Expr.Short`, `crontab.Adopt`/`DefaultAdoptName`, `crontab.Job.Describe`/`Raw`, `doctor.DetectDaemon`.
   - Stack: **Go 1.25**, `charm.land/bubbletea/v2 v2.0.9`, `lipgloss/v2 v2.0.6`, `bubbles/v2 v2.2.1`, `x/exp/teatest/v2`. v2.1.0 of bubbletea needs Go 1.26, so it was skipped. lipgloss v2 has no `AdaptiveColor`: the theme uses `LightDark(isDark)` from `tea.BackgroundColorMsg` and starts dark.
   - **Adopt doesn't wrap yet** (`jobs.adoptWraps = false`): `gocron exec` arrives in Phase 4, and a wrapped line would fail until then. Phase 4 should flip this to follow `defaults.wrap`. `crontab.Adopt` already supports `wrap=true`.
@@ -468,7 +487,7 @@ Mouse (Phase 6): click rows and tabs, and scroll wheel in lists and the viewport
 | Command | Description |
 |---|---|
 | `gocron list [--json] [--all]` | Table of jobs (`--all` includes unmanaged entries) |
-| `gocron add --name N --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD` | Create a job |
+| `gocron add [--name N] --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD` | Create a job (name defaults to the program's name; quote a pipeline as one argument) |
 | `gocron enable <id>` / `disable <id>` | Resume / pause |
 | `gocron rm <id>` | Delete (backup kept) |
 | `gocron run <id> [--cron-env]` | Run now in the foreground, streaming output, recorded as `manual`/`test` |
@@ -582,10 +601,10 @@ Acceptance:
 Scope: the new/edit modal, schedule builder (presets + custom with a field ruler), live preview, the full lint list, `^s` save, and unsaved-changes confirmation. Also `gocron add` in the CLI.
 
 Acceptance:
-- [ ] Every preset produces the correct expression, and typing a matching raw expression lights up its preset.
-- [ ] The preview updates per keystroke without lag (no I/O in the render path; PATH lookups are cached and debounced).
-- [ ] Commands containing `'`, `"`, `|`, `>`, `$( )`, and `%` survive a save → reload → edit cycle unchanged (test).
-- [ ] Saving an edit touches only that job's two lines (diff test).
+- [x] Every preset produces the correct expression, and typing a matching raw expression lights up its preset.
+- [x] The preview updates per keystroke without lag (no I/O in the render path; PATH lookups are cached and debounced).
+- [x] Commands containing `'`, `"`, `|`, `>`, `$( )`, and `%` survive a save → reload → edit cycle unchanged (test).
+- [x] Saving an edit touches only that job's two lines (diff test).
 
 ### Phase 4: Runs
 Scope: `store` package, `gocron exec`, run now (`r`) and cron-env test (`t`) with streamed output panes, the History view, the log viewer, run strips and sparklines, last-status glyphs, `gocron run` and `gocron logs`.

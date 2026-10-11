@@ -7,7 +7,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
+	"slices"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/jackjakarta/gocron/internal/crontab"
 )
@@ -22,7 +26,67 @@ type Job struct {
 type Snapshot struct {
 	Jobs     []Job // managed jobs and unmanaged entries, in crontab order
 	Problems []crontab.Problem
-	Source   string // "user crontab" | "file: /path"
+	Env      []EnvLine // environment lines, in crontab order
+	Source   string    // "user crontab" | "file: /path"
+}
+
+// EnvLine is an environment line and where it is.
+type EnvLine struct {
+	Line int // 1-based
+	crontab.EnvVar
+}
+
+// DefaultCronPATH is the PATH cron gives jobs when the crontab sets none.
+const DefaultCronPATH = "/usr/bin:/bin"
+
+// CronEnv is the environment cron gives a job, as far as gocron uses it.
+type CronEnv struct {
+	PATH string // cron's PATH for the job
+	TZ   string // CRON_TZ in effect, if any
+}
+
+// CronEnv returns the environment for a job on line (1-based): cron
+// applies an environment line to the entries after it. Line 0 means a new
+// job, which is appended after every line.
+func (s Snapshot) CronEnv(line int) CronEnv {
+	env := CronEnv{PATH: DefaultCronPATH}
+	for _, e := range s.Env {
+		if line > 0 && e.Line >= line {
+			break
+		}
+		switch e.Name {
+		case "PATH":
+			env.PATH = e.Value
+		case "CRON_TZ":
+			env.TZ = e.Value
+		}
+	}
+	return env
+}
+
+// Draft is a job as the editor or the CLI describes it.
+type Draft struct {
+	Name     string
+	Schedule string
+	Command  string
+	Tags     []string
+	// Wrapped asks for run tracking via gocron exec; Timeout and NoOverlap
+	// only apply to wrapped jobs.
+	Wrapped   bool
+	Timeout   time.Duration
+	NoOverlap bool
+}
+
+// ParseTags splits comma-separated tags, trimming spaces and a leading
+// "#" and dropping empty ones.
+func ParseTags(s string) []string {
+	var out []string
+	for _, t := range strings.Split(s, ",") {
+		if t = strings.TrimPrefix(strings.TrimSpace(t), "#"); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // Result describes a saved change.
@@ -54,6 +118,11 @@ func (e *ConflictError) Unwrap() error { return crontab.ErrConflict }
 // "gocron exec". It stays off until exec exists; a wrapped line would fail.
 const adoptWraps = false
 
+// WrapNew decides whether new jobs, or jobs gaining run tracking, can be
+// wrapped. It stays off until gocron exec exists, for the same reason.
+// Jobs that are already wrapped keep their wrapping.
+const WrapNew = false
+
 const maxUndo = 50
 
 type undoEntry struct {
@@ -84,6 +153,11 @@ func (s *Service) Snapshot() Snapshot {
 	for _, j := range tab.Jobs() {
 		snap.Jobs = append(snap.Jobs, Job{j})
 	}
+	for i, l := range tab.Lines {
+		if l.Kind == crontab.Env {
+			snap.Env = append(snap.Env, EnvLine{Line: i + 1, EnvVar: *l.Env})
+		}
+	}
 	return snap
 }
 
@@ -99,6 +173,58 @@ func (s *Service) SetEnabled(ctx context.Context, id string, enabled bool) (Resu
 	return s.apply(ctx, func(c *crontab.Crontab) (string, error) {
 		return id, c.SetEnabled(id, enabled)
 	})
+}
+
+// Create appends a new, enabled managed job.
+func (s *Service) Create(ctx context.Context, d Draft) (Result, error) {
+	return s.apply(ctx, func(c *crontab.Crontab) (string, error) {
+		j := crontab.Job{
+			Name:     d.Name,
+			Schedule: d.Schedule,
+			Command:  d.Command,
+			Tags:     d.Tags,
+			Enabled:  true,
+			Wrapped:  d.Wrapped && WrapNew,
+		}
+		if j.Wrapped {
+			j.Timeout, j.NoOverlap = d.Timeout, d.NoOverlap
+		}
+		return c.AddJob(j, s.bin)
+	})
+}
+
+// Update applies the draft to the managed job id. It reads the job from
+// the crontab at save time and changes only what a draft describes, so
+// its paused state, description and binary path stay as they are there.
+// A draft that changes nothing writes nothing.
+func (s *Service) Update(ctx context.Context, id string, d Draft) (Result, error) {
+	return s.apply(ctx, func(c *crontab.Crontab) (string, error) {
+		cur, ok := c.Job(id)
+		if !ok {
+			return id, fmt.Errorf("%w: %s", crontab.ErrNotFound, id)
+		}
+		next := cur
+		next.Name, next.Schedule, next.Command, next.Tags = d.Name, d.Schedule, d.Command, d.Tags
+		next.Wrapped = d.Wrapped && (cur.Wrapped || WrapNew)
+		next.Timeout, next.NoOverlap = 0, false
+		if next.Wrapped {
+			next.Timeout, next.NoOverlap = d.Timeout, d.NoOverlap
+		}
+		if sameDefinition(cur, next) {
+			return id, nil
+		}
+		bin := "" // keep the path a wrapped line already has
+		if next.Wrapped && next.Bin == "" {
+			bin = s.bin
+		}
+		return id, c.UpdateJob(next, bin)
+	})
+}
+
+func sameDefinition(a, b crontab.Job) bool {
+	return a.Name == b.Name && strings.Join(strings.Fields(a.Schedule), " ") == strings.Join(strings.Fields(b.Schedule), " ") &&
+		a.Command == b.Command && slices.Equal(a.Tags, b.Tags) &&
+		a.Wrapped == b.Wrapped && a.Timeout == b.Timeout && a.NoOverlap == b.NoOverlap
 }
 
 // Delete removes the managed job id.

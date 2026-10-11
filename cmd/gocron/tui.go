@@ -25,7 +25,8 @@ func (a *app) tui(ctx context.Context) int {
 		return a.fail(err)
 	}
 	opts := tui.Options{
-		NoColor: os.Getenv("NO_COLOR") != "",
+		NoColor:  os.Getenv("NO_COLOR") != "",
+		UserPATH: os.Getenv("PATH"),
 		Daemon: func(ctx context.Context) doctor.DaemonStatus {
 			return doctor.DetectDaemon(ctx, doctor.DefaultEnv(src))
 		},

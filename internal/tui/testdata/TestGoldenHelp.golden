@@ -5,24 +5,24 @@
 │                                                                                                  │
 │ ▌● Sync photos     Every 15 minutes   in 12m 53s                                                 │
 │  ● Rotate logs     Every hour         in 27m 53s                                                 │
-│  ● Nightly b╭──────────────────────────────────────────────────────────────────────╮             │
-│  ● Say hi   │                                                                      │             │
-│  ● Prune doc│   Keys                                                               │             │
-│  ○ Weekly re│                                                                      │             │
-│             │   Navigate               Jobs                    General             │             │
-│ UNMANAGED · │                                                                      │             │
-│  · @reboot ~│   ↑/k   move up          space  pause/resume     1       jobs        │             │
-│  · */5 * * *│   ↓/j   move down        x      delete           2       timeline    │             │
-│  · 0 0 1 * 1│   g     first job        a      adopt            3       history     │             │
-│             │   G     last job         u      undo             4       crontab     │             │
-│             │   pgup  page up          /      filter           tab     next view   │             │
-│             │   pgdn  page down                                ?       help        │             │
-│             │   ↵     open                                     q       quit        │             │
-│             │   esc   back / clear                             ctrl+c  quit now    │             │
-│             │                                                                      │             │
-│             │                                                  ? or esc to close   │             │
-│             │                                                                      │             │
-│             ╰──────────────────────────────────────────────────────────────────────╯             │
+│  ● Nightly ╭───────────────────────────────────────────────────────────────────────╮             │
+│  ● Say hi  │                                                                       │             │
+│  ● Prune do│   Keys                                                                │             │
+│  ○ Weekly r│                                                                       │             │
+│            │   Navigate               Jobs                     General             │             │
+│ UNMANAGED ·│                                                                       │             │
+│  · @reboot │   ↑/k   move up          n      new job           1       jobs        │             │
+│  · */5 * * │   ↓/j   move down        e      edit              2       timeline    │             │
+│  · 0 0 1 * │   g     first job        space  pause/resume      3       history     │             │
+│            │   G     last job         x      delete            4       crontab     │             │
+│            │   pgup  page up          a      adopt             tab     next view   │             │
+│            │   pgdn  page down        u      undo              ?       help        │             │
+│            │   ↵     open             /      filter            q       quit        │             │
+│            │   esc   back / clear     ^s     save (editor)     ctrl+c  quit now    │             │
+│            │                                                                       │             │
+│            │                                                   ? or esc to close   │             │
+│            │                                                                       │             │
+│            ╰───────────────────────────────────────────────────────────────────────╯             │
 │                                                                                                  │
 │                                                                                                  │
 │                                                                                                  │

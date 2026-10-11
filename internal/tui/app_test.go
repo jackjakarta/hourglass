@@ -93,6 +93,12 @@ func (s spy) View() tea.View {
 // fixture is "") at w×h.
 func start(t *testing.T, fixture string, w, h int) *harness {
 	t.Helper()
+	return startWith(t, fixture, w, h, nil)
+}
+
+// startWith is start with a hook to adjust the options.
+func startWith(t *testing.T, fixture string, w, h int, adjust func(*Options)) *harness {
+	t.Helper()
 	var content []byte
 	if fixture != "" {
 		b, err := os.ReadFile(filepath.Join("..", "..", "testdata", "crontabs", fixture+".crontab"))
@@ -111,12 +117,19 @@ func start(t *testing.T, fixture string, w, h int) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hs.run(Options{Service: jobs.New(store, "/usr/bin/gocron")}, w, h)
+	opts := Options{Service: jobs.New(store, "/usr/bin/gocron")}
+	if adjust != nil {
+		adjust(&opts)
+	}
+	hs.run(opts, w, h)
 	return hs
 }
 
 func (hs *harness) run(opts Options, w, h int) {
 	opts.Clock = fixedClock{testNow}
+	if opts.PathLint == nil { // never look at this machine's filesystem
+		opts.PathLint = func(string, jobs.CronEnv) []jobs.Issue { return nil }
+	}
 	opts.Daemon = func(context.Context) doctor.DaemonStatus {
 		return doctor.DaemonStatus{Daemon: doctor.DaemonCronie, Running: true, Via: "process crond"}
 	}
@@ -171,10 +184,18 @@ func (hs *harness) keys(keys ...string) {
 			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
 		case "down":
 			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+		case "up":
+			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyUp})
+		case "left":
+			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyLeft})
 		case "right":
 			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyRight})
 		case "tab":
 			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
+		case "backspace":
+			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyBackspace})
+		case "ctrl+s", "ctrl+t", "ctrl+u":
+			hs.tm.Send(tea.KeyPressMsg{Code: rune(k[len(k)-1]), Mod: tea.ModCtrl})
 		case "space":
 			hs.tm.Send(tea.KeyPressMsg{Code: ' ', Text: " "})
 		default:

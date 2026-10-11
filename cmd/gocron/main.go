@@ -43,6 +43,8 @@ Usage:
   gocron                      open the TUI
   gocron list [--json] [--all]
                               list jobs (--all includes unmanaged entries)
+  gocron add [--name N] --schedule S [--tag T]… [--raw] -- CMD
+                              add a job (quote a pipeline as one argument)
   gocron describe [-n N] EXPR describe a schedule and show its next runs
   gocron doctor               check your cron setup and crontab
   gocron version              print version information
@@ -64,6 +66,8 @@ func (a *app) run(ctx context.Context, args []string) int {
 	switch cmd {
 	case "list":
 		return a.list(ctx, rest)
+	case "add":
+		return a.add(ctx, rest)
 	case "describe":
 		return a.describe(rest)
 	case "doctor":

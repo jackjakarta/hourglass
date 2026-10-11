@@ -235,7 +235,7 @@ func (c *Crontab) DefaultAdoptName(line int) string {
 			return clip(s, 40)
 		}
 	}
-	return commandName(UnescapePercent(c.Lines[i].Entry.Command))
+	return CommandName(UnescapePercent(c.Lines[i].Entry.Command))
 }
 
 // launchers are programs whose first operand is the interesting part.
@@ -245,10 +245,10 @@ var launchers = map[string]bool{
 	"python": true, "python3": true, "node": true, "ruby": true, "perl": true, "php": true,
 }
 
-// commandName returns the basename of the program cmd runs, skipping env
+// CommandName returns the basename of the program cmd runs, skipping env
 // assignments, launchers and their flags: "~/bin/sync.sh >/dev/null" is
 // "sync.sh", "bash -c ~/x/backup.sh" is "backup.sh".
-func commandName(cmd string) string {
+func CommandName(cmd string) string {
 	var fields []string
 	if words, err := shellWords(cmd); err == nil {
 		for _, w := range words {
