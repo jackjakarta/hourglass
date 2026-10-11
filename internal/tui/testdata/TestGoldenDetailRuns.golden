@@ -29,4 +29,4 @@
 │                                                                                                  │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
- esc back  e edit  space pause  r run  t test  h history  x delete  n new  u undo  / filter  ? help  q quit
+ esc back  e edit  space pause  r run  t test  h history  x delete  ^k commands  ? help  n new …

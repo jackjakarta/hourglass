@@ -214,7 +214,7 @@ func (hs *harness) keys(keys ...string) {
 			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
 		case "backspace":
 			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyBackspace})
-		case "ctrl+s", "ctrl+t", "ctrl+u":
+		case "ctrl+s", "ctrl+t", "ctrl+u", "ctrl+k":
 			hs.tm.Send(tea.KeyPressMsg{Code: rune(k[len(k)-1]), Mod: tea.ModCtrl})
 		case "space":
 			hs.tm.Send(tea.KeyPressMsg{Code: ' ', Text: " "})

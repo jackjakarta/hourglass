@@ -100,6 +100,7 @@ type Model struct {
 	history historyview.Model
 	editor  *editor.Model // the open new/edit form
 	help    bool
+	palette *paletteState // the open command palette or tag picker
 	confirm *components.Confirm
 	toasts  components.Toasts
 
@@ -398,6 +399,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return svc.Adopt(ctx, j.Line, j.Raw)
 		})
 
+	case jobsview.TagPickerMsg:
+		return m.openTagPicker()
+
 	case jobsview.CopyMsg:
 		if msg.Text == "" {
 			return m, nil
@@ -496,6 +500,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, km.ForceQuit) {
 		return m, tea.Quit
 	}
+	if m.palette != nil {
+		return m.updatePalette(msg)
+	}
 	if m.confirm != nil {
 		done, cmd := m.confirm.Update(msg)
 		if done {
@@ -515,31 +522,37 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	// ctrl+k opens the palette even while a filter is being typed; ":"
+	// is text there, so it only opens the palette from the globals below.
+	if msg.String() == "ctrl+k" {
+		return m.openPalette()
+	}
 	if m.tab == tabJobs && m.jobs.Capturing() {
 		return m.updateJobs(msg)
 	}
 	if m.tab == tabHistory && m.history.Capturing() {
 		return m.updateHistory(msg)
 	}
-	prev := m.tab
 	switch {
 	case key.Matches(msg, km.Quit):
 		return m, tea.Quit
 	case key.Matches(msg, km.Help):
 		m.help = true
 		return m, nil
+	case key.Matches(msg, km.Palette):
+		return m.openPalette()
 	case key.Matches(msg, km.Tab1):
-		m.tab = tabJobs
+		return m.switchTab(tabJobs)
 	case key.Matches(msg, km.Tab2):
-		m.tab = tabTimeline
+		return m.switchTab(tabTimeline)
 	case key.Matches(msg, km.Tab3):
-		m.tab = tabHistory
+		return m.switchTab(tabHistory)
 	case key.Matches(msg, km.Tab4):
-		m.tab = tabCrontab
+		return m.switchTab(tabCrontab)
 	case key.Matches(msg, km.NextTab):
-		m.tab = (m.tab + 1) % tabCount
+		return m.switchTab((m.tab + 1) % tabCount)
 	case key.Matches(msg, km.PrevTab):
-		m.tab = (m.tab + tabCount - 1) % tabCount
+		return m.switchTab((m.tab + tabCount - 1) % tabCount)
 	case key.Matches(msg, km.Undo):
 		if svc := m.opts.Service; svc != nil {
 			return m, m.mutate("", "", svc.Undo)
@@ -549,7 +562,18 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case m.tab == tabHistory && m.opts.Service != nil:
 		return m.updateHistory(msg)
 	}
-	if m.tab == tabHistory && prev != tabHistory {
+	return m, nil
+}
+
+// switchTab shows tab t, loading what it needs when it wasn't showing.
+func (m Model) switchTab(t tab) (tea.Model, tea.Cmd) {
+	prev := m.tab
+	m.tab = t
+	if t == prev {
+		return m, nil
+	}
+	switch t {
+	case tabHistory:
 		return m, m.loadHistory()
 	}
 	return m, nil
@@ -719,6 +743,10 @@ func (m Model) render() string {
 	case m.help:
 		screen = components.OverlayCenter(screen, components.HelpOverlay(m.th, m.keys.FullHelp(), keys.GroupTitles), w, h)
 	}
+	if m.palette != nil {
+		p := m.palette.p.View(m.th, w-8)
+		screen = components.Overlay(screen, p, (w-lipgloss.Width(p))/2, 2)
+	}
 	return screen
 }
 
@@ -815,6 +843,8 @@ func hint(k, desc string) key.Binding {
 
 func (m Model) footerKeys() []key.Binding {
 	switch {
+	case m.palette != nil:
+		return []key.Binding{hint("type", "to search"), hint("↑↓", "choose"), hint("↵", "run"), hint("esc", "close")}
 	case m.confirm != nil:
 		return []key.Binding{hint("←→", "choose"), hint("↵", "confirm"), hint("esc", "cancel")}
 	case m.help:
@@ -854,7 +884,9 @@ func (m Model) footerKeys() []key.Binding {
 	} else {
 		out = append(out, hint("a", "adopt"), hint("r", "run"), hint("t", "test"))
 	}
-	out = append(out, hint("n", "new"), hint("u", "undo"), hint("/", "filter"), hint("?", "help"), hint("q", "quit"))
+	// The palette and help come before the rest, so narrow footers that
+	// cut the end still show where to find everything.
+	out = append(out, hint("^k", "commands"), hint("?", "help"), hint("n", "new"), hint("u", "undo"), hint("/", "filter"), hint("q", "quit"))
 	return out
 }
 

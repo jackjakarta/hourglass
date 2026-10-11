@@ -109,6 +109,22 @@ func (m *Model) SetJob(id, title string) {
 	m.jobID, m.jobTitle, m.selected, m.offset, m.log = id, title, 0, 0, nil
 }
 
+// SetFailures shows only failed runs, or every run.
+func (m *Model) SetFailures(on bool) {
+	m.failures, m.selected, m.offset, m.log = on, 0, 0, nil
+}
+
+// SetTrigger shows only runs with trigger ("" for all).
+func (m *Model) SetTrigger(trigger string) {
+	m.trigger, m.selected, m.offset, m.log = trigger, 0, 0, nil
+}
+
+// ClearFilters shows every run of every job.
+func (m *Model) ClearFilters() {
+	m.SetJob("", "")
+	m.failures, m.trigger, m.text = false, "", ""
+}
+
 // Capturing reports whether the view wants every key.
 func (m Model) Capturing() bool { return m.typing || (m.log != nil && m.log.searching) }
 
