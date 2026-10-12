@@ -283,6 +283,11 @@ func (d *DB) Prune(ctx context.Context, jobID string, keep int) (int, error) {
 
 const runColumns = `id, job_id, trigger, status, started_at, ended_at, exit_code, pid, log_path, log_bytes, truncated`
 
+// prefixed qualifies each of a comma-separated list of columns with table.
+func prefixed(table, cols string) string {
+	return table + "." + strings.ReplaceAll(cols, ", ", ", "+table+".")
+}
+
 type scanner interface{ Scan(...any) error }
 
 func (d *DB) scan(s scanner) (Run, error) {
@@ -408,10 +413,13 @@ type JobStats struct {
 
 // Stats summarizes each job's recent runs.
 func (d *DB) Stats(ctx context.Context) (map[string]JobStats, error) {
+	// Each job's newest runs come straight off the runs_job_started index,
+	// rather than numbering every run in the history.
 	rows, err := d.db.QueryContext(ctx, `
-		SELECT `+runColumns+` FROM (
-			SELECT *, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY started_at DESC, id DESC) AS rn FROM runs
-		) WHERE rn <= ? ORDER BY job_id, started_at, id`, RecentRuns)
+		SELECT `+prefixed("r", runColumns)+` FROM (SELECT DISTINCT job_id FROM runs) j
+		JOIN runs r ON r.id IN (
+			SELECT id FROM runs WHERE job_id = j.job_id ORDER BY started_at DESC, id DESC LIMIT ?
+		) ORDER BY r.job_id, r.started_at, r.id`, RecentRuns)
 	if err != nil {
 		return nil, err
 	}
