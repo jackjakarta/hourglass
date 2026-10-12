@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"strings"
 	"text/tabwriter"
+	"unicode"
 
 	"github.com/jackjakarta/gocron/internal/cronexpr"
 	"github.com/jackjakarta/gocron/internal/humanize"
 )
 
 func (a *app) describe(args []string) int {
-	fs := a.flags("describe", `describe [-n N] "<expr>"`)
+	fs := a.flags("describe", `describe [-n N] "<expr or phrase>"`)
 	n := fs.Int("n", 5, "number of upcoming runs to show")
 	if code, ok := parse(fs, args); !ok {
 		return code
@@ -22,7 +23,20 @@ func (a *app) describe(args []string) int {
 	}
 	e, err := cronexpr.Parse(expr)
 	if err != nil {
-		return a.fail(fmt.Errorf("invalid schedule %q: %w", expr, err))
+		// Not cron syntax: maybe plain English ("every weekday at 9am").
+		nat, nerr := cronexpr.ParseNatural(expr)
+		if nerr != nil {
+			if r := []rune(expr)[0]; unicode.IsLetter(r) {
+				return a.fail(nerr)
+			}
+			return a.fail(fmt.Errorf("invalid schedule %q: %w", expr, err))
+		}
+		fmt.Fprintf(a.stdout, "Interpreted as: %s\n", nat.Expr)
+		if nat.Note != "" {
+			fmt.Fprintf(a.stdout, "Note: %s\n", nat.Note)
+		}
+		fmt.Fprintln(a.stdout)
+		expr, e = nat.Expr, cronexpr.MustParse(nat.Expr)
 	}
 
 	fmt.Fprintf(a.stdout, "%s\n%s\n", e.Raw, e.Describe())

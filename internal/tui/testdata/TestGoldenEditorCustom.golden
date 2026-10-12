@@ -8,17 +8,17 @@
 │  ● Nightly backup  At 02:30           in 11h 57m   │ │                                                               │
 │  ● Say hi          Weekdays at 09:00  in 18h 27m   │ │ COMMAND    rsync -a ~/Pictures/ nas:/photos/                  │
 │  ● Prune docker    Sundays at 04:00   in 6d 13h    │ │                                                               │
-│  ○ Weekly report   Mondays at 09:00   paused       │ │ TRACKING   runs via gocron exec · skips if still running      │
-│           ╭─ New job ────────────────────────────────────────────────────────────────────────────────────╮           │
-│ UNMANAGED │                                                                                              │           │
-│  · @reboot│  Name      defaults to the program's name                                                    │           │
-│  · */5 * *│                                                                                              │           │
-│  · 0 0 1 *│  Schedule  ‹ Every N min · Hourly · Daily · Weekdays · Weekly · Monthly · Custom ›           │           │
-│           │            */15 9-17 * * 1-5                                                                 │           │
+│  ○ Weekly ╭─ New job ────────────────────────────────────────────────────────────────────────────────────╮nning      │
+│           │                                                                                              │           │
+│ UNMANAGED │  Name      defaults to the program's name                                                    │           │
+│  · @reboot│                                                                                              │           │
+│  · */5 * *│  Schedule  ‹ Every N min · Hourly · Daily · Weekdays · Weekly · Monthly · Custom ›           │           │
+│  · 0 0 1 *│            */15 9-17 * * 1-5                                                                 │           │
 │           │            min  hour  dom  mon  dow                                                          │           │
 │           │            month · 1–12 or JAN–DEC · e.g. 1, 6-8, */3                                        │           │
 │           │            ✓ Every 15 minutes, between 09:00 and 17:59, Monday through Friday                │           │
 │           │            next  Mon 09:00 · Mon 09:15 · Mon 09:30 · Mon 09:45 · Mon 10:00                   │           │
+│           │            or say it: every weekday at 9am                                                   │           │
 │           │                                                                                              │           │
 │           │  Command   e.g. pg_dump app | gzip > /backups/app.sql.gz                                     │           │
 │           │  Tags      e.g. backup, db                                                                   │           │

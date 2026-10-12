@@ -60,6 +60,7 @@ const (
 	stopPreset
 	stopParams
 	stopRaw
+	stopNatural // the schedule in plain English
 	stopCommand
 	stopTags
 	stopTrack
@@ -98,6 +99,7 @@ type Model struct {
 	wrapErr   error // why they aren't, when they aren't
 
 	name, raw, command, tags, timeout textinput.Model
+	natural                           textinput.Model
 
 	kind cronexpr.PresetKind // the selected preset
 	// touched is set once a preset input changes. Until then the schedule
@@ -125,6 +127,8 @@ type Model struct {
 	pathFor    string // the command pathIssues describe
 	pathIssues []svc.Issue
 	attempted  bool // a save was tried, so show every error
+	nat        cronexpr.Natural // what natural reads as
+	natErr     error            // why it can't be read; nil when empty
 
 	saving        bool
 	width, height int
@@ -195,6 +199,7 @@ func newModel(cfg Config) Model {
 		command:  input("e.g. pg_dump app | gzip > /backups/app.sql.gz", 0),
 		tags:     input("e.g. backup, db", 200),
 		timeout:  input("none", 12),
+		natural:  input("or say it: every weekday at 9am", 120),
 		canTrack: cfg.WrapErr == nil,
 		wrapErr:  cfg.WrapErr,
 		track:    cfg.WrapErr == nil && cfg.Defaults.Wrap,
@@ -252,13 +257,15 @@ func (m Model) Dirty() bool {
 }
 
 func (m *Model) inputs() []*textinput.Model {
-	return []*textinput.Model{&m.name, &m.raw, &m.command, &m.tags, &m.timeout}
+	return []*textinput.Model{&m.name, &m.natural, &m.raw, &m.command, &m.tags, &m.timeout}
 }
 
 func (m *Model) input(s stop) *textinput.Model {
 	switch s {
 	case stopName:
 		return &m.name
+	case stopNatural:
+		return &m.natural
 	case stopRaw:
 		return &m.raw
 	case stopCommand:
@@ -310,7 +317,7 @@ func (m Model) stops() []stop {
 	} else {
 		out = append(out, stopParams)
 	}
-	out = append(out, stopCommand, stopTags)
+	out = append(out, stopNatural, stopCommand, stopTags)
 	if m.canTrack {
 		out = append(out, stopTrack)
 		if m.track {
@@ -365,6 +372,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd, tea.Msg) {
 		var cmd tea.Cmd
 		before := ti.Value()
 		*ti, cmd = ti.Update(msg)
+		if m.focus == stopNatural {
+			m.readNatural()
+			return m, cmd, nil
+		}
 		if ti.Value() != before {
 			return m, tea.Batch(cmd, m.changed()), nil
 		}
@@ -381,7 +392,13 @@ func (m Model) handleKey(k tea.KeyPressMsg) (Model, tea.Cmd, tea.Msg) {
 		return m, nil, TestMsg{ID: m.id, Line: m.line, Draft: m.draft()}
 	case "esc":
 		return m, nil, CancelMsg{Dirty: m.Dirty()}
-	case "tab", "down", "enter":
+	case "enter":
+		if m.focus == stopNatural && strings.TrimSpace(m.natural.Value()) != "" {
+			return m.applyNatural()
+		}
+		m.moveFocus(1)
+		return m, nil, nil
+	case "tab", "down":
 		m.moveFocus(1)
 		return m, nil, nil
 	case "shift+tab", "up":
@@ -411,6 +428,10 @@ func (m Model) handleKey(k tea.KeyPressMsg) (Model, tea.Cmd, tea.Msg) {
 	before, pos := ti.Value(), ti.Position()
 	var cmd tea.Cmd
 	*ti, cmd = ti.Update(k)
+	if m.focus == stopNatural {
+		m.readNatural()
+		return m, cmd, nil
+	}
 	if ti.Value() != before {
 		return m, tea.Batch(cmd, m.changed()), nil
 	}
@@ -553,6 +574,47 @@ func (m Model) paramsKey(k tea.KeyPressMsg) (Model, tea.Cmd, tea.Msg) {
 	}
 	m.touched = true
 	return m, m.changed(), nil
+}
+
+// readNatural reads the plain-English schedule as it's typed. It only
+// previews; enter applies it.
+func (m *Model) readNatural() {
+	m.nat, m.natErr = cronexpr.Natural{}, nil
+	if v := strings.TrimSpace(m.natural.Value()); v != "" {
+		m.nat, m.natErr = cronexpr.ParseNatural(v)
+	}
+}
+
+// applyNatural replaces the schedule with what the plain-English input
+// reads as, and focuses its preset's inputs to fine-tune it.
+func (m Model) applyNatural() (Model, tea.Cmd, tea.Msg) {
+	if m.natErr != nil {
+		return m, nil, BlockedMsg{capitalize(m.natErr.Error()) + "."}
+	}
+	m.applySchedule(m.nat.Expr)
+	m.natural.SetValue("")
+	m.readNatural()
+	if m.kind == cronexpr.Custom {
+		m.focusStop(stopRaw)
+	} else {
+		m.focusStop(stopParams)
+	}
+	return m, m.changed(), nil
+}
+
+// applySchedule sets the schedule to s, in the preset it matches or else
+// in Custom.
+func (m *Model) applySchedule(s string) {
+	m.kind = cronexpr.Custom
+	if e, err := cronexpr.Parse(s); err == nil {
+		if p, ok := cronexpr.DetectPreset(e); ok {
+			m.kind = p.Kind
+			m.mergePreset(p)
+		}
+	}
+	m.raw.SetValue(s)
+	m.raw.CursorEnd()
+	m.touched, m.sub, m.typed = true, 0, ""
 }
 
 // changed recomputes everything derived from the form and schedules the

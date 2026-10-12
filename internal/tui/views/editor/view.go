@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/jackjakarta/gocron/internal/cronexpr"
 	svc "github.com/jackjakarta/gocron/internal/jobs"
@@ -35,6 +36,7 @@ func (m Model) Width() int {
 func (m *Model) setInputWidths() {
 	vw := max(m.Width()-4-gutter, 10)
 	m.name.SetWidth(vw - 1)
+	m.natural.SetWidth(vw - 1)
 	m.raw.SetWidth(vw - 1)
 	m.command.SetWidth(vw - 1)
 	m.tags.SetWidth(vw - 1)
@@ -83,7 +85,7 @@ func (m Model) lines() ([]string, int) {
 			l := ""
 			if i == 0 {
 				l = label
-				if at == m.focus || (at == stopPreset && (m.focus == stopParams || m.focus == stopRaw)) {
+				if at == m.focus || (at == stopPreset && m.owns(stopPreset)) {
 					focusLine = len(out)
 				}
 			}
@@ -121,6 +123,13 @@ func (m Model) lines() ([]string, int) {
 	if m.kind == cronexpr.Custom && m.lit != cronexpr.Custom {
 		cont(th.Muted.Render("matches ") + th.Schedule.Render(m.lit.String()) +
 			th.Muted.Render(" · ↑ then ←→ to switch"))
+	}
+	cont(m.natural.View())
+	if m.focus == stopNatural {
+		focusLine = len(out) - 1
+	}
+	if strings.TrimSpace(m.natural.Value()) != "" {
+		cont(m.naturalPreview(vw)...)
 	}
 	add("")
 
@@ -182,7 +191,7 @@ func (m Model) lines() ([]string, int) {
 func (m Model) owns(at stop) bool {
 	switch at {
 	case stopPreset:
-		return m.focus == stopPreset || m.focus == stopParams || m.focus == stopRaw
+		return m.focus == stopPreset || m.focus == stopNatural || m.focus == stopParams || m.focus == stopRaw
 	case stopTrack:
 		return m.focus == stopTrack || m.focus == stopTimeout || m.focus == stopNoOverlap
 	}
@@ -289,6 +298,36 @@ func (m Model) ruler(field int) string {
 	return strings.Join(parts, "  ")
 }
 
+// naturalPreview shows what the plain-English input reads as, before it
+// is applied: the expression and its description, or why it can't be.
+func (m Model) naturalPreview(vw int) []string {
+	th := m.th
+	if m.natErr != nil {
+		msg, hint := m.natErr.Error(), ""
+		if ne, ok := m.natErr.(*cronexpr.NaturalError); ok {
+			msg, hint = ne.Msg, ne.Hint
+		}
+		out := []string{th.Fail.Render(theme.GlyphFail+" ") + th.Text.Render(ansi.Truncate(capitalize(msg), vw-2, "…"))}
+		if hint != "" {
+			for _, l := range wrap(capitalize(hint), vw-2) {
+				out = append(out, "  "+th.Muted.Render(l))
+			}
+		}
+		return out
+	}
+	desc, _ := cronexpr.Describe(m.nat.Expr)
+	apply := th.Muted.Render(" · ") + th.Key.Render("↵") + th.Muted.Render(" apply")
+	line := th.AccentText.Render("→ ") + th.Schedule.Render(m.nat.Expr) + th.Muted.Render("  ") +
+		th.Text.Render(ansi.Truncate(desc, max(vw-lipgloss.Width(m.nat.Expr)-14, 1), "…")) + apply
+	out := []string{line}
+	if m.nat.Note != "" {
+		for _, l := range wrap(capitalize(m.nat.Note)+".", vw-2) {
+			out = append(out, "  "+th.Muted.Render(l))
+		}
+	}
+	return out
+}
+
 // validity is ✓ and the description, or ✗ and the parse error, wrapped:
 // the first line fits w, the rest the full value column.
 func (m Model) validity(w int) []string {
@@ -366,6 +405,8 @@ func (m Model) Hints() []key.Binding {
 	switch m.focus {
 	case stopPreset:
 		out = append(out, h("←→", "preset"))
+	case stopNatural:
+		out = append(out, h("enter", "apply"))
 	case stopParams:
 		out = append(out, h("←→", "move"))
 		if m.kind == cronexpr.Weekly && m.sub < 7 {

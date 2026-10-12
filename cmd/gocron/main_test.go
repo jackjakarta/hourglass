@@ -150,6 +150,17 @@ Next runs (local time):
 	if !strings.Contains(out, "At boot") || !strings.Contains(out, "each time the system boots") {
 		t.Errorf("out:\n%s", out)
 	}
+
+	// Plain English is interpreted first.
+	out, _, code = runCLI(t, "", "describe", "-n", "1", "every", "weekday", "at", "9am")
+	want = "Interpreted as: 0 9 * * 1-5\n\n0 9 * * 1-5\nAt 09:00, Monday through Friday\n\nNext runs (local time):\n  Mon 12 Oct 09:00   in 18h 27m\n"
+	if code != 0 || out != want {
+		t.Errorf("code=%d out:\n%s\nwant:\n%s", code, out, want)
+	}
+	out, _, _ = runCLI(t, "", "describe", "-n", "0", "every monday")
+	if !strings.HasPrefix(out, "Interpreted as: 0 0 * * 1\nNote: no time given, so it runs at midnight\n") {
+		t.Errorf("out:\n%s", out)
+	}
 }
 
 func TestExitCodes(t *testing.T) {
@@ -163,6 +174,9 @@ func TestExitCodes(t *testing.T) {
 		{[]string{"bogus"}, 2, `unknown command "bogus"`},
 		{[]string{"describe"}, 2, "Usage: gocron describe"},
 		{[]string{"describe", "61 * * * *"}, 1, `minute: "61" is out of range`},
+		{[]string{"describe", "first monday of the month"}, 1, "cron can't run a job on the first monday"},
+		{[]string{"enable"}, 2, "Usage: gocron enable ID"},
+		{[]string{"-v"}, 0, "gocron "},
 		{[]string{"list", "--nope"}, 2, "flag provided but not defined"},
 		{[]string{"version"}, 0, "gocron "},
 	}
