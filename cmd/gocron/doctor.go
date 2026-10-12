@@ -11,9 +11,15 @@ import (
 )
 
 func (a *app) doctor(ctx context.Context, args []string) int {
-	fs := a.flags("doctor", "doctor")
+	fs := a.flags("doctor", "doctor [--fix]")
+	fix := fs.Bool("fix", false, "give duplicate job IDs new IDs and point wrapped jobs at this gocron")
 	if code, ok := parse(fs, args); !ok {
 		return code
+	}
+	if *fix {
+		if code := a.fix(ctx); code != exitOK {
+			return code
+		}
 	}
 	src, err := a.source()
 	if err != nil {
@@ -23,7 +29,9 @@ func (a *app) doctor(ctx context.Context, args []string) int {
 	env.SelfPath = a.binPath()
 	if paths, err := config.Resolve(); err == nil {
 		cfg := &doctor.State{Paths: paths}
-		_, cfg.ConfigWarnings, cfg.ConfigErr = config.Load(paths.ConfigFile)
+		var c config.Config
+		c, cfg.ConfigWarnings, cfg.ConfigErr = config.Load(paths.ConfigFile)
+		cfg.Notify = c.Notify
 		cfg.Home, _ = os.UserHomeDir()
 		env.State = cfg
 	}
@@ -42,6 +50,36 @@ func (a *app) doctor(ctx context.Context, args []string) int {
 	w.Flush()
 	if doctor.Failed(checks) {
 		return exitError
+	}
+	return exitOK
+}
+
+// fix repairs what doctor can in one change and says what it did.
+func (a *app) fix(ctx context.Context) int {
+	svc, _, _, err := a.service(ctx)
+	if err != nil {
+		return a.fail(err)
+	}
+	rep, err := svc.Fix(ctx)
+	if err != nil {
+		return a.fail(err)
+	}
+	for _, r := range rep.ReIDs {
+		fmt.Fprintf(a.stdout, "Fixed: job %q on line %d had duplicate id %s; it is now %s\n", r.Name, r.Line, r.Old, r.ID)
+	}
+	for _, r := range rep.Rebinned {
+		fmt.Fprintf(a.stdout, "Fixed: job %s %q ran %s; it now runs %s\n", r.ID, r.Name, r.From, a.binPath())
+	}
+	if rep.BinErr != nil {
+		fmt.Fprintf(a.stdout, "Not fixed: wrapped jobs run another gocron, but %v\n", rep.BinErr)
+	}
+	switch {
+	case rep.Changed() && rep.Result.Backup != "":
+		fmt.Fprintf(a.stdout, "Backup: %s\n\n", rep.Result.Backup)
+	case !rep.Changed():
+		fmt.Fprint(a.stdout, "Nothing to fix.\n\n")
+	default:
+		fmt.Fprintln(a.stdout)
 	}
 	return exitOK
 }

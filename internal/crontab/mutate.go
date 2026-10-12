@@ -290,3 +290,27 @@ func clip(s string, n int) string {
 	}
 	return string(r[:n-1]) + "…"
 }
+
+// ReID gives the managed job whose meta line is line (1-based) the new ID
+// id, in its meta line and, when it is wrapped, in its exec command. It
+// works by line, so it can tell apart jobs that share an ID.
+func (c *Crontab) ReID(line int, id string) error {
+	i := line - 1
+	if i < 0 || i+1 >= len(c.Lines) || c.Lines[i].Kind != JobMeta {
+		return fmt.Errorf("%w: no gocron job on line %d", ErrNotFound, line)
+	}
+	m := &Meta{Pairs: append([]Pair(nil), c.Lines[i].Meta.Pairs...)}
+	m.Set("id", id)
+	j := managedJob(c.Lines[i].Meta, c.Lines[i+1].Entry, line+1, "")
+	if j.Wrapped {
+		j.ID = id
+		text, err := renderJobLine(j, j.Bin)
+		if err != nil {
+			return err
+		}
+		c.Lines[i+1] = parseLine(text, c.Lines[i+1].EOL)
+	}
+	c.Lines[i] = parseLine(m.Format(), c.Lines[i].EOL)
+	c.pair()
+	return nil
+}

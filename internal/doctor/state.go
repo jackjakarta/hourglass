@@ -21,6 +21,7 @@ type State struct {
 	Paths          config.Paths
 	ConfigErr      error    // config.toml didn't load
 	ConfigWarnings []string // keys it didn't know
+	Notify         config.Notify
 	// Home is the user's home directory, where cron starts jobs and where
 	// gocron exec looks for its state when cron runs it.
 	Home string
@@ -31,7 +32,7 @@ type State struct {
 // read.
 func stateChecks(ctx context.Context, env Env, tab *crontab.Crontab) []Check {
 	st := env.State
-	out := []Check{checkConfig(st), checkStateDirs(st), checkRunHistory(ctx, st), checkTracking(env)}
+	out := []Check{checkConfig(st), checkStateDirs(st), checkRunHistory(ctx, st), checkTracking(env), checkNotify(env)}
 	if tab != nil {
 		if c, ok := checkCronState(st, tab); ok {
 			out = append(out, c)
@@ -54,6 +55,35 @@ func checkConfig(st *State) Check {
 		c.Hint = "check the spelling of these keys"
 	default:
 		c.Status, c.Detail = OK, st.Paths.ConfigFile
+	}
+	return c
+}
+
+func checkNotify(env Env) Check {
+	n := env.State.Notify
+	c := Check{Name: "notifications"}
+	var targets []string
+	if n.Desktop {
+		targets = append(targets, "desktop")
+	}
+	if n.Webhook != "" {
+		targets = append(targets, "webhook")
+	}
+	if n.On == config.NotifyNever || n.On == "" || len(targets) == 0 {
+		c.Status, c.Detail = Info, "off"
+		return c
+	}
+	c.Status, c.Detail = OK, fmt.Sprintf("%s, on %s", strings.Join(targets, " and "), n.On)
+	if n.Desktop {
+		tool := map[string]string{"darwin": "osascript"}[env.GOOS]
+		if tool == "" {
+			tool = "notify-send"
+		}
+		if _, err := env.LookPath(tool); err != nil {
+			c.Status = Warn
+			c.Detail = fmt.Sprintf("desktop notifications need %s, which isn't installed", tool)
+			c.Hint = "install it (e.g. libnotify-bin), or set desktop = false under [notify]"
+		}
 	}
 	return c
 }

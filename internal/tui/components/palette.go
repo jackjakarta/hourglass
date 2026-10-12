@@ -221,3 +221,21 @@ func scoreFrom(hay, w []rune, start int) (int, bool) {
 func wordStart(hay []rune, i int) bool { return i == 0 || !wordRune(hay[i-1]) }
 
 func wordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
+
+// Click handles a click at x, y relative to the palette's top-left
+// corner. Clicking an item chooses it; chosen is its index in Items, or
+// -1 when the click missed every item.
+func (p *Palette) Click(x, y int) (chosen int, done bool) {
+	r := y - 3 // below the border, the query line and a gap
+	if x <= 0 || r < 0 || r >= paletteRows {
+		return -1, false
+	}
+	i := p.offset + r
+	if i >= len(p.matches) {
+		return -1, false
+	}
+	return p.matches[i], true
+}
+
+// Wheel moves the selection by delta items.
+func (p *Palette) Wheel(delta int) { p.move(delta) }

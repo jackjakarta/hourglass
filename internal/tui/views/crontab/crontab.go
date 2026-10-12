@@ -359,3 +359,41 @@ func lineCount(b []byte) string {
 	}
 	return fmt.Sprintf("%d lines", n)
 }
+
+// Click handles a left click at x, y in the view's own coordinates: it
+// selects a revision, and on narrow screens clicking the selected one
+// opens its preview.
+func (m Model) Click(x, y int) (Model, tea.Msg) {
+	if m.preview {
+		return m, nil
+	}
+	left := 0
+	if m.wide() {
+		left = m.width*55/100 + 1
+	}
+	r := y - 1
+	if x <= left || x >= m.width-1 || r < 0 || r >= m.listRows() {
+		return m, nil
+	}
+	i := m.offset + r
+	if i > len(m.revs) {
+		return m, nil
+	}
+	if i == m.selected && !m.wide() {
+		m.preview = true
+		return m, nil
+	}
+	m.choose(i)
+	return m, nil
+}
+
+// Wheel scrolls the preview under the pointer at x, or moves through the
+// revisions.
+func (m Model) Wheel(x, delta int) Model {
+	if m.preview || (m.wide() && x < m.width*55/100) {
+		m.scrollBy(3 * delta)
+		return m
+	}
+	m.choose(m.selected + delta)
+	return m
+}

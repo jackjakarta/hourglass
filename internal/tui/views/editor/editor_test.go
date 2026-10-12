@@ -55,6 +55,8 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyRight}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "enter":
+		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "backspace":
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "space":
@@ -88,7 +90,7 @@ func press(t *testing.T, m *Model, keys ...string) tea.Msg {
 
 func isNamed(k string) bool {
 	switch k {
-	case "tab", "shift+tab", "up", "down", "left", "right", "esc", "backspace", "space", "ctrl+s", "ctrl+u":
+	case "tab", "shift+tab", "up", "down", "left", "right", "esc", "backspace", "space", "enter", "ctrl+s", "ctrl+u":
 		return true
 	}
 	return false
@@ -256,8 +258,8 @@ func TestTrackingOptions(t *testing.T) {
 	if d := m.draft(); !d.Wrapped || d.Timeout != 30*time.Minute || !d.NoOverlap {
 		t.Errorf("draft = %+v", d)
 	}
-	// Name → preset, params, command, tags, track, timeout.
-	press(t, &m, "tab", "tab", "tab", "tab", "tab", "tab")
+	// Name → preset, params, in words, command, tags, track, timeout.
+	press(t, &m, "tab", "tab", "tab", "tab", "tab", "tab", "tab")
 	if m.focus != stopTimeout {
 		t.Fatalf("focus = %v", m.focus)
 	}
@@ -314,7 +316,7 @@ func TestEscReportsDirty(t *testing.T) {
 
 func TestPathLintIsDebounced(t *testing.T) {
 	m := newEditor()
-	press(t, &m, "tab", "tab", "tab")
+	press(t, &m, "tab", "tab", "tab", "tab")
 	if m.focus != stopCommand {
 		t.Fatalf("focus = %v", m.focus)
 	}
@@ -359,7 +361,7 @@ func TestNarrowEditorScrollsToFocus(t *testing.T) {
 	if m.Modal() {
 		t.Fatal("modal on a small screen")
 	}
-	press(t, &m, "tab", "tab", "tab", "tab")
+	press(t, &m, "tab", "tab", "tab", "tab", "tab")
 	if m.focus != stopTags {
 		t.Fatalf("focus = %v", m.focus)
 	}
@@ -369,5 +371,49 @@ func TestNarrowEditorScrollsToFocus(t *testing.T) {
 	}
 	if !strings.Contains(view, "Tags") || strings.Contains(view, "Name ") {
 		t.Errorf("focused row not scrolled into view:\n%s", view)
+	}
+}
+
+func TestNaturalSchedule(t *testing.T) {
+	m := newEditor()
+	press(t, &m, "tab", "tab", "tab") // name → preset → params → in words
+	if m.focus != stopNatural {
+		t.Fatalf("focus = %v", m.focus)
+	}
+	press(t, &m, "every weekday at 7:30am")
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "→ 30 7 * * 1-5  At 07:30, Monday through Friday · ↵ apply") {
+		t.Errorf("no preview:\n%s", view)
+	}
+	if m.schedule != "0 9 * * *" {
+		t.Errorf("typing changed the schedule before ↵: %q", m.schedule)
+	}
+	if m.Dirty() {
+		t.Error("an unapplied phrase makes the editor dirty")
+	}
+	if req := press(t, &m, "enter"); req != nil {
+		t.Fatalf("enter returned %#v", req)
+	}
+	if m.schedule != "30 7 * * 1-5" || m.kind != cronexpr.Weekdays || m.focus != stopParams || m.natural.Value() != "" {
+		t.Errorf("after ↵: schedule %q, kind %v, focus %v, input %q", m.schedule, m.kind, m.focus, m.natural.Value())
+	}
+
+	// Something no preset fits lands in Custom.
+	press(t, &m, "tab", "every 15 minutes between 9 and 17", "enter")
+	if m.schedule != "*/15 9-17 * * *" || m.kind != cronexpr.Custom || m.focus != stopRaw {
+		t.Errorf("custom: schedule %q, kind %v, focus %v", m.schedule, m.kind, m.focus)
+	}
+
+	// An unsupported phrase explains itself and changes nothing.
+	press(t, &m, "tab", "first monday of the month")
+	view = ansi.Strip(m.View())
+	if !strings.Contains(view, "✗ Cron can't run a job on the first monday of the month") || !strings.Contains(view, "date +") {
+		t.Errorf("no explanation:\n%s", view)
+	}
+	if req, ok := press(t, &m, "enter").(BlockedMsg); !ok || !strings.Contains(req.Text, "first monday") {
+		t.Errorf("enter on a bad phrase = %#v", req)
+	}
+	if m.schedule != "*/15 9-17 * * *" {
+		t.Errorf("schedule changed to %q", m.schedule)
 	}
 }

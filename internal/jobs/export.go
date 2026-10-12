@@ -273,4 +273,3 @@ func diffFields(a, b ExportJob) []string {
 	add(a.NoOverlap != b.NoOverlap, "no_overlap")
 	return out
 }
-

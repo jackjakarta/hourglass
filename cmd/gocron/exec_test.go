@@ -3,19 +3,25 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackjakarta/gocron/internal/config"
+	"github.com/jackjakarta/gocron/internal/notify"
 	"github.com/jackjakarta/gocron/internal/runner"
 	runs "github.com/jackjakarta/gocron/internal/store"
 )
@@ -25,7 +31,7 @@ func helper(t *testing.T, state string, args ...string) *exec.Cmd {
 	t.Helper()
 	cmd := exec.Command(os.Args[0], args...)
 	cmd.Env = append(os.Environ(), envHelper+"=1", "GOCRON_STATE_DIR="+state,
-		"GOCRON_CONFIG="+filepath.Join(state, "none.toml"))
+		"GOCRON_CONFIG="+quietConfig(t, t.TempDir()))
 	return cmd
 }
 
@@ -185,12 +191,19 @@ func TestSpawnLauncher(t *testing.T) {
 		t.Errorf("stopped = %+v", res)
 	}
 
-	// The status pipe stays out of the job's process.
+	// The status pipe stays out of the job's process. The job should see
+	// the same descriptors as a plain child of this process: the test may
+	// itself inherit stray ones (CI runners leak some), and those pass
+	// through to every child.
+	base, err := exec.Command("ls", "/proc/self/fd").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
 	h, _ = l.Launch(runner.Spec{Command: "ls /proc/self/fd", Trigger: runs.TriggerTest, Env: env})
 	got, _ = io.ReadAll(h.Output)
 	<-h.Done
-	if fds := strings.Fields(string(got)); len(fds) > 4 { // 0, 1, 2 and ls's own directory fd
-		t.Errorf("the job inherited extra descriptors: %v", fds)
+	if fds, want := strings.Fields(string(got)), strings.Fields(string(base)); !slices.Equal(fds, want) {
+		t.Errorf("the job's descriptors = %v, want %v", fds, want)
 	}
 }
 
@@ -258,5 +271,104 @@ func TestRunCronEnvSuggestsPATH(t *testing.T) {
 	_, errOut, code := runCLI(t, file, "run", "--cron-env", "abc234")
 	if code != 127 || !strings.Contains(errOut, "only-in-local-bin is in "+bin+", which isn't on this run's PATH") {
 		t.Errorf("cron-env: code=%d stderr=%q", code, errOut)
+	}
+}
+
+func TestExecNotifies(t *testing.T) {
+	var (
+		mu       sync.Mutex
+		payloads []notify.Payload
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var p notify.Payload
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			t.Error(err)
+		}
+		mu.Lock()
+		payloads = append(payloads, p)
+		mu.Unlock()
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	calls := filepath.Join(dir, "calls")
+	fake := filepath.Join(dir, "bin")
+	os.Mkdir(fake, 0o700)
+	script := "#!/bin/sh\nprintf '%s|' \"$@\" >> " + calls + "\necho >> " + calls + "\n"
+	if err := os.WriteFile(filepath.Join(fake, "notify-send"), []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cfg := filepath.Join(dir, "config.toml")
+	os.WriteFile(cfg, []byte("[notify]\non = \"change\"\ndesktop = true\nwebhook = \""+srv.URL+"\"\n"), 0o600)
+	tab := filepath.Join(dir, "crontab")
+	os.WriteFile(tab, []byte("# gocron:job id=abc234 name=\"Nightly backup\"\n0 1 * * * /usr/local/bin/gocron exec abc234 -- 'x'\n"), 0o600)
+
+	state := t.TempDir()
+	run := func(command string) int {
+		t.Helper()
+		cmd := helper(t, state, "exec", "abc234", "--", command)
+		cmd.Env = append(cmd.Env, "GOCRON_CONFIG="+cfg, "GOCRON_CRONTAB_FILE="+tab,
+			"PATH="+fake+string(os.PathListSeparator)+os.Getenv("PATH"))
+		err := cmd.Run()
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return ee.ExitCode()
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return 0
+	}
+	if code := run("echo boom; exit 3"); code != 3 {
+		t.Fatalf("first run exit %d", code)
+	}
+	if code := run("exit 3"); code != 3 { // still failing: no news
+		t.Fatalf("second run exit %d", code)
+	}
+	if code := run("echo fine"); code != 0 {
+		t.Fatalf("third run exit %d", code)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(payloads) != 2 {
+		t.Fatalf("payloads = %+v", payloads)
+	}
+	if p := payloads[0]; p.Job != "Nightly backup" || p.JobID != "abc234" || p.Status != "failed" || p.ExitCode != 3 ||
+		p.Trigger != "cron" || p.LogTail != "boom" || p.PrevStatus != "" {
+		t.Errorf("first payload = %+v", p)
+	}
+	if p := payloads[1]; p.Status != "success" || p.PrevStatus != "failed" || p.LogTail != "fine" {
+		t.Errorf("second payload = %+v", p)
+	}
+	if runtime.GOOS == "linux" {
+		got, _ := os.ReadFile(calls)
+		want := "-a|gocron|-u|critical|gocron: Nightly backup failed|exit 3 after 0s\nboom|\n" +
+			"-a|gocron|-u|normal|gocron: Nightly backup is working again|after 0s\nfine|\n"
+		if string(got) != want {
+			t.Errorf("notify-send calls:\n%s\nwant:\n%s", got, want)
+		}
+	}
+}
+
+func TestExecNotifyFailureKeepsExitCode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusBadGateway)
+	}))
+	defer srv.Close()
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config.toml")
+	os.WriteFile(cfg, []byte("[notify]\ndesktop = false\nwebhook = \""+srv.URL+"\"\n"), 0o600)
+	state := t.TempDir()
+	cmd := helper(t, state, "exec", "abc234", "--", "exit 7")
+	cmd.Env = append(cmd.Env, "GOCRON_CONFIG="+cfg, "GOCRON_CRONTAB_FILE="+filepath.Join(dir, "missing"))
+	err := cmd.Run()
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) || ee.ExitCode() != 7 {
+		t.Fatalf("exec ended with %v, want exit 7", err)
+	}
+	errLog, _ := os.ReadFile(filepath.Join(state, "gocron-errors.log"))
+	if !strings.Contains(string(errLog), "webhook notification") || !strings.Contains(string(errLog), "502") {
+		t.Errorf("error log = %q", errLog)
 	}
 }

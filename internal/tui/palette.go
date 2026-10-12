@@ -3,12 +3,14 @@ package tui
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jackjakarta/gocron/internal/store"
 	"github.com/jackjakarta/gocron/internal/tui/components"
+	"github.com/jackjakarta/gocron/internal/tui/theme"
 	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
 	"github.com/jackjakarta/gocron/internal/tui/views/timeline"
 )
@@ -173,6 +175,19 @@ func (m Model) paletteItems() []paletteAction {
 				return m, nil
 			}),
 		)
+	}
+	if !m.opts.NoColor {
+		for _, name := range theme.Names {
+			if name == m.th.Name {
+				continue
+			}
+			out = append(out, act("Theme: "+strings.ToUpper(name[:1])+name[1:], none, func(m Model) (tea.Model, tea.Cmd) {
+				m.themeName = name
+				m.applyTheme()
+				m.toast(components.ToastInfo, theme.GlyphInfo, "Theme: "+name+" (set theme in config.toml to keep it)")
+				return m, nil
+			}))
+		}
 	}
 	out = append(out,
 		act("Help: all keys", km.Help, func(m Model) (tea.Model, tea.Cmd) {

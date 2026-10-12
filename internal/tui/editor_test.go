@@ -46,7 +46,7 @@ func TestEditorCreate(t *testing.T) {
 	hs := start(t, "", 100, 32)
 	hs.waitFor("Welcome to gocron")
 	const cmd = `pg_dump app | gzip > /bk/app-$(date +%F).sql.gz`
-	hs.keys("n", "Nightly backup", "tab", "tab", "0230", "tab", cmd, "tab", "backup, db", "ctrl+s")
+	hs.keys("n", "Nightly backup", "tab", "tab", "0230", "tab", "tab", cmd, "tab", "backup, db", "ctrl+s")
 	hs.waitFor(`Created "Nightly backup" · backup created · u undo`)
 	// Tracked by default: wrapped, skipping overlaps (config defaults).
 	re := regexp.MustCompile(`^# gocron:job id=([a-z2-7]{6}) name="Nightly backup" tags=backup,db\n30 2 \* \* \* /usr/bin/gocron exec --no-overlap [a-z2-7]{6} -- 'pg_dump app \| gzip > /bk/app-\$\(date \+\\%F\)\.sql\.gz'\n$`)
@@ -154,7 +154,7 @@ func TestEditorPathLint(t *testing.T) {
 		}
 	})
 	hs.waitFor("Welcome to gocron")
-	hs.keys("n", "tab", "tab", "tab", "pg_dump app")
+	hs.keys("n", "tab", "tab", "tab", "tab", "pg_dump app")
 	hs.waitFor("pg_dump is in /usr/local/bin, which isn't on cron's PATH")
 	hs.screen()
 }
@@ -170,7 +170,7 @@ func TestEditOnUnmanagedAsksToAdopt(t *testing.T) {
 func TestEditorConflictKeepEditing(t *testing.T) {
 	hs := start(t, "realistic_mixed", 140, 40)
 	hs.waitFor("Nightly backup")
-	hs.keys("n", "tab", "tab", "tab", "echo hi")
+	hs.keys("n", "tab", "tab", "tab", "tab", "echo hi")
 	hs.waitFor("echo hi")
 	hs.write(hs.read() + "# edited elsewhere\n") // the dirty editor keeps this from reloading
 	hs.keys("ctrl+s")

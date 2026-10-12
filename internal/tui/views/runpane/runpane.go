@@ -302,3 +302,9 @@ func wrap(st lipgloss.Style, s string, w int) []string {
 	}
 	return out
 }
+
+// Wheel scrolls the output; a negative delta scrolls back in time.
+func (m Model) Wheel(delta int) Model {
+	m.scrollBy(-delta * 3)
+	return m
+}

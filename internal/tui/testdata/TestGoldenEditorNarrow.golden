@@ -8,6 +8,7 @@
 │            M T W T F S S  at  [09]:[00]                                      │
 │            0 9 * * 1,2         ✓ At 09:00, on Mondays and Tuesdays           │
 │            next  Mon 09:00 · Tue 09:00 · Mon 19 Oct 09:00 · Tue 20 Oct 09:0… │
+│            or say it: every weekday at 9am                                   │
 │                                                                              │
 │  Command   e.g. pg_dump app | gzip > /backups/app.sql.gz                     │
 │  Tags      e.g. backup, db                                                   │
@@ -15,7 +16,6 @@
 │  Options   [x] Track runs   Timeout [none    ]   [x] Skip if still running   │
 │                                                                              │
 │                                              esc cancel · ^t test · ^s save  │
-│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

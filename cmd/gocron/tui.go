@@ -23,6 +23,7 @@ func (a *app) tui(ctx context.Context) int {
 	}
 	opts := tui.Options{
 		NoColor:  os.Getenv("NO_COLOR") != "",
+		Theme:    cfg.Theme,
 		UI:       cfg.UI,
 		UserPATH: os.Getenv("PATH"),
 		Daemon: func(ctx context.Context) doctor.DaemonStatus {

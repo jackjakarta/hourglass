@@ -469,3 +469,30 @@ func plural(n int, word string) string {
 	}
 	return word + "s"
 }
+
+// Click handles a left click at x, y in the view's own coordinates: it
+// selects a lane, and clicking the selected lane opens its job.
+func (m Model) Click(x, y int) (Model, tea.Msg) {
+	r := y - 3 // below the border, axis and now marker
+	if x <= 0 || x >= m.width-1 || r < 0 || r >= m.laneRows() {
+		return m, nil
+	}
+	i := m.laneOff + r
+	if i >= len(m.grid.Lanes) {
+		return m, nil
+	}
+	if i == m.index() {
+		if j, ok := m.Selected(); ok {
+			return m, OpenMsg{j}
+		}
+	}
+	m.selected = laneKey(m.grid.Lanes[i].Job)
+	m.clamp()
+	return m, nil
+}
+
+// Wheel moves between lanes.
+func (m Model) Wheel(delta int) Model {
+	m.move(delta)
+	return m
+}

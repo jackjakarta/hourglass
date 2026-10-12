@@ -103,3 +103,27 @@ func (c *Confirm) View(th *theme.Theme) string {
 	}
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border).Padding(1, 3).Render(content)
 }
+
+// Click handles a click at x, y relative to the dialog's top-left corner:
+// a click on a button chooses it.
+func (c *Confirm) Click(th *theme.Theme, x, y int) (done bool, cmd tea.Cmd) {
+	box := c.View(th)
+	bw, bh := lipgloss.Width(box), lipgloss.Height(box)
+	if y != bh-4 { // above the hint line, the padding and the border
+		return false, nil
+	}
+	button := func(label string) int { return lipgloss.Width(th.Button.Render(label)) }
+	right := bw - 4 // the border and padding on the right
+	if x < right && x >= right-button(c.Action) {
+		return true, c.OnOK
+	}
+	right -= button(c.Action) + 2
+	if x < right && x >= right-button(c.Safe) {
+		return true, c.OnSafe
+	}
+	right -= button(c.Safe) + 2
+	if c.Extra != "" && x < right && x >= right-button(c.Extra) {
+		return true, c.OnExtra
+	}
+	return false, nil
+}

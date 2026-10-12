@@ -310,7 +310,7 @@ func TestEditorTestDraft(t *testing.T) {
 	hs := startRuns(t, 140, 40, fl)
 	hs.waitFor("Nightly backup")
 	hs.keys("ctrl+t") // not in the editor: nothing
-	hs.keys("n", "tab", "tab", "tab", "echo draft")
+	hs.keys("n", "tab", "tab", "tab", "tab", "echo draft")
 	hs.waitFor("echo draft")
 	hs.keys("ctrl+t")
 	hs.waitFor("Test in cron's environment · echo")

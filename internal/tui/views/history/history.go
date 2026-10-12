@@ -453,3 +453,39 @@ func wrapLines(st lipgloss.Style, s string, w int) []string {
 	}
 	return out
 }
+
+// Click handles a left click at x, y in the view's own coordinates: it
+// selects a run, and clicking the selected run opens its log.
+func (m Model) Click(x, y int) (Model, tea.Msg) {
+	if m.log != nil || m.typing || x <= 0 || x >= m.width-1 {
+		return m, nil
+	}
+	if y == 1 {
+		m.typing = true
+		return m, nil
+	}
+	r := y - 4 // below the border, filter line, header and gap
+	v := m.visible()
+	if r < 0 || r >= m.rows() || m.offset+r >= len(v) {
+		return m, nil
+	}
+	if i := m.offset + r; i != m.selected {
+		m.selected = i
+		m.clamp()
+		return m, nil
+	}
+	return m, OpenLogMsg{v[m.selected]}
+}
+
+// Wheel scrolls the log, or moves the selection in the feed.
+func (m Model) Wheel(delta int) Model {
+	switch {
+	case m.log != nil:
+		rows := m.logRows()
+		m.log.top = min(max(m.log.top+3*delta, 0), max(len(m.log.lines)-rows, 0))
+	case !m.typing:
+		m.selected += delta
+		m.clamp()
+	}
+	return m
+}

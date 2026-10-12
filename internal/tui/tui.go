@@ -27,7 +27,8 @@ type Options struct {
 	Clock   Clock         // default: the real clock
 	// Daemon reports the cron daemon's status for the header; nil skips it.
 	Daemon  func(context.Context) doctor.DaemonStatus
-	NoColor bool // NO_COLOR is set: use the mono theme
+	NoColor bool   // NO_COLOR is set: use the mono theme
+	Theme   string // nightshift | daybreak | mono; "" is nightshift
 	// UserPATH is the user's own PATH. The editor uses it to say where a
 	// program cron can't find lives.
 	UserPATH string

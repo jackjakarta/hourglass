@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -70,6 +71,8 @@ type Env struct {
 	SelfPath string
 	// State is gocron's own files; nil skips the checks about them.
 	State *State
+	// GOOS picks the desktop notifier to look for.
+	GOOS string
 }
 
 // DefaultEnv probes the real system.
@@ -85,6 +88,7 @@ func DefaultEnv(src crontab.Source) Env {
 		Processes: procNames,
 		Exists:    func(p string) bool { _, err := os.Stat(p); return err == nil },
 		SelfPath:  self,
+		GOOS:      runtime.GOOS,
 	}
 }
 

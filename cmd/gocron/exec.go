@@ -11,8 +11,11 @@ import (
 	"time"
 
 	"github.com/jackjakarta/gocron/internal/config"
+	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/gocron/internal/notify"
 	"github.com/jackjakarta/gocron/internal/runner"
 	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/gocron/internal/version"
 )
 
 const execSynopsis = "exec [--timeout=D] [--no-overlap] [--trigger=cron|manual|test] [--tee] ID -- COMMAND"
@@ -112,5 +115,57 @@ func (a *app) exec(ctx context.Context, args []string) int {
 
 	res := runner.Exec(ctx, o)
 	status.Done(res)
+	a.notify(ctx, o, res)
 	return res.ExitCode
+}
+
+// notify sends the notifications config.toml asks for when a cron run
+// ends. Manual and test runs are watched as they happen, so they don't
+// notify. Failures are logged; they never change the job's exit code.
+func (a *app) notify(ctx context.Context, o runner.Options, res runner.Result) {
+	n := o.Config.Notify
+	if o.Trigger != store.TriggerCron || (!n.Desktop && n.Webhook == "") || !notify.Should(n.On, res.Status, res.Prev) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, notifyTimeout)
+	defer cancel()
+	e := notify.Event{
+		JobID:     o.JobID,
+		Name:      a.jobName(ctx, o.JobID),
+		Status:    res.Status,
+		ExitCode:  res.ExitCode,
+		Duration:  res.Duration,
+		Trigger:   o.Trigger,
+		StartedAt: time.Now().Add(-res.Duration),
+		Prev:      res.Prev,
+	}
+	e.Host, _ = os.Hostname()
+	var err error
+	if e.LogTail, err = notify.Tail(res.LogPath, 20, 4<<10); err != nil {
+		runner.LogError(o.Paths.ErrorLog, time.Now(), o.JobID, fmt.Errorf("notify: reading the log: %w", err))
+	}
+	s := notify.Sender{Desktop: n.Desktop, Webhook: n.Webhook, UserAgent: "gocron/" + version.Get().Version}
+	for _, err := range s.Send(ctx, e) {
+		runner.LogError(o.Paths.ErrorLog, time.Now(), o.JobID, err)
+	}
+}
+
+// notifyTimeout bounds all of a run's notifications together.
+const notifyTimeout = 10 * time.Second
+
+// jobName is the name of the managed job id, or id when the crontab can't
+// be read or the job has no name.
+func (a *app) jobName(ctx context.Context, id string) string {
+	src, err := a.source()
+	if err != nil {
+		return id
+	}
+	b, err := src.Read(ctx)
+	if err != nil {
+		return id
+	}
+	if j, ok := crontab.Parse(b).Job(id); ok && j.Name != "" {
+		return j.Name
+	}
+	return id
 }

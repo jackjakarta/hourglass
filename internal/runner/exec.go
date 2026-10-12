@@ -70,6 +70,9 @@ type Result struct {
 	Duration  time.Duration
 	LogPath   string
 	Truncated bool
+	// Prev is the status of the job's previous finished cron run, "" when
+	// there is none or the run isn't recorded.
+	Prev string
 }
 
 // validID accepts what gocron generates (6 chars of a-z2-7) and what
@@ -153,6 +156,7 @@ type run struct {
 	log     *cappedWriter
 	logFile *os.File
 	echo    io.Writer
+	prev    string // status of the previous finished cron run
 }
 
 func (r *run) logErr(err error) { LogError(r.o.Paths.ErrorLog, r.o.Now(), r.o.JobID, err) }
@@ -177,6 +181,9 @@ func (r *run) open(ctx context.Context) {
 		return
 	}
 	r.db = db
+	if r.prev, err = db.LastFinished(ctx, r.o.JobID); err != nil {
+		r.logErr(fmt.Errorf("reading the previous run: %w", err))
+	}
 	rec, err := db.Insert(ctx, r.o.JobID, r.o.Trigger, r.start, os.Getpid())
 	if err != nil {
 		fail(err)
@@ -311,7 +318,7 @@ loop:
 
 func (r *run) finish(ctx context.Context, status string, code int) Result {
 	end := r.o.Now()
-	res := Result{RunID: r.rec.ID, Status: status, ExitCode: code, Duration: end.Sub(r.start), LogPath: r.rec.LogPath}
+	res := Result{RunID: r.rec.ID, Status: status, ExitCode: code, Duration: end.Sub(r.start), LogPath: r.rec.LogPath, Prev: r.prev}
 	var logBytes int64
 	if r.log != nil {
 		logBytes, res.Truncated = r.log.total, r.log.truncated

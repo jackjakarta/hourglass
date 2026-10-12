@@ -35,11 +35,26 @@ func runCLI(t *testing.T, crontabFile string, args ...string) (stdout, stderr st
 	t.Helper()
 	t.Setenv(crontab.EnvCrontabFile, crontabFile)
 	t.Setenv("GOCRON_STATE_DIR", t.TempDir())
+	if os.Getenv("GOCRON_CONFIG") == "" {
+		t.Setenv("GOCRON_CONFIG", quietConfig(t, t.TempDir()))
+	}
 	var out, errOut bytes.Buffer
 	a := &app{stdout: &out, stderr: &errOut, now: func() time.Time { return testNow }, source: crontab.SourceFromEnv,
 		bin: func() string { return testBin }}
 	code = a.run(context.Background(), args)
 	return out.String(), errOut.String(), code
+}
+
+// quietConfig writes a config.toml in dir that turns notifications off, so
+// failing runs in tests don't pop up on the developer's desktop, and
+// returns its path.
+func quietConfig(t *testing.T, dir string) string {
+	t.Helper()
+	p := filepath.Join(dir, "quiet.toml")
+	if err := os.WriteFile(p, []byte("[notify]\non = \"never\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
 }
 
 func fixture(name string) string {
@@ -135,6 +150,17 @@ Next runs (local time):
 	if !strings.Contains(out, "At boot") || !strings.Contains(out, "each time the system boots") {
 		t.Errorf("out:\n%s", out)
 	}
+
+	// Plain English is interpreted first.
+	out, _, code = runCLI(t, "", "describe", "-n", "1", "every", "weekday", "at", "9am")
+	want = "Interpreted as: 0 9 * * 1-5\n\n0 9 * * 1-5\nAt 09:00, Monday through Friday\n\nNext runs (local time):\n  Mon 12 Oct 09:00   in 18h 27m\n"
+	if code != 0 || out != want {
+		t.Errorf("code=%d out:\n%s\nwant:\n%s", code, out, want)
+	}
+	out, _, _ = runCLI(t, "", "describe", "-n", "0", "every monday")
+	if !strings.HasPrefix(out, "Interpreted as: 0 0 * * 1\nNote: no time given, so it runs at midnight\n") {
+		t.Errorf("out:\n%s", out)
+	}
 }
 
 func TestExitCodes(t *testing.T) {
@@ -148,6 +174,9 @@ func TestExitCodes(t *testing.T) {
 		{[]string{"bogus"}, 2, `unknown command "bogus"`},
 		{[]string{"describe"}, 2, "Usage: gocron describe"},
 		{[]string{"describe", "61 * * * *"}, 1, `minute: "61" is out of range`},
+		{[]string{"describe", "first monday of the month"}, 1, "cron can't run a job on the first monday"},
+		{[]string{"enable"}, 2, "Usage: gocron enable ID"},
+		{[]string{"-v"}, 0, "gocron "},
 		{[]string{"list", "--nope"}, 2, "flag provided but not defined"},
 		{[]string{"version"}, 0, "gocron "},
 	}

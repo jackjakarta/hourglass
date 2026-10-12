@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"image/color"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -22,6 +23,7 @@ import (
 	"github.com/jackjakarta/gocron/internal/jobs"
 	"github.com/jackjakarta/gocron/internal/runner"
 	"github.com/jackjakarta/gocron/internal/tui/components"
+	"github.com/jackjakarta/gocron/internal/tui/theme"
 )
 
 // pkgDir is the package directory; tests chdir away from it.
@@ -229,6 +231,15 @@ func (hs *harness) keys(keys ...string) {
 			hs.tm.Type(k)
 		}
 	}
+}
+
+// final quits and returns the final model.
+func (hs *harness) final() Model {
+	hs.t.Helper()
+	if err := hs.tm.Quit(); err != nil {
+		hs.t.Fatal(err)
+	}
+	return hs.tm.FinalModel(hs.t, teatest.WithFinalTimeout(5*time.Second)).(spy).Model
 }
 
 // screen quits and returns the final screen without styling, trailing
@@ -487,5 +498,32 @@ func TestNoColorUsesMono(t *testing.T) {
 	}
 	if m := New(context.Background(), Options{}); m.th.Mono || m.th.Name != "nightshift" {
 		t.Errorf("default theme = %s", m.th.Name)
+	}
+}
+
+func TestThemeFromConfigAndPalette(t *testing.T) {
+	m := New(context.Background(), Options{Theme: "daybreak"})
+	if m.th.Name != "daybreak" {
+		t.Fatalf("theme = %s", m.th.Name)
+	}
+	// A light background keeps the configured theme, in its light variant.
+	got, _ := m.Update(tea.BackgroundColorMsg{Color: color.White})
+	if th := got.(Model).th; th.Name != "daybreak" || th.Accent == theme.Daybreak(true).Accent {
+		t.Errorf("light background: %s, accent %v", th.Name, th.Accent)
+	}
+	if m := New(context.Background(), Options{Theme: "mono"}); !m.th.Mono {
+		t.Error("theme = mono isn't mono")
+	}
+	if m := New(context.Background(), Options{Theme: "daybreak", NoColor: true}); !m.th.Mono {
+		t.Error("NO_COLOR must win over the configured theme")
+	}
+}
+
+func TestPaletteSwitchesTheme(t *testing.T) {
+	hs := start(t, "realistic_mixed", 120, 30)
+	hs.keys("ctrl+k", "theme daybreak", "enter")
+	hs.waitFor("Theme: daybreak")
+	if m := hs.final(); m.th.Name != "daybreak" {
+		t.Errorf("theme = %s", m.th.Name)
 	}
 }

@@ -1,2 +1,4 @@
 /gocron
 /dist/
+gocron-*.tar.gz
+checksums.txt
