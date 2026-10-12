@@ -31,7 +31,21 @@ type Options struct {
 	Now       func() time.Time // default time.Now
 }
 
-const backupPrefix = "crontab-"
+const (
+	backupPrefix = "crontab-"
+	backupLayout = "2006-01-02T15-04-05.000000000Z"
+)
+
+// BackupTime returns when the backup at path was taken: the time of the
+// save it was made for.
+func BackupTime(path string) (time.Time, bool) {
+	name, ok := strings.CutPrefix(filepath.Base(path), backupPrefix)
+	if !ok {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(backupLayout, name)
+	return t, err == nil
+}
 
 // Store loads a crontab and saves changes to it safely.
 type Store struct {
@@ -135,7 +149,7 @@ func (s *Store) backup(content []byte) (string, error) {
 	}
 	now := s.opts.Now().UTC()
 	for {
-		name := filepath.Join(s.opts.BackupDir, backupPrefix+now.Format("2006-01-02T15-04-05.000000000Z"))
+		name := filepath.Join(s.opts.BackupDir, backupPrefix+now.Format(backupLayout))
 		f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 		if errors.Is(err, os.ErrExist) {
 			now = now.Add(time.Nanosecond)

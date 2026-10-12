@@ -10,12 +10,17 @@ type Map struct {
 
 	New, Edit, Toggle, Delete, Adopt, Undo, Filter key.Binding
 	Run, Test, History                             key.Binding
+	Sort, TagFilter, Copy, CopySchedule, Palette   key.Binding
 	Save, TestDraft                                key.Binding // in the editor
 
 	// The History view and log viewer.
 	Failures, Trigger, Pager, NextMatch, PrevMatch key.Binding
 	// The run pane.
 	Stop, Compare key.Binding
+	// The Timeline view.
+	Day, Week, Now key.Binding
+	// The Crontab view.
+	Restore, EditCrontab, Diff key.Binding
 
 	Help, Quit, ForceQuit key.Binding
 }
@@ -52,6 +57,20 @@ func Default() Map {
 		Test:    b([]string{"t"}, "t", "test in cron's env"),
 		History: b([]string{"h"}, "h", "job's history"),
 
+		Sort:         b([]string{"s"}, "s", "cycle sort"),
+		TagFilter:    b([]string{"#"}, "#", "filter by tag"),
+		Copy:         b([]string{"y"}, "y", "copy command"),
+		CopySchedule: b([]string{"Y"}, "Y", "copy schedule"),
+		Palette:      b([]string{"ctrl+k", ":"}, "^k", "commands"),
+
+		Day:  b([]string{"d"}, "d", "next 24h"),
+		Week: b([]string{"w"}, "w", "next 7 days"),
+		Now:  b([]string{"."}, ".", "back to now"),
+
+		Restore:     b([]string{"R"}, "R", "restore revision"),
+		EditCrontab: b([]string{"E"}, "E", "edit in $EDITOR"),
+		Diff:        b([]string{"d"}, "d", "diff / full text"),
+
 		Failures:  b([]string{"f"}, "f", "failures only"),
 		Trigger:   b([]string{"c"}, "c", "cycle trigger"),
 		Pager:     b([]string{"o"}, "o", "open in $PAGER"),
@@ -74,11 +93,13 @@ func Default() Map {
 func (m Map) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.Up, m.Down, m.Top, m.Bottom, m.PageUp, m.PageDown, m.Open, m.Back},
-		{m.New, m.Edit, m.Toggle, m.Delete, m.Adopt, m.Run, m.Test, m.History, m.Undo, m.Filter},
+		{m.New, m.Edit, m.Toggle, m.Delete, m.Adopt, m.Run, m.Test, m.History, m.Undo},
+		{m.Filter, m.TagFilter, m.Sort, m.Copy, m.CopySchedule},
 		{m.Failures, m.Trigger, m.Pager, m.NextMatch, m.PrevMatch, m.Save, m.TestDraft},
-		{m.Tab1, m.Tab2, m.Tab3, m.Tab4, m.NextTab, m.Help, m.Quit, m.ForceQuit},
+		{m.Day, m.Week, m.Now, m.Restore, m.EditCrontab, m.Diff},
+		{m.Tab1, m.Tab2, m.Tab3, m.Tab4, m.NextTab, m.Palette, m.Help, m.Quit, m.ForceQuit},
 	}
 }
 
 // GroupTitles name the FullHelp columns.
-var GroupTitles = []string{"Navigate", "Jobs", "History", "General"}
+var GroupTitles = []string{"Navigate", "Jobs", "List", "History", "Timeline · Crontab", "General"}

@@ -21,6 +21,7 @@ import (
 	"github.com/jackjakarta/gocron/internal/doctor"
 	"github.com/jackjakarta/gocron/internal/jobs"
 	"github.com/jackjakarta/gocron/internal/runner"
+	"github.com/jackjakarta/gocron/internal/tui/components"
 )
 
 // pkgDir is the package directory; tests chdir away from it.
@@ -70,6 +71,7 @@ type harness struct {
 	backups string
 	tm      *teatest.TestModel
 	screenV *atomic.Value // the latest rendered screen, unstyled
+	daemon  *atomic.Bool  // the daemon probe's result has arrived
 }
 
 // spy publishes every rendered screen so tests can wait for UI states
@@ -77,9 +79,13 @@ type harness struct {
 type spy struct {
 	Model
 	screen *atomic.Value
+	daemon *atomic.Bool
 }
 
 func (s spy) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(daemonMsg); ok {
+		defer s.daemon.Store(true)
+	}
 	m, cmd := s.Model.Update(msg)
 	s.Model = m.(Model)
 	return s, cmd
@@ -155,7 +161,8 @@ func (hs *harness) run(opts Options, w, h int) {
 	}
 	hs.screenV = &atomic.Value{}
 	hs.screenV.Store("")
-	hs.tm = teatest.NewTestModel(hs.t, spy{New(context.Background(), opts), hs.screenV}, teatest.WithInitialTermSize(w, h))
+	hs.daemon = &atomic.Bool{}
+	hs.tm = teatest.NewTestModel(hs.t, spy{New(context.Background(), opts), hs.screenV, hs.daemon}, teatest.WithInitialTermSize(w, h))
 }
 
 func (hs *harness) write(s string) {
@@ -214,7 +221,7 @@ func (hs *harness) keys(keys ...string) {
 			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
 		case "backspace":
 			hs.tm.Send(tea.KeyPressMsg{Code: tea.KeyBackspace})
-		case "ctrl+s", "ctrl+t", "ctrl+u":
+		case "ctrl+s", "ctrl+t", "ctrl+u", "ctrl+k":
 			hs.tm.Send(tea.KeyPressMsg{Code: rune(k[len(k)-1]), Mod: tea.ModCtrl})
 		case "space":
 			hs.tm.Send(tea.KeyPressMsg{Code: ' ', Text: " "})
@@ -228,6 +235,10 @@ func (hs *harness) keys(keys ...string) {
 // spaces trimmed.
 func (hs *harness) screen() string {
 	hs.t.Helper()
+	// The header's daemon status arrives asynchronously; goldens need it.
+	for deadline := time.Now().Add(5 * time.Second); !hs.daemon.Load() && time.Now().Before(deadline); {
+		time.Sleep(5 * time.Millisecond)
+	}
 	if err := hs.tm.Quit(); err != nil {
 		hs.t.Fatal(err)
 	}
@@ -296,18 +307,6 @@ func TestLoadError(t *testing.T) {
 		if !strings.Contains(s, want) {
 			t.Errorf("screen lacks %q:\n%s", want, s)
 		}
-	}
-}
-
-func TestComingSoonTabs(t *testing.T) {
-	hs := start(t, "realistic_mixed", 100, 24)
-	hs.waitFor("Nightly backup")
-	hs.keys("2")
-	hs.waitFor("See when your jobs fire")
-	hs.keys("4")
-	hs.waitFor("Your raw crontab")
-	if s := hs.screen(); !strings.Contains(s, "Coming soon") {
-		t.Errorf("screen:\n%s", s)
 	}
 }
 
@@ -414,6 +413,55 @@ func TestConflictReapply(t *testing.T) {
 		t.Errorf("reapply:\n%s", got)
 	}
 	hs.screen()
+}
+
+func TestConflictViewDiff(t *testing.T) {
+	hs := start(t, "realistic_mixed", 140, 32)
+	hs.waitFor("Nightly backup")
+	external := hs.read() + "# by hand\n"
+	hs.write(external)
+	hs.keys("space")
+	hs.waitFor("View diff")
+	hs.keys("d")
+	hs.waitFor("The outside change")
+	hs.waitFor("+# by hand")
+	hs.keys("esc")
+	hs.waitFor("Reapply")
+	hs.keys("right", "enter") // focus starts on Discard; right is Reapply
+	hs.waitFor(`Paused "Sync photos"`)
+	if !strings.Contains(hs.read(), "# by hand") || !strings.Contains(hs.read(), "#gocron:off */15") {
+		t.Errorf("reapply after viewing the diff:\n%s", hs.read())
+	}
+	hs.screen()
+}
+
+func TestConfirmExtraButton(t *testing.T) {
+	ran := ""
+	cmd := func(s string) tea.Cmd { return func() tea.Msg { ran = s; return nil } }
+	c := &components.Confirm{Safe: "Discard", Action: "Reapply", Extra: "View diff", OnSafe: cmd("safe"), OnOK: cmd("ok"), OnExtra: cmd("extra")}
+	for _, tt := range []struct {
+		keys []tea.KeyPressMsg
+		want string
+	}{
+		{nil, "safe"},
+		{[]tea.KeyPressMsg{{Code: tea.KeyRight}}, "ok"},
+		{[]tea.KeyPressMsg{{Code: tea.KeyRight}, {Code: tea.KeyRight}}, "extra"}, // wraps
+		{[]tea.KeyPressMsg{{Code: tea.KeyLeft}}, "extra"},
+	} {
+		c2 := *c
+		for _, k := range tt.keys {
+			c2.Update(k)
+		}
+		_, got := c2.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		got()
+		if ran != tt.want {
+			t.Errorf("%v then enter ran %q, want %q", tt.keys, ran, tt.want)
+		}
+	}
+	c2 := *c
+	if done, got := c2.Update(tea.KeyPressMsg{Code: 'd', Text: "d"}); !done || got == nil {
+		t.Error("d didn't choose the extra button")
+	}
 }
 
 func TestFilterCapturesKeys(t *testing.T) {

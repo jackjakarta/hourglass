@@ -1,32 +1,32 @@
- ◷ gocron   Jobs  Timeline  History  Crontab                           ● cron active · Sun 14:32:07
-
-╭─ Jobs · 6 ───────────────────────────────────────────────────────────────────────────────────────╮
-│ / filter…                                                                                        │
-│                                                                                                  │
-│ ▌● Sync photos     Every 15 minutes   in 12m 53s                                                 │
-╭────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│                                                                                                        │
-│   Keys                                                                                                 │
-│                                                                                                        │
-│   Navigate               Jobs                          History                     General             │
-│                                                                                                        │
-│   ↑/k   move up          n      new job                f   failures only           1       jobs        │
-│   ↓/j   move down        e      edit                   c   cycle trigger           2       timeline    │
-│   g     first job        space  pause/resume           o   open in $PAGER          3       history     │
-│   G     last job         x      delete                 n   next match              4       crontab     │
-│   pgup  page up          a      adopt                  N   previous match          tab     next view   │
-│   pgdn  page down        r      run now                ^s  save (editor)           ?       help        │
-│   ↵     open             t      test in cron's env     ^t  test draft (editor)     q       quit        │
-│   esc   back / clear     h      job's history                                      ctrl+c  quit now    │
-│                          u      undo                                                                   │
-│                          /      filter                                                                 │
-│                                                                                                        │
-│                                                                                    ? or esc to close   │
-│                                                                                                        │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-│                                                                                                  │
-│                                                                                                  │
-│                                                                                                  │
-│                                                                                                  │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+ ◷ gocron  ╭───────────────────────────────────────────────────────────────────────────╮un 14:32:07
+           │                                                                           │
+╭─ Jobs · 6│   Keys                                                                    │───────────╮
+│ / filter…│                                                                           │           │
+│          │   Navigate               Jobs                          List               │           │
+│ ▌● Sync p│                                                                           │           │
+│  ● Rotate│   ↑/k   move up          n      new job                /  filter          │           │
+│  ● Nightl│   ↓/j   move down        e      edit                   #  filter by tag   │           │
+│  ● Say hi│   g     first job        space  pause/resume           s  cycle sort      │           │
+│  ● Prune │   G     last job         x      delete                 y  copy command    │           │
+│  ○ Weekly│   pgup  page up          a      adopt                  Y  copy schedule   │           │
+│          │   pgdn  page down        r      run now                                   │           │
+│ UNMANAGED│   ↵     open             t      test in cron's env                        │           │
+│  · @reboo│   esc   back / clear     h      job's history                             │           │
+│  · */5 * │                          u      undo                                      │           │
+│  · 0 0 1 │                                                                           │           │
+│          │   History                     Timeline · Crontab      General             │           │
+│          │                                                                           │           │
+│          │   f   failures only           d  next 24h             1       jobs        │           │
+│          │   c   cycle trigger           w  next 7 days          2       timeline    │           │
+│          │   o   open in $PAGER          .  back to now          3       history     │           │
+│          │   n   next match              R  restore revision     4       crontab     │           │
+│          │   N   previous match          E  edit in $EDITOR      tab     next view   │           │
+│          │   ^s  save (editor)           d  diff / full text     ^k      commands    │           │
+│          │   ^t  test draft (editor)                             ?       help        │           │
+│          │                                                       q       quit        │           │
+│          │                                                       ctrl+c  quit now    │           │
+│          │                                                                           │           │
+│          │                                                       ? or esc to close   │           │
+│          │                                                                           │           │
+╰──────────╰───────────────────────────────────────────────────────────────────────────╯───────────╯
  ? close  esc close

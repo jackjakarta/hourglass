@@ -43,6 +43,8 @@ type Theme struct {
 	Selected, SelectionBar                                                 lipgloss.Style
 	TabActive, Tab, Title                                                  lipgloss.Style
 	Button, ButtonFocused, ButtonDanger                                    lipgloss.Style
+	// Diffs and the raw crontab.
+	DiffAdd, DiffDel, DiffHunk, Meta lipgloss.Style
 }
 
 // Select returns the theme to use: Mono when NO_COLOR is set, otherwise
@@ -89,6 +91,10 @@ func Nightshift(isDark bool) *Theme {
 	t.Button = s().Foreground(t.TextColor).Background(t.SelBg).Padding(0, 2)
 	t.ButtonFocused = s().Foreground(t.SelBg).Background(t.Accent).Bold(true).Padding(0, 2)
 	t.ButtonDanger = s().Foreground(t.SelBg).Background(t.FailColor).Bold(true).Padding(0, 2)
+	t.DiffAdd = s().Foreground(t.OKColor)
+	t.DiffDel = s().Foreground(t.FailColor)
+	t.DiffHunk = s().Foreground(t.Accent2)
+	t.Meta = s().Foreground(t.MutedColor).Faint(true)
 	return t
 }
 
@@ -119,5 +125,9 @@ func Mono() *Theme {
 	t.Button = s().Padding(0, 2)
 	t.ButtonFocused = s().Reverse(true).Bold(true).Padding(0, 2)
 	t.ButtonDanger = t.ButtonFocused
+	t.DiffAdd = s()
+	t.DiffDel = s().Faint(true)
+	t.DiffHunk = s().Bold(true)
+	t.Meta = s().Faint(true)
 	return t
 }

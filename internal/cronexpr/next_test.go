@@ -249,3 +249,74 @@ func BenchmarkNextDST(b *testing.B) {
 		e.Next(from, 10)
 	}
 }
+
+func collect(seq func(func(time.Time) bool)) []time.Time {
+	var out []time.Time
+	for t := range seq {
+		out = append(out, t)
+	}
+	return out
+}
+
+// TestBetweenMatchesNext checks Between against Next over random
+// expressions, in zones with both DST directions inside the window.
+func TestBetweenMatchesNext(t *testing.T) {
+	r := rand.New(rand.NewSource(3))
+	corpus := []string{"* * * * *", "*/5 * * * *", "30 1 * * *", "30 2 * * *", "0 * * * *", "@reboot", "0 0 31 2 *"}
+	for i := 0; i < 150; i++ {
+		corpus = append(corpus, randomExpr(r))
+	}
+	ny := mustLoad(t, "America/New_York")
+	windows := []struct{ from, to time.Time }{
+		{time.Date(2026, 3, 7, 22, 0, 0, 0, ny), time.Date(2026, 3, 9, 4, 0, 0, 0, ny)},    // spring forward
+		{time.Date(2026, 10, 31, 22, 0, 0, 0, ny), time.Date(2026, 11, 2, 4, 0, 0, 0, ny)}, // fall back
+		{time.Date(2026, 10, 11, 14, 32, 7, 0, time.UTC), time.Date(2026, 10, 18, 14, 32, 7, 0, time.UTC)},
+	}
+	for _, w := range windows {
+		for _, expr := range corpus {
+			e := MustParse(expr)
+			var want []time.Time
+			for c := w.from.Add(-time.Second); ; {
+				next := e.Next(c, 1)
+				if len(next) == 0 || !next[0].Before(w.to) {
+					break
+				}
+				want, c = append(want, next[0]), next[0]
+			}
+			got := collect(e.Between(w.from, w.to))
+			if fmtTimes(got) != fmtTimes(want) {
+				t.Errorf("Between(%q, %s)\n got: %s\nwant: %s", expr, w.from, fmtTimes(got), fmtTimes(want))
+			}
+		}
+	}
+}
+
+func TestBetweenBounds(t *testing.T) {
+	e := MustParse("30 14 * * *")
+	at := time.Date(2026, 6, 1, 14, 30, 0, 0, time.UTC)
+	if got := collect(e.Between(at, at.Add(time.Minute))); len(got) != 1 {
+		t.Errorf("from is inclusive: got %s", fmtTimes(got))
+	}
+	if got := collect(e.Between(at.Add(-time.Hour), at)); len(got) != 0 {
+		t.Errorf("to is exclusive: got %s", fmtTimes(got))
+	}
+	if got := collect(e.Between(at.Add(time.Nanosecond), at.Add(time.Hour))); len(got) != 0 {
+		t.Errorf("sub-second from: got %s", fmtTimes(got))
+	}
+	if got := collect(e.Between(at, at)); len(got) != 0 {
+		t.Errorf("empty window: got %s", fmtTimes(got))
+	}
+	// Stopping early must not panic or keep walking.
+	for range MustParse("* * * * *").Between(at, at.AddDate(1, 0, 0)) {
+		break
+	}
+}
+
+func BenchmarkBetweenYearlyWeek(b *testing.B) {
+	e := MustParse("0 0 1 1 *")
+	from := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < b.N; i++ {
+		for range e.Between(from, from.AddDate(0, 0, 7)) {
+		}
+	}
+}

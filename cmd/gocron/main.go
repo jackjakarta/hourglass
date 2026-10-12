@@ -24,6 +24,7 @@ const (
 )
 
 type app struct {
+	stdin          io.Reader // default os.Stdin
 	stdout, stderr io.Writer
 	now            func() time.Time
 	source         func() (crontab.Source, error)
@@ -57,6 +58,8 @@ Usage:
   gocron logs [-n N] [--run R] ID
                               show a job's recent runs, or one run's output
   gocron exec …               the wrapper cron runs tracked jobs through
+  gocron export [--file F]    write the managed jobs as YAML
+  gocron import [--dry-run] F import jobs from an export (- reads stdin), merging by id
   gocron describe [-n N] EXPR describe a schedule and show its next runs
   gocron doctor               check your cron setup and crontab
   gocron version              print version information
@@ -87,6 +90,10 @@ func (a *app) run(ctx context.Context, args []string) int {
 		return a.runJob(ctx, rest)
 	case "logs":
 		return a.logs(ctx, rest)
+	case "export":
+		return a.export(ctx, rest)
+	case "import":
+		return a.importJobs(ctx, rest)
 	case "describe":
 		return a.describe(rest)
 	case "doctor":

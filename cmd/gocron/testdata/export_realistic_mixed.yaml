@@ -1,0 +1,46 @@
+# gocron export: your managed jobs. Import with gocron import FILE.
+# Environment lines (PATH, MAILTO, CRON_TZ, …) aren't included.
+version: 1
+jobs:
+  - id: k3f9a2
+    name: Nightly backup
+    desc: Dump app DB to /bk
+    tags: [backup, db]
+    schedule: 30 2 * * *
+    command: pg_dump app | gzip > /bk/app-$(date +%F).sql.gz
+    enabled: true
+    wrapped: true
+    timeout: 30m
+    no_overlap: true
+  - id: s7nc0p
+    name: Sync photos
+    tags: [photos]
+    schedule: '*/15 * * * *'
+    command: rsync -a ~/Pictures/ nas:/photos/
+    enabled: true
+    wrapped: true
+    no_overlap: true
+  - id: pdk4r2
+    name: Prune docker
+    schedule: 0 4 * * 0
+    command: docker system prune -af
+    enabled: true
+    wrapped: true
+  - id: r0tl6s
+    name: Rotate logs
+    schedule: 0 * * * *
+    command: logrotate -s ~/.logrotate.state ~/.logrotate.conf
+    enabled: true
+    wrapped: true
+  - id: wkrp7t
+    name: Weekly report
+    schedule: 0 9 * * 1
+    command: ~/bin/report --weekly
+    enabled: false
+    wrapped: true
+  - id: p7m2qd
+    name: Say hi
+    schedule: 0 9 * * 1-5
+    command: notify-send "hi"
+    enabled: true
+    wrapped: false

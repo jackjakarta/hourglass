@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,9 +22,11 @@ import (
 	"github.com/jackjakarta/gocron/internal/tui/components"
 	"github.com/jackjakarta/gocron/internal/tui/keys"
 	"github.com/jackjakarta/gocron/internal/tui/theme"
+	crontabview "github.com/jackjakarta/gocron/internal/tui/views/crontab"
 	"github.com/jackjakarta/gocron/internal/tui/views/editor"
 	historyview "github.com/jackjakarta/gocron/internal/tui/views/history"
 	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
+	"github.com/jackjakarta/gocron/internal/tui/views/timeline"
 )
 
 const (
@@ -75,6 +78,11 @@ type (
 		err     error
 	}
 	pagerDoneMsg struct{ err error }
+	revisionsMsg struct {
+		content []byte // the crontab they were loaded against
+		revs    []jobs.Revision
+		err     error
+	}
 )
 
 // Model is the root of the TUI.
@@ -96,12 +104,16 @@ type Model struct {
 	daemon  *doctor.DaemonStatus
 	readErr string // last error from the external-change check
 
-	jobs    jobsview.Model
-	history historyview.Model
-	editor  *editor.Model // the open new/edit form
-	help    bool
-	confirm *components.Confirm
-	toasts  components.Toasts
+	jobs     jobsview.Model
+	timeline timeline.Model
+	history  historyview.Model
+	crontab  crontabview.Model
+	editor   *editor.Model // the open new/edit form
+	help     bool
+	palette  *paletteState // the open command palette or tag picker
+	diff     *diffOverlay  // an outside change, shown from a conflict dialog
+	confirm  *components.Confirm
+	toasts   components.Toasts
 
 	stats    map[string]store.JobStats // recent runs by job id
 	sessions map[int]*session          // runs started here
@@ -118,6 +130,12 @@ func New(ctx context.Context, opts Options) Model {
 	km := keys.Default()
 	history := historyview.New(th, km)
 	history.SetNow(opts.Clock.Now())
+	jv := jobsview.New(th, km)
+	jv.SetSort(jobsview.ParseSort(opts.UI.DefaultSort))
+	tl := timeline.New(th, km, opts.UI.CongestionThreshold)
+	tl.SetNow(opts.Clock.Now())
+	cv := crontabview.New(th, km)
+	cv.SetNow(opts.Clock.Now())
 	return Model{
 		ctx:      ctx,
 		opts:     opts,
@@ -125,7 +143,9 @@ func New(ctx context.Context, opts Options) Model {
 		keys:     km,
 		th:       th,
 		now:      opts.Clock.Now(),
-		jobs:     jobsview.New(th, km),
+		jobs:     jv,
+		timeline: tl,
+		crontab:  cv,
 		history:  history,
 		sessions: map[int]*session{},
 	}
@@ -232,6 +252,8 @@ func (m *Model) toast(kind components.ToastKind, glyph, text string) {
 func (m *Model) setSnapshot(s jobs.Snapshot) {
 	m.snap, m.loaded = s, true
 	m.jobs.SetSnapshot(s, m.now)
+	m.timeline.SetSnapshot(s)
+	m.crontab.SetContent(s.Content, s.Source)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -239,6 +261,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.jobs.SetSize(m.width, m.bodyHeight())
+		m.timeline.SetSize(m.width, m.bodyHeight())
+		m.crontab.SetSize(m.width, m.bodyHeight())
 		m.history.SetSize(m.width, m.bodyHeight())
 		if m.editor != nil {
 			m.editor.SetSize(m.width, m.bodyHeight())
@@ -251,6 +275,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		m.th = theme.Select(m.opts.NoColor, msg.IsDark())
 		m.jobs.SetTheme(m.th)
+		m.timeline.SetTheme(m.th)
+		m.crontab.SetTheme(m.th)
 		m.history.SetTheme(m.th)
 		if m.editor != nil {
 			m.editor.SetTheme(m.th)
@@ -264,6 +290,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.now = m.clock.Now()
 		m.ticks++
 		m.jobs.SetNow(m.now)
+		m.timeline.SetNow(m.now)
+		m.crontab.SetNow(m.now)
 		m.history.SetNow(m.now)
 		if m.editor != nil {
 			m.editor.SetNow(m.now)
@@ -304,6 +332,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			m.stats = msg.stats
 			m.syncRuns()
+			m.timeline.SetRuns(m.stats)
 		}
 		return m, nil
 
@@ -361,10 +390,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case externalMsg:
-		return m.handleExternal(msg), nil
+		m = m.handleExternal(msg)
+		if msg.changed && m.tab == tabCrontab {
+			return m, m.loadRevisions()
+		}
+		return m, nil
 
 	case mutationMsg:
-		return m.handleMutation(msg)
+		next, cmd := m.handleMutation(msg)
+		if nm := next.(Model); nm.tab == tabCrontab && msg.err == nil {
+			return nm, tea.Batch(cmd, nm.loadRevisions())
+		}
+		return next, cmd
+
+	case showDiffMsg:
+		if msg.err != nil {
+			m.confirm = msg.back
+			m.toast(components.ToastFail, "", "Can't read the crontab: "+msg.err.Error())
+			return m, nil
+		}
+		m.diff = &diffOverlay{lines: msg.lines, back: msg.back}
+		return m, nil
+
+	case editorDoneMsg:
+		return m.handleEditorDone(msg)
+
+	case crontabEditMsg:
+		return m.handleCrontabEdit(msg)
 
 	case jobsview.ToggleMsg:
 		j, svc := msg.Job, m.opts.Service
@@ -395,6 +447,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.mutate("Adopted", "", func(ctx context.Context) (jobs.Result, error) {
 			return svc.Adopt(ctx, j.Line, j.Raw)
 		})
+
+	case revisionsMsg:
+		// A load from before the latest change would show stale summaries.
+		if bytes.Equal(msg.content, m.snap.Content) {
+			m.crontab.SetRevisions(msg.revs, msg.err)
+		}
+		return m, nil
+
+	case crontabview.RestoreMsg:
+		return m.confirmRestore(msg.Rev)
+
+	case crontabview.EditMsg:
+		return m.editCrontab()
+
+	case timeline.OpenMsg:
+		m.tab = tabJobs
+		m.jobs.Reveal(msg.Job)
+		return m, nil
+
+	case jobsview.TagPickerMsg:
+		return m.openTagPicker()
+
+	case jobsview.CopyMsg:
+		if msg.Text == "" {
+			return m, nil
+		}
+		m.toast(components.ToastOK, "", "Copied the "+msg.What+" to the clipboard")
+		return m, tea.SetClipboard(msg.Text)
 
 	case jobsview.NeedAdoptMsg:
 		m.toast(components.ToastInfo, "", "That's an unmanaged entry. Press a to adopt it first.")
@@ -487,6 +567,12 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, km.ForceQuit) {
 		return m, tea.Quit
 	}
+	if m.palette != nil {
+		return m.updatePalette(msg)
+	}
+	if m.diff != nil {
+		return m.updateDiff(msg)
+	}
 	if m.confirm != nil {
 		done, cmd := m.confirm.Update(msg)
 		if done {
@@ -506,31 +592,37 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	// ctrl+k opens the palette even while a filter is being typed; ":"
+	// is text there, so it only opens the palette from the globals below.
+	if msg.String() == "ctrl+k" {
+		return m.openPalette()
+	}
 	if m.tab == tabJobs && m.jobs.Capturing() {
 		return m.updateJobs(msg)
 	}
 	if m.tab == tabHistory && m.history.Capturing() {
 		return m.updateHistory(msg)
 	}
-	prev := m.tab
 	switch {
 	case key.Matches(msg, km.Quit):
 		return m, tea.Quit
 	case key.Matches(msg, km.Help):
 		m.help = true
 		return m, nil
+	case key.Matches(msg, km.Palette):
+		return m.openPalette()
 	case key.Matches(msg, km.Tab1):
-		m.tab = tabJobs
+		return m.switchTab(tabJobs)
 	case key.Matches(msg, km.Tab2):
-		m.tab = tabTimeline
+		return m.switchTab(tabTimeline)
 	case key.Matches(msg, km.Tab3):
-		m.tab = tabHistory
+		return m.switchTab(tabHistory)
 	case key.Matches(msg, km.Tab4):
-		m.tab = tabCrontab
+		return m.switchTab(tabCrontab)
 	case key.Matches(msg, km.NextTab):
-		m.tab = (m.tab + 1) % tabCount
+		return m.switchTab((m.tab + 1) % tabCount)
 	case key.Matches(msg, km.PrevTab):
-		m.tab = (m.tab + tabCount - 1) % tabCount
+		return m.switchTab((m.tab + tabCount - 1) % tabCount)
 	case key.Matches(msg, km.Undo):
 		if svc := m.opts.Service; svc != nil {
 			return m, m.mutate("", "", svc.Undo)
@@ -539,11 +631,61 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.updateJobs(msg)
 	case m.tab == tabHistory && m.opts.Service != nil:
 		return m.updateHistory(msg)
-	}
-	if m.tab == tabHistory && prev != tabHistory {
-		return m, m.loadHistory()
+	case m.tab == tabTimeline && m.opts.Service != nil:
+		return m.updateTimeline(msg)
+	case m.tab == tabCrontab && m.opts.Service != nil:
+		return m.updateCrontab(msg)
 	}
 	return m, nil
+}
+
+// updateTimeline passes a key to the Timeline view and acts on its request.
+func (m Model) updateTimeline(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	var req tea.Msg
+	m.timeline, req = m.timeline.Update(msg)
+	if req == nil {
+		return m, nil
+	}
+	return m.Update(req)
+}
+
+// switchTab shows tab t, loading what it needs when it wasn't showing.
+func (m Model) switchTab(t tab) (tea.Model, tea.Cmd) {
+	prev := m.tab
+	m.tab = t
+	if t == prev {
+		return m, nil
+	}
+	switch t {
+	case tabHistory:
+		return m, m.loadHistory()
+	case tabCrontab:
+		return m, m.loadRevisions()
+	}
+	return m, nil
+}
+
+// loadRevisions reads the crontab's backups for the Crontab view.
+func (m Model) loadRevisions() tea.Cmd {
+	svc, ctx := m.opts.Service, m.ctx
+	if svc == nil {
+		return nil
+	}
+	content := m.snap.Content
+	return func() tea.Msg {
+		revs, err := svc.Revisions(ctx)
+		return revisionsMsg{content: content, revs: revs, err: err}
+	}
+}
+
+// updateCrontab passes a key to the Crontab view and acts on its request.
+func (m Model) updateCrontab(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	var req tea.Msg
+	m.crontab, req = m.crontab.Update(msg)
+	if req == nil {
+		return m, nil
+	}
+	return m.Update(req)
 }
 
 // updateHistory passes a key to the History view and acts on its request.
@@ -617,7 +759,9 @@ func (m Model) handleMutation(msg mutationMsg) (tea.Model, tea.Cmd) {
 			Action: "Reapply",
 			OnSafe: m.reload("Crontab reloaded · your change was discarded"),
 			OnOK:   m.mutate(msg.verb, msg.title, retry),
+			Extra:  "View diff",
 		}
+		m.confirm.OnExtra = m.viewDiff(m.confirm)
 	case errors.As(msg.err, &conflict):
 		return m, m.reload("Crontab changed outside gocron, so nothing was undone · reloaded")
 	case errors.Is(msg.err, jobs.ErrNothingToUndo):
@@ -662,7 +806,9 @@ func (m Model) handleEditorSave(msg mutationMsg) (tea.Model, tea.Cmd) {
 			Action: "Reapply",
 			OnSafe: m.reload("Crontab reloaded · your edits are still here · ^s saves"),
 			OnOK:   m.editorSave(msg.verb, msg.title, conflict.Retry),
+			Extra:  "View diff",
 		}
+		m.confirm.OnExtra = m.viewDiff(m.confirm)
 	case errors.Is(msg.err, crontab.ErrNotFound):
 		m.toast(components.ToastFail, "", "This job is no longer in the crontab, so it can't be saved. esc closes the editor.")
 	default:
@@ -708,7 +854,14 @@ func (m Model) render() string {
 	case m.confirm != nil:
 		screen = components.OverlayCenter(screen, m.confirm.View(m.th), w, h)
 	case m.help:
-		screen = components.OverlayCenter(screen, components.HelpOverlay(m.th, m.keys.FullHelp(), keys.GroupTitles), w, h)
+		screen = components.OverlayCenter(screen, components.HelpOverlay(m.th, m.keys.FullHelp(), keys.GroupTitles, w), w, h)
+	}
+	if m.diff != nil {
+		screen = components.OverlayCenter(screen, m.diff.view(m.th, w, h), w, h)
+	}
+	if m.palette != nil {
+		p := m.palette.p.View(m.th, w-8)
+		screen = components.Overlay(screen, p, (w-lipgloss.Width(p))/2, 2)
 	}
 	return screen
 }
@@ -762,12 +915,12 @@ func (m Model) body() string {
 	switch {
 	case m.opts.LoadErr != nil:
 		return m.loadError(w, h)
-	case m.tab == tabTimeline:
-		return comingSoon(m.th, "Timeline", "See when your jobs fire over the next day or week,", "and spot the minutes where too many run at once.", w, h)
+	case m.tab == tabTimeline && m.loaded:
+		return m.timeline.View()
 	case m.tab == tabHistory:
 		return m.history.View()
-	case m.tab == tabCrontab:
-		return comingSoon(m.th, "Crontab", "Your raw crontab, its revisions and diffs,", "with one-key restore.", w, h)
+	case m.tab == tabCrontab && m.loaded:
+		return m.crontab.View()
 	case !m.loaded:
 		return components.Panel(m.th, "Jobs", []string{"", m.th.Muted.Render("Reading your crontab…")}, w, h, true)
 	case m.editor != nil && !m.editor.Modal():
@@ -790,12 +943,6 @@ func (m Model) loadError(w, h int) string {
 	return components.Panel(th, "Jobs", lines, w, h, true)
 }
 
-func comingSoon(th *theme.Theme, name, line1, line2 string, w, h int) string {
-	card := th.Heading.Render(name) + "\n\n" + th.Text.Render(line1) + "\n" + th.Text.Render(line2) + "\n\n" + th.Muted.Render("Coming soon · press 1 for Jobs")
-	card = lipgloss.NewStyle().Align(lipgloss.Center).Render(card)
-	return components.Panel(th, name, strings.Split(components.Center(card, w-4, h-2), "\n"), w, h, false)
-}
-
 func (m Model) footer() string {
 	return " " + components.Footer(m.th, m.footerKeys(), m.width-2)
 }
@@ -806,6 +953,10 @@ func hint(k, desc string) key.Binding {
 
 func (m Model) footerKeys() []key.Binding {
 	switch {
+	case m.diff != nil:
+		return []key.Binding{hint("↑↓", "scroll"), hint("esc", "back to the question")}
+	case m.palette != nil:
+		return []key.Binding{hint("type", "to search"), hint("↑↓", "choose"), hint("↵", "run"), hint("esc", "close")}
 	case m.confirm != nil:
 		return []key.Binding{hint("←→", "choose"), hint("↵", "confirm"), hint("esc", "cancel")}
 	case m.help:
@@ -818,6 +969,10 @@ func (m Model) footerKeys() []key.Binding {
 		return m.editor.Hints()
 	case m.tab == tabHistory:
 		return m.history.Hints()
+	case m.tab == tabTimeline && m.opts.Service != nil:
+		return m.timeline.Hints()
+	case m.tab == tabCrontab && m.opts.Service != nil:
+		return m.crontab.Hints()
 	case m.tab != tabJobs:
 		return []key.Binding{hint("1-4", "views"), hint("tab", "next view"), hint("?", "help"), hint("q", "quit")}
 	case m.jobs.Capturing():
@@ -845,7 +1000,9 @@ func (m Model) footerKeys() []key.Binding {
 	} else {
 		out = append(out, hint("a", "adopt"), hint("r", "run"), hint("t", "test"))
 	}
-	out = append(out, hint("n", "new"), hint("u", "undo"), hint("/", "filter"), hint("?", "help"), hint("q", "quit"))
+	// The palette and help come before the rest, so narrow footers that
+	// cut the end still show where to find everything.
+	out = append(out, hint("^k", "commands"), hint("?", "help"), hint("n", "new"), hint("u", "undo"), hint("/", "filter"), hint("q", "quit"))
 	return out
 }
 

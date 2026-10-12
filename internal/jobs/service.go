@@ -4,6 +4,7 @@
 package jobs
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -33,6 +34,7 @@ type Snapshot struct {
 	Problems []crontab.Problem
 	Env      []EnvLine // environment lines, in crontab order
 	Source   string    // "user crontab" | "file: /path"
+	Content  []byte    // the crontab's text
 }
 
 // EnvLine is an environment line and where it is.
@@ -206,7 +208,7 @@ func (s *Service) Snapshot() Snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tab := s.store.Crontab()
-	snap := Snapshot{Problems: tab.Problems(), Source: s.store.Source().Name()}
+	snap := Snapshot{Problems: tab.Problems(), Source: s.store.Source().Name(), Content: s.store.Content()}
 	for _, j := range tab.Jobs() {
 		snap.Jobs = append(snap.Jobs, Job{j})
 	}
@@ -358,15 +360,28 @@ func (s *Service) reload(ctx context.Context) error {
 
 // apply runs op on a fresh parse of the loaded crontab and saves the result.
 func (s *Service) apply(ctx context.Context, op func(*crontab.Crontab) (string, error)) (Result, error) {
+	return s.applyOn(ctx, nil, op)
+}
+
+// applyOn is apply, refusing with a ConflictError when base is set and the
+// loaded crontab isn't *base. Such a conflict has no Retry: op was meant
+// for base only.
+func (s *Service) applyOn(ctx context.Context, base *[]byte, op func(*crontab.Crontab) (string, error)) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	before := s.store.Content()
+	if base != nil && !bytes.Equal(before, *base) {
+		return Result{}, &ConflictError{}
+	}
 	c := s.store.Crontab()
 	id, err := op(c)
 	if err != nil {
 		return Result{}, err
 	}
 	backup, err := s.store.Save(ctx, c)
+	if errors.Is(err, crontab.ErrConflict) && base != nil {
+		return Result{}, &ConflictError{}
+	}
 	if errors.Is(err, crontab.ErrConflict) {
 		return Result{}, &ConflictError{Retry: func(ctx context.Context) (Result, error) {
 			if err := s.Reload(ctx); err != nil {

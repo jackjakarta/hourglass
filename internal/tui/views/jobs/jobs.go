@@ -2,6 +2,7 @@
 package jobs
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,7 +29,34 @@ type (
 	RunMsg       struct{ Job svc.Job } // run now
 	TestMsg      struct{ Job svc.Job } // test in cron's environment
 	HistoryMsg   struct{ Job svc.Job } // show the job's runs
+	CopyMsg      struct{ Text, What string }
+	TagPickerMsg struct{} // open the tag filter picker
 )
+
+// Sort is the order of managed jobs in the list.
+type Sort int
+
+const (
+	SortNext    Sort = iota // soonest next run first
+	SortName                // by title, case-insensitively
+	SortCrontab             // crontab order
+	sortCount
+)
+
+var sortNames = []string{"next", "name", "crontab"}
+
+func (s Sort) String() string { return sortNames[s] }
+
+// ParseSort reads a config value ("next", "name", "crontab"); anything else
+// is SortNext.
+func ParseSort(s string) Sort {
+	for i, n := range sortNames {
+		if n == s {
+			return Sort(i)
+		}
+	}
+	return SortNext
+}
 
 // Layout is how the view uses its width (spec §6.2).
 type Layout int
@@ -75,13 +103,15 @@ type Model struct {
 	running map[string]time.Time      // job id → when its current run started
 
 	width, height int
-	managed       []row // sorted by next run
+	managed       []row // in m.sort order
 	unmanaged     []row // crontab order
 	selected      string
 	offset        int // first visible list line
 
 	filter    string
 	filtering bool
+	tag       string // exact tag filter, from #
+	sort      Sort
 	detail    bool // detail open full-width (list and compact layouts)
 }
 
@@ -126,6 +156,43 @@ func (m *Model) SelectJob(id string) {
 		m.selected = k
 		m.clampOffset()
 	}
+}
+
+// SetSort sets the order of managed jobs.
+func (m *Model) SetSort(s Sort) {
+	m.sort = s
+	m.rebuild()
+}
+
+// Sort returns the list order.
+func (m Model) Sort() Sort { return m.sort }
+
+// SetTag filters the list to jobs with tag; "" clears it.
+func (m *Model) SetTag(tag string) {
+	m.tag = tag
+	m.rebuild()
+}
+
+// Tag returns the tag filter.
+func (m Model) Tag() string { return m.tag }
+
+// StartFilter starts typing a / filter.
+func (m *Model) StartFilter() { m.filtering, m.detail = true, false }
+
+// Reveal selects j, clearing any filter that hides it, and opens its detail
+// when the layout has no room for it beside the list.
+func (m *Model) Reveal(j svc.Job) {
+	k := row{job: j}.key()
+	if !m.has(m.rows(), k) {
+		m.filter, m.filtering, m.tag = "", false, ""
+		m.rebuild()
+	}
+	if !m.has(m.rows(), k) {
+		return
+	}
+	m.selected = k
+	m.detail = LayoutFor(m.width) != LayoutSplit
+	m.clampOffset()
 }
 
 // Capturing reports whether the view wants every key (filter input), so
@@ -183,6 +250,16 @@ func (m *Model) rebuild() {
 	}
 	sort.SliceStable(m.managed, func(a, b int) bool {
 		ra, rb := m.managed[a], m.managed[b]
+		switch m.sort {
+		case SortName:
+			ta, tb := strings.ToLower(ra.job.Title()), strings.ToLower(rb.job.Title())
+			if ta != tb {
+				return ta < tb
+			}
+			return ra.job.ID < rb.job.ID
+		case SortCrontab:
+			return ra.job.Line < rb.job.Line
+		}
 		if ra.next.IsZero() != rb.next.IsZero() {
 			return !ra.next.IsZero()
 		}
@@ -208,9 +285,12 @@ func (m Model) has(rows []row, key string) bool {
 	return false
 }
 
-// matches applies the filter: every filter word must be a subsequence of
-// the job's name, command or tags.
+// matches applies the filters: the job must carry the tag filter, and
+// every filter word must be a subsequence of its name, command or tags.
 func (m Model) matches(j svc.Job) bool {
+	if m.tag != "" && !slices.Contains(j.Tags, m.tag) {
+		return false
+	}
 	if m.filter == "" {
 		return true
 	}
@@ -279,9 +359,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Msg) {
 		case m.filter != "":
 			m.filter = ""
 			m.rebuild()
+		case m.tag != "":
+			m.tag = ""
+			m.rebuild()
 		}
 	case key.Matches(k, km.Filter):
-		m.filtering, m.detail = true, false
+		m.StartFilter()
+	case key.Matches(k, km.TagFilter):
+		return m, TagPickerMsg{}
+	case key.Matches(k, km.Sort):
+		m.SetSort((m.sort + 1) % sortCount)
+	case key.Matches(k, km.Copy):
+		if j, ok := m.Selected(); ok {
+			return m, CopyMsg{j.Command, "command"}
+		}
+	case key.Matches(k, km.CopySchedule):
+		if j, ok := m.Selected(); ok {
+			return m, CopyMsg{j.Schedule, "schedule"}
+		}
 	case key.Matches(k, km.Toggle):
 		return m, m.request(func(j svc.Job) tea.Msg { return ToggleMsg{j} })
 	case key.Matches(k, km.Delete):

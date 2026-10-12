@@ -1,0 +1,32 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                                                                   ● cron active · Sun 14:32:07
+
+╭─ Revision · Sun 11 Oct 12:00:00 ──────────────────────────────────────────╮ ╭─ Revisions · 2 ────────────────────────────────────────────╮
+│ RESTORING WOULD                                                           │ │   Current crontab                                 23 lines │
+│                                                                           │ │ ▌ Sun 11 Oct 12:00:00 · 2h 32m ago               ~1 edited │
+│ --- current                                                               │ │   Sat 10 Oct 09:00:00 · 1d 5h ago        +1 job, ~1 edited │
+│ +++ revision                                                              │ │                                                            │
+│ @@ -10,5 +10,5 @@                                                         │ │                                                            │
+│                                                                           │ │                                                            │
+│  # gocron:job id=k3f9a2 name="Nightly backup" tags=backup,db desc="Dump … │ │                                                            │
+│ -30 2 * * * /home/jack/.local/bin/gocron exec --timeout=30m --no-overlap… │ │                                                            │
+│ +30 3 * * * /home/jack/.local/bin/gocron exec --timeout=30m --no-overlap… │ │                                                            │
+│  # gocron:job id=s7nc0p name="Sync photos" tags=photos                    │ │                                                            │
+│  */15 * * * * /home/jack/.local/bin/gocron exec --no-overlap s7nc0p -- '… │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+╰───────────────────────────────────────────────────────────────────────────╯ ╰────────────────────────────────────────────────────────────╯
+ ↑↓ revision  pgup/pgdn scroll  d full text  R restore  E edit in $EDITOR  u undo  ^k commands  ? help

@@ -29,4 +29,4 @@
 │                                                             │ │                                                                          │
 │                                                             │ │                                                                          │
 ╰─────────────────────────────────────────────────────────────╯ ╰──────────────────────────────────────────────────────────────────────────╯
- ↑↓ move  e edit  space pause  r run  t test  h history  x delete  n new  u undo  / filter  ? help  q quit
+ ↑↓ move  e edit  space pause  r run  t test  h history  x delete  ^k commands  ? help  n new  u undo  / filter  q quit

@@ -1,0 +1,32 @@
+ ◷ gocron   Jobs  Timeline  History  Crontab                                                                   ● cron active · Sun 14:32:07
+
+╭─ Crontab · file: crontab ─────────────────────────────────────────────────╮ ╭─ Revisions · 2 ────────────────────────────────────────────╮
+│  1 # Edit this file to introduce tasks to be run by cron.                 │ │ ▌ Current crontab                                 23 lines │
+│  2 #                                                                      │ │   Sun 11 Oct 12:00:00 · 2h 32m ago               ~1 edited │
+│  3 # m h  dom mon dow   command                                           │ │   Sat 10 Oct 09:00:00 · 1d 5h ago        +1 job, ~1 edited │
+│  4 SHELL=/bin/bash                                                        │ │                                                            │
+│  5 PATH=/home/jack/.local/bin:/usr/local/bin:/usr/bin:/bin                │ │                                                            │
+│  6 MAILTO=""                                                              │ │                                                            │
+│  7                                                                        │ │                                                            │
+│  8 @reboot ~/bin/start-tmux.sh                                            │ │                                                            │
+│  9 */5 * * * * ~/bin/sync.sh >/dev/null 2>&1                              │ │                                                            │
+│ 10                                                                        │ │                                                            │
+│ 11 # gocron:job id=k3f9a2 name="Nightly backup" tags=backup,db desc="Dum… │ │                                                            │
+│ 12 30 2 * * * /home/jack/.local/bin/gocron exec --timeout=30m --no-overl… │ │                                                            │
+│ 13 # gocron:job id=s7nc0p name="Sync photos" tags=photos                  │ │                                                            │
+│ 14 */15 * * * * /home/jack/.local/bin/gocron exec --no-overlap s7nc0p --… │ │                                                            │
+│ 15 # gocron:job id=pdk4r2 name="Prune docker"                             │ │                                                            │
+│ 16 0 4 * * 0 /home/jack/.local/bin/gocron exec pdk4r2 -- 'docker system … │ │                                                            │
+│ 17 # gocron:job id=r0tl6s name="Rotate logs"                              │ │                                                            │
+│ 18 0 * * * * /home/jack/.local/bin/gocron exec r0tl6s -- 'logrotate -s ~… │ │                                                            │
+│ 19 # gocron:job id=wkrp7t name="Weekly report"                            │ │                                                            │
+│ 20 #gocron:off 0 9 * * 1 /home/jack/.local/bin/gocron exec wkrp7t -- '~/… │ │                                                            │
+│ 21 # gocron:job id=p7m2qd name="Say hi"                                   │ │                                                            │
+│ 22 0 9 * * 1-5 notify-send "hi"                                           │ │                                                            │
+│ 23 0 0 1 * 1 ~/bin/first-or-monday.sh                                     │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+│                                                                           │ │                                                            │
+╰───────────────────────────────────────────────────────────────────────────╯ ╰────────────────────────────────────────────────────────────╯
+ ↑↓ revision  pgup/pgdn scroll  E edit in $EDITOR  u undo  ^k commands  ? help

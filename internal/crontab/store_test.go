@@ -227,3 +227,15 @@ func TestSystemSourceRefusedInTests(t *testing.T) {
 		t.Errorf("SourceFromEnv = %v, %v", s, err)
 	}
 }
+
+func TestBackupTime(t *testing.T) {
+	at, ok := BackupTime("/x/backups/crontab-2026-10-11T14-32-07.123456789Z")
+	if !ok || !at.Equal(time.Date(2026, 10, 11, 14, 32, 7, 123456789, time.UTC)) {
+		t.Errorf("BackupTime = %v, %v", at, ok)
+	}
+	for _, bad := range []string{"/x/crontab", "/x/crontab-yesterday", "/x/other-2026-10-11T14-32-07.123456789Z"} {
+		if _, ok := BackupTime(bad); ok {
+			t.Errorf("BackupTime(%q) ok", bad)
+		}
+	}
+}
