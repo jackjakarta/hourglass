@@ -126,7 +126,7 @@ type Model struct {
 	pathSeq    int
 	pathFor    string // the command pathIssues describe
 	pathIssues []svc.Issue
-	attempted  bool // a save was tried, so show every error
+	attempted  bool             // a save was tried, so show every error
 	nat        cronexpr.Natural // what natural reads as
 	natErr     error            // why it can't be read; nil when empty
 
