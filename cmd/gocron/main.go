@@ -63,7 +63,8 @@ Usage:
   gocron exec …               the wrapper cron runs tracked jobs through
   gocron export [--file F]    write the managed jobs as YAML
   gocron import [--dry-run] F import jobs from an export (- reads stdin), merging by id
-  gocron describe [-n N] EXPR describe a schedule and show its next runs
+  gocron describe [-n N] EXPR describe a schedule and show its next runs; EXPR
+                              may be plain English ("every weekday at 9am")
   gocron doctor [--fix]       check your cron setup and crontab (--fix repairs
                               duplicate ids and stale gocron paths)
   gocron version              print version information
