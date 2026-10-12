@@ -221,3 +221,7 @@ git push origin v0.1.0
 ```
 
 `./build.sh 0.1.0` builds the same archives locally.
+
+## License
+
+[MIT](LICENSE.md)
