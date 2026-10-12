@@ -47,11 +47,24 @@ type Theme struct {
 	DiffAdd, DiffDel, DiffHunk, Meta lipgloss.Style
 }
 
-// Select returns the theme to use: Mono when NO_COLOR is set, otherwise
-// Nightshift for the terminal's background.
-func Select(noColor, isDark bool) *Theme {
-	if noColor {
+// Theme names, as config.toml spells them.
+const (
+	NameNightshift = "nightshift"
+	NameDaybreak   = "daybreak"
+	NameMono       = "mono"
+)
+
+// Names are the themes in the order the palette offers them.
+var Names = []string{NameNightshift, NameDaybreak, NameMono}
+
+// Select returns the theme called name for the terminal's background.
+// NO_COLOR forces Mono; an unknown name gives Nightshift.
+func Select(name string, noColor, isDark bool) *Theme {
+	switch {
+	case noColor || name == NameMono:
 		return Mono()
+	case name == NameDaybreak:
+		return Daybreak(isDark)
 	}
 	return Nightshift(isDark)
 }
@@ -61,7 +74,7 @@ func Nightshift(isDark bool) *Theme {
 	ld := lipgloss.LightDark(isDark)
 	c := lipgloss.Color
 	t := &Theme{
-		Name:        "nightshift",
+		Name:        NameNightshift,
 		Accent:      ld(c("#0D9488"), c("#5EEAD4")),
 		Accent2:     ld(c("#7C3AED"), c("#C4B5FD")),
 		TextColor:   ld(c("#18181B"), c("#E4E4E7")),
@@ -72,6 +85,34 @@ func Nightshift(isDark bool) *Theme {
 		WarnColor:   ld(c("#D97706"), c("#FBBF24")),
 		SelBg:       ld(c("#F4F4F5"), c("#27272A")),
 	}
+	build(t)
+	return t
+}
+
+// Daybreak is made for light terminals: a sky-blue accent with rose
+// highlights on warm stone neutrals, and a tinted selection. Its dark
+// variant keeps the same hues for when the background turns out dark.
+func Daybreak(isDark bool) *Theme {
+	ld := lipgloss.LightDark(isDark)
+	c := lipgloss.Color
+	t := &Theme{
+		Name:        NameDaybreak,
+		Accent:      ld(c("#0369A1"), c("#7DD3FC")),
+		Accent2:     ld(c("#BE185D"), c("#F9A8D4")),
+		TextColor:   ld(c("#1C1917"), c("#F5F5F4")),
+		MutedColor:  ld(c("#78716C"), c("#A8A29E")),
+		BorderColor: ld(c("#D6D3D1"), c("#44403C")),
+		OKColor:     ld(c("#15803D"), c("#86EFAC")),
+		FailColor:   ld(c("#B91C1C"), c("#FCA5A5")),
+		WarnColor:   ld(c("#B45309"), c("#FCD34D")),
+		SelBg:       ld(c("#E0F2FE"), c("#292524")),
+	}
+	build(t)
+	return t
+}
+
+// build derives a colored theme's styles from its palette.
+func build(t *Theme) {
 	s := lipgloss.NewStyle
 	t.Text = s().Foreground(t.TextColor)
 	t.Muted = s().Foreground(t.MutedColor)
@@ -95,14 +136,13 @@ func Nightshift(isDark bool) *Theme {
 	t.DiffDel = s().Foreground(t.FailColor)
 	t.DiffHunk = s().Foreground(t.Accent2)
 	t.Meta = s().Foreground(t.MutedColor).Faint(true)
-	return t
 }
 
 // Mono uses no color at all, only bold, faint, underline and reverse.
 func Mono() *Theme {
 	none := lipgloss.NoColor{}
 	t := &Theme{
-		Name: "mono", Mono: true,
+		Name: NameMono, Mono: true,
 		Accent: none, Accent2: none, TextColor: none, MutedColor: none, BorderColor: none,
 		OKColor: none, FailColor: none, WarnColor: none, SelBg: none,
 	}

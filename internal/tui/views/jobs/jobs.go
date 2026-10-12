@@ -436,3 +436,50 @@ func (m Model) updateFilter(k tea.KeyPressMsg) Model {
 	m.rebuild()
 	return m
 }
+
+// Click handles a left click at x, y in the view's own coordinates. A
+// click selects a row; clicking the selected row opens it where the
+// detail isn't already beside the list.
+func (m Model) Click(x, y int) (Model, tea.Msg) {
+	if m.detail || m.filtering || len(m.snap.Jobs) == 0 {
+		return m, nil
+	}
+	layout := LayoutFor(m.width)
+	lw := m.width
+	if layout == LayoutSplit {
+		lw = m.width * 45 / 100
+	}
+	if x <= 0 || x >= lw-1 {
+		return m, nil
+	}
+	if y == 1 { // the filter line
+		m.StartFilter()
+		return m, nil
+	}
+	line := y - 3 + m.offset // below the border, filter line and gap
+	if y-3 < 0 || y-3 >= m.listRows() {
+		return m, nil
+	}
+	rows := m.rows()
+	for i, r := range rows {
+		if l, _ := m.lineOf(i); l != line {
+			continue
+		}
+		if r.key() == m.selected && layout != LayoutSplit {
+			m.detail = true
+			return m, nil
+		}
+		m.selected = r.key()
+		m.clampOffset()
+		return m, nil
+	}
+	return m, nil
+}
+
+// Wheel moves the selection by delta rows.
+func (m Model) Wheel(delta int) Model {
+	if !m.detail && !m.filtering {
+		m.move(delta)
+	}
+	return m
+}

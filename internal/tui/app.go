@@ -92,6 +92,10 @@ type Model struct {
 	clock Clock
 	keys  keys.Map
 	th    *theme.Theme
+	// themeName and dark pick th: the configured or chosen theme, and
+	// whether the terminal's background is dark.
+	themeName string
+	dark      bool
 
 	now    time.Time
 	width  int
@@ -126,7 +130,7 @@ func New(ctx context.Context, opts Options) Model {
 	if opts.Clock == nil {
 		opts.Clock = realClock{}
 	}
-	th := theme.Select(opts.NoColor, true)
+	th := theme.Select(opts.Theme, opts.NoColor, true)
 	km := keys.Default()
 	history := historyview.New(th, km)
 	history.SetNow(opts.Clock.Now())
@@ -137,17 +141,35 @@ func New(ctx context.Context, opts Options) Model {
 	cv := crontabview.New(th, km)
 	cv.SetNow(opts.Clock.Now())
 	return Model{
-		ctx:      ctx,
-		opts:     opts,
-		clock:    opts.Clock,
-		keys:     km,
-		th:       th,
-		now:      opts.Clock.Now(),
-		jobs:     jv,
-		timeline: tl,
-		crontab:  cv,
-		history:  history,
-		sessions: map[int]*session{},
+		ctx:       ctx,
+		opts:      opts,
+		clock:     opts.Clock,
+		keys:      km,
+		th:        th,
+		themeName: opts.Theme,
+		dark:      true,
+		now:       opts.Clock.Now(),
+		jobs:      jv,
+		timeline:  tl,
+		crontab:   cv,
+		history:   history,
+		sessions:  map[int]*session{},
+	}
+}
+
+// applyTheme rebuilds the theme from its name and the background, and
+// hands it to every view.
+func (m *Model) applyTheme() {
+	m.th = theme.Select(m.themeName, m.opts.NoColor, m.dark)
+	m.jobs.SetTheme(m.th)
+	m.timeline.SetTheme(m.th)
+	m.crontab.SetTheme(m.th)
+	m.history.SetTheme(m.th)
+	if m.editor != nil {
+		m.editor.SetTheme(m.th)
+	}
+	for _, s := range m.sessions {
+		s.pane.SetTheme(m.th)
 	}
 }
 
@@ -273,17 +295,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.BackgroundColorMsg:
-		m.th = theme.Select(m.opts.NoColor, msg.IsDark())
-		m.jobs.SetTheme(m.th)
-		m.timeline.SetTheme(m.th)
-		m.crontab.SetTheme(m.th)
-		m.history.SetTheme(m.th)
-		if m.editor != nil {
-			m.editor.SetTheme(m.th)
-		}
-		for _, s := range m.sessions {
-			s.pane.SetTheme(m.th)
-		}
+		m.dark = msg.IsDark()
+		m.applyTheme()
 		return m, nil
 
 	case tickMsg:
@@ -517,6 +530,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case editor.BlockedMsg:
 		m.toast(components.ToastFail, "", msg.Text)
+		return m, nil
+
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			return m.click(msg.X, msg.Y)
+		}
+		return m, nil
+
+	case tea.MouseWheelMsg:
+		switch msg.Button {
+		case tea.MouseWheelUp:
+			return m.wheel(msg.X, msg.Y, -1)
+		case tea.MouseWheelDown:
+			return m.wheel(msg.X, msg.Y, 1)
+		}
 		return m, nil
 
 	case tea.KeyPressMsg:
@@ -825,6 +853,9 @@ func (m Model) View() tea.View {
 	v.AltScreen = true
 	v.ReportFocus = true
 	v.WindowTitle = "gocron"
+	if m.opts.UI.Mouse {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
 	return v
 }
 
@@ -875,10 +906,10 @@ func (m Model) tooSmall() string {
 
 func (m Model) header() string {
 	th := m.th
-	left := " " + th.AccentText.Bold(true).Render(theme.GlyphClock+" gocron") + "   "
+	left := " " + th.AccentText.Bold(true).Render(theme.GlyphClock+" gocron") + "   " // headerLead
 	for i, name := range tabNames {
 		if i > 0 {
-			left += "  "
+			left += tabGap
 		}
 		if tab(i) == m.tab {
 			left += th.TabActive.Render(name)
