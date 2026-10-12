@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -28,6 +29,9 @@ type UI struct {
 	WeekStarts          string `toml:"week_starts"`
 	DefaultSort         string `toml:"default_sort"`
 	CongestionThreshold int    `toml:"congestion_threshold"`
+	// Mouse turns on clicks and the scroll wheel. Off gives the terminal
+	// its own text selection back.
+	Mouse bool `toml:"mouse"`
 }
 
 // Runs configures run history and gocron exec.
@@ -56,12 +60,28 @@ type Defaults struct {
 	Timeout   Duration `toml:"timeout"`
 }
 
-// Notify is read for forward compatibility; notifications arrive later.
+// Notify configures the notifications gocron exec sends when a cron run
+// ends.
 type Notify struct {
-	On      string `toml:"on"`
-	Desktop bool   `toml:"desktop"`
-	Webhook string `toml:"webhook"`
+	On      string `toml:"on"`      // never | failure | always | change
+	Desktop bool   `toml:"desktop"` // notify-send / osascript
+	Webhook string `toml:"webhook"` // http(s) URL to POST a JSON summary to
 }
+
+// When to notify.
+const (
+	NotifyNever   = "never"
+	NotifyFailure = "failure"
+	NotifyAlways  = "always"
+	NotifyChange  = "change" // failing after working, or working after failing
+)
+
+// Themes.
+const (
+	ThemeNightshift = "nightshift"
+	ThemeDaybreak   = "daybreak"
+	ThemeMono       = "mono"
+)
 
 // Duration is a time.Duration written as "1h30m"; "" means none.
 type Duration time.Duration
@@ -86,18 +106,19 @@ func (d *Duration) UnmarshalText(b []byte) error {
 // Default returns the configuration used when config.toml sets nothing.
 func Default() Config {
 	return Config{
-		Theme: "nightshift",
+		Theme: ThemeNightshift,
 		UI: UI{
 			RelativeTimes:       true,
 			TimeFormat:          "15:04",
 			WeekStarts:          "monday",
 			DefaultSort:         "next",
 			CongestionThreshold: 3,
+			Mouse:               true,
 		},
 		Runs:     Runs{Retention: 100, MaxLogBytes: 1 << 20, MailOutput: MailNever},
 		Backups:  Backups{Keep: 50},
 		Defaults: Defaults{Wrap: true, NoOverlap: true},
-		Notify:   Notify{On: "failure", Desktop: true},
+		Notify:   Notify{On: NotifyFailure, Desktop: true},
 	}
 }
 
@@ -137,11 +158,16 @@ func (c Config) validate() error {
 		}
 		problems = append(problems, fmt.Sprintf("%s must be one of %s, not %q", key, strings.Join(allowed, ", "), v))
 	}
-	oneOf("theme", c.Theme, "nightshift", "daybreak", "mono")
+	oneOf("theme", c.Theme, ThemeNightshift, ThemeDaybreak, ThemeMono)
 	oneOf("ui.week_starts", c.UI.WeekStarts, "monday", "sunday")
 	oneOf("ui.default_sort", c.UI.DefaultSort, "next", "name", "crontab")
 	oneOf("runs.mail_output", c.Runs.MailOutput, MailNever, MailOnFailure, MailAlways)
-	oneOf("notify.on", c.Notify.On, "never", "failure", "always", "change")
+	oneOf("notify.on", c.Notify.On, NotifyNever, NotifyFailure, NotifyAlways, NotifyChange)
+	if w := c.Notify.Webhook; w != "" {
+		if u, err := url.Parse(w); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			problems = append(problems, fmt.Sprintf("notify.webhook must be an http:// or https:// URL, not %q", w))
+		}
+	}
 	if c.Runs.Retention < 1 {
 		problems = append(problems, "runs.retention must be at least 1")
 	}

@@ -73,6 +73,8 @@ func TestLoadInvalid(t *testing.T) {
 		"duration":  `[defaults]` + "\n" + `timeout = "soon"`,
 		"negative":  `[defaults]` + "\n" + `timeout = "-1m"`,
 		"wrongtype": "[runs]\nretention = \"many\"",
+		"webhook":   `[notify]` + "\n" + `webhook = "hooks.example.com/x"`,
+		"ftp hook":  `[notify]` + "\n" + `webhook = "ftp://example.com/x"`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			cfg, _, err := Load(writeConfig(t, body))

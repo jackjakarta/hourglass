@@ -90,7 +90,7 @@ func TestBuildCongestion(t *testing.T) {
 
 func TestBuildCronTZ(t *testing.T) {
 	js := parse(t, "CRON_TZ=Asia/Tokyo\n0 0 * * * tokyo\n")
-	g := day(js, 24*60, 0) // a column per minute
+	g := day(js, 24*60, 0)                                 // a column per minute
 	want := time.Date(2026, 10, 11, 15, 0, 0, 0, time.UTC) // 00:00 JST
 	if c := g.Col(want); g.Lanes[0].Cells[c] != 1 {
 		t.Errorf("the Tokyo job doesn't fire at 15:00 UTC: cells %v", g.Lanes[0].Fires)

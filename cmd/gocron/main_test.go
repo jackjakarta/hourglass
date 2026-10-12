@@ -35,11 +35,26 @@ func runCLI(t *testing.T, crontabFile string, args ...string) (stdout, stderr st
 	t.Helper()
 	t.Setenv(crontab.EnvCrontabFile, crontabFile)
 	t.Setenv("GOCRON_STATE_DIR", t.TempDir())
+	if os.Getenv("GOCRON_CONFIG") == "" {
+		t.Setenv("GOCRON_CONFIG", quietConfig(t, t.TempDir()))
+	}
 	var out, errOut bytes.Buffer
 	a := &app{stdout: &out, stderr: &errOut, now: func() time.Time { return testNow }, source: crontab.SourceFromEnv,
 		bin: func() string { return testBin }}
 	code = a.run(context.Background(), args)
 	return out.String(), errOut.String(), code
+}
+
+// quietConfig writes a config.toml in dir that turns notifications off, so
+// failing runs in tests don't pop up on the developer's desktop, and
+// returns its path.
+func quietConfig(t *testing.T, dir string) string {
+	t.Helper()
+	p := filepath.Join(dir, "quiet.toml")
+	if err := os.WriteFile(p, []byte("[notify]\non = \"never\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
 }
 
 func fixture(name string) string {

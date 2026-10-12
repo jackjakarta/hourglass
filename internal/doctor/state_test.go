@@ -114,3 +114,31 @@ func TestStateDirNotWritable(t *testing.T) {
 		t.Errorf("state = %+v", c)
 	}
 }
+
+func TestNotifyCheck(t *testing.T) {
+	for name, tt := range map[string]struct {
+		notify config.Notify
+		goos   string
+		status Status
+		detail string
+	}{
+		"off":           {config.Notify{On: "never", Desktop: true}, "linux", Info, "off"},
+		"no targets":    {config.Notify{On: "failure"}, "linux", Info, "off"},
+		"missing tool":  {config.Notify{On: "failure", Desktop: true}, "linux", Warn, "need notify-send"},
+		"webhook only":  {config.Notify{On: "change", Webhook: "https://x"}, "linux", OK, "webhook, on change"},
+		"mac":           {config.Notify{On: "always", Desktop: true, Webhook: "https://x"}, "darwin", OK, "desktop and webhook, on always"},
+		"other os":      {config.Notify{On: "always", Desktop: true}, "freebsd", Warn, "need notify-send"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			sys := debianBox
+			sys.paths = map[string]string{"osascript": "/usr/bin/osascript"}
+			env := sys.env(fakeSource{})
+			env.GOOS = tt.goos
+			env.State = &State{Paths: statePaths(t), Notify: tt.notify}
+			c := find(t, Run(context.Background(), env), "notifications")
+			if c.Status != tt.status || !strings.Contains(c.Detail, tt.detail) {
+				t.Errorf("check = %+v", c)
+			}
+		})
+	}
+}

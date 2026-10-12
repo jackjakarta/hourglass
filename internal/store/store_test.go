@@ -331,3 +331,32 @@ func TestConcurrentWriters(t *testing.T) {
 		t.Errorf("%d rows left", n)
 	}
 }
+
+func TestLastFinished(t *testing.T) {
+	d, _ := open(t, allAlive)
+	ctx := context.Background()
+	last := func() string {
+		t.Helper()
+		s, err := d.LastFinished(ctx, "aaaaaa")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	if s := last(); s != "" {
+		t.Errorf("no runs: %q", s)
+	}
+	add(t, d, "aaaaaa", StatusFailed, 0, time.Second)
+	add(t, d, "bbbbbb", StatusSuccess, 1, time.Second)
+	add(t, d, "aaaaaa", StatusSkipped, 2, 0)
+	add(t, d, "aaaaaa", StatusRunning, 3, 0)
+	m, _ := d.Insert(ctx, "aaaaaa", TriggerManual, t0.Add(4*time.Minute), 1)
+	d.Finish(ctx, m.ID, StatusSuccess, code(0), t0.Add(5*time.Minute), 0, false)
+	if s := last(); s != StatusFailed {
+		t.Errorf("got %q, want the failed cron run (skipped, running and manual runs don't count)", s)
+	}
+	add(t, d, "aaaaaa", StatusTimeout, 6, time.Second)
+	if s := last(); s != StatusTimeout {
+		t.Errorf("got %q, want timeout", s)
+	}
+}

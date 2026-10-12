@@ -303,3 +303,46 @@ func TestDefaultAdoptName(t *testing.T) {
 		}
 	}
 }
+
+func TestReIDTouchesOnlyThatJob(t *testing.T) {
+	orig := loadFixture(t, "duplicate_ids")
+	c := Parse(orig)
+	if err := c.ReID(3, "new222"); err != nil {
+		t.Fatal(err)
+	}
+	if got := changedLines(t, orig, c.Serialize()); !reflect.DeepEqual(got, []int{3}) {
+		t.Errorf("changed lines %v, want [3]", got)
+	}
+	if len(c.Problems()) != 0 {
+		t.Errorf("problems left: %v", c.Problems())
+	}
+	if j, ok := c.Job("new222"); !ok || j.Name != "Copy pasted" {
+		t.Errorf("job new222 = %+v, %v", j, ok)
+	}
+	if j, _ := c.Job("dup111"); j.Name != "First" {
+		t.Errorf("dup111 is now %q", j.Name)
+	}
+	if err := c.ReID(2, "x"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("non-meta line: err = %v", err)
+	}
+}
+
+func TestReIDWrapped(t *testing.T) {
+	orig := "# gocron:job id=aaaaaa name=A\n" +
+		"0 1 * * * /usr/local/bin/gocron exec --no-overlap aaaaaa -- 'echo 50%'\n" +
+		"# gocron:job id=aaaaaa name=B\n" +
+		"#gocron:off 0 2 * * * /usr/local/bin/gocron exec --timeout=5m aaaaaa -- 'echo b'\n"
+	c := Parse([]byte(orig))
+	if err := c.ReID(3, "bbbbbb"); err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Replace(strings.Replace(orig, "id=aaaaaa name=B", "id=bbbbbb name=B", 1),
+		"--timeout=5m aaaaaa", "--timeout=5m bbbbbb", 1)
+	if got := string(c.Serialize()); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+	j, _ := c.Job("bbbbbb")
+	if !j.Wrapped || j.Enabled || j.Timeout != 5*time.Minute || j.Command != "echo b" {
+		t.Errorf("job = %+v", j)
+	}
+}

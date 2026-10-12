@@ -54,6 +54,9 @@ Usage:
                               list jobs (--all includes unmanaged entries)
   gocron add [--name N] --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD
                               add a job (quote a pipeline as one argument)
+  gocron enable ID / disable ID
+                              resume / pause a job
+  gocron rm ID                delete a job (a backup is kept)
   gocron run [--cron-env] ID  run a job now, streaming its output
   gocron logs [-n N] [--run R] ID
                               show a job's recent runs, or one run's output
@@ -61,7 +64,8 @@ Usage:
   gocron export [--file F]    write the managed jobs as YAML
   gocron import [--dry-run] F import jobs from an export (- reads stdin), merging by id
   gocron describe [-n N] EXPR describe a schedule and show its next runs
-  gocron doctor               check your cron setup and crontab
+  gocron doctor [--fix]       check your cron setup and crontab (--fix repairs
+                              duplicate ids and stale gocron paths)
   gocron version              print version information
 
 Environment:
@@ -96,9 +100,11 @@ func (a *app) run(ctx context.Context, args []string) int {
 		return a.importJobs(ctx, rest)
 	case "describe":
 		return a.describe(rest)
+	case "enable", "disable", "rm":
+		return a.change(ctx, cmd, rest)
 	case "doctor":
 		return a.doctor(ctx, rest)
-	case "version", "--version":
+	case "version", "--version", "-v":
 		return a.version(rest)
 	case "help", "-h", "--help":
 		fmt.Fprint(a.stdout, usage)

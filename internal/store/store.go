@@ -377,6 +377,21 @@ func (d *DB) List(ctx context.Context, f Filter) ([]Run, error) {
 	return out, rows.Err()
 }
 
+// LastFinished returns the status of the job's newest finished run that
+// cron started, or "" when there is none. Skipped runs don't count: they
+// say nothing about whether the job works.
+func (d *DB) LastFinished(ctx context.Context, jobID string) (string, error) {
+	var status string
+	err := d.db.QueryRowContext(ctx, `SELECT status FROM runs
+		WHERE job_id = ? AND trigger = ? AND status IN (?, ?, ?, ?)
+		ORDER BY started_at DESC, id DESC LIMIT 1`,
+		jobID, TriggerCron, StatusSuccess, StatusFailed, StatusTimeout, StatusError).Scan(&status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return status, err
+}
+
 // RecentRuns is how many runs JobStats keeps per job.
 const RecentRuns = 20
 
