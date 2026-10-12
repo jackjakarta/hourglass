@@ -17,9 +17,21 @@ This document is the source of truth for the project. It is built in phases acro
 | 3 | Job editor + schedule builder | ✅ done |
 | 4 | Runs: exec wrapper, history, logs | ✅ done |
 | 5 | Timeline + power tools | ✅ done |
-| 6 | Polish, notifications, release | ☐ not started |
+| 6 | Polish, notifications, release | ✅ done (hero GIF still to record) |
 
 Session notes (append newest first):
+- _2026-10-12_: **Phase 6 done** (branch `feat/phase-6`), except recording the hero GIF. New: `internal/notify`, `cronexpr.ParseNatural`, `jobs.(*Service).Fix`, `crontab.(*Crontab).ReID`, `store.(*DB).LastFinished`, `theme.Daybreak`, CLI `enable`/`disable`/`rm`, `doctor --fix`, `build.sh`, `install.sh`, `.github/workflows/{release,static-checks}.yml`, `docs/demo.tape` + `docs/demo.crontab`.
+  - **Release (deviation from §2: no goreleaser, user's choice).** It follows the user's other TUI (anchr). A tag `*.*.*` runs `.github/workflows/release.yml`: `go test`, then `./build.sh "${tag#v}"` (CGO off, `-trimpath`, ldflags set `version.Version/Commit/Date`; linux/darwin × amd64/arm64 → `gocron-<os>-<arch>.tar.gz` holding just `gocron`, plus `checksums.txt`), then `softprops/action-gh-release@v2` with generated notes. `static-checks.yml` runs on PRs to main: gofmt, vet, build, test, and a cross-build of the four targets.
+  - **install.sh** sits at the repo root, served by GitHub Pages at `https://gocron.jackjakarta.xyz/install.sh` (CNAME). POSIX sh, adapted from anchr's: `GOCRON_VERSION`, `GOCRON_INSTALL_DIR`, optional `GH_TOKEN`/`GITHUB_TOKEN` (rate limits only; the repo is meant to be public). It verifies sha256 and installs to `/usr/local/bin` (sudo) or `~/.local/bin`. The undocumented `GOCRON_RELEASES_URL` points it at `file://` build output for testing. Homebrew comes later.
+  - **Notifications** fire from `cmd/gocron/exec.go` after `status.Done` (so the TUI pane never waits), **only for `--trigger=cron`**. `notify.Should(on, status, prev)`: failure = failed/timeout/error; always skips `skipped`; change compares failure-ness with the previous finished **cron** run (`LastFinished`, read in `runner.(*run).open` before the insert → `Result.Prev`), and a first run notifies only if it failed. Desktop and webhook are sent concurrently under one 10 s context. Linux uses `notify-send -a gocron -u critical|normal` and sets `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/<uid>/bus` when cron didn't; macOS uses `osascript`. Webhook payload: `notify.Payload` (README documents it), `User-Agent: gocron/<version>`, non-2xx is an error. Errors go to `gocron-errors.log`, never to the exit code. The job's name comes from a best-effort crontab read. Config: `notify.webhook` must be http(s); doctor has a "notifications" check (warns when the desktop tool is missing). CLI tests write a quiet config (`quietConfig`) so failing test runs don't pop up on a developer's desktop.
+  - **Natural language:** `cronexpr.ParseNatural(phrase) (Natural{Expr, Note}, error)`, a token scanner with matchers tried in order (unsupported, boot, interval, "N times a", minute offset, hour range, weekdays, day of month, month, frequency, time list). Unsupported phrases return `*NaturalError{Msg, Hint}`: nth-weekday and last-day (with a `date` guard hint), every N days/weeks, every other day/week, seconds, minute steps ≥ 60 that aren't whole hours, mixed minutes and hours. Steps that don't divide the hour or day are allowed with a Note. `between 9am and 5pm` → `9-17` (the preview's description shows 09:00–17:59). No time given → midnight, with a Note. 62 phrasings plus 19 failures are table-tested.
+  - **Editor:** a "say it" row (`stopNatural`) **after** the params/raw row, in both tab order and layout, so the preset flow keeps its tab order. It previews `→ expr  description · ↵ apply` (or ✗ + hint) while typing and changes nothing until `↵`. `applySchedule` picks the matching preset, or else Custom, and focuses its inputs. It isn't part of `Dirty()`. `gocron describe` falls back to `ParseNatural` and prints `Interpreted as: …` (+ `Note:`).
+  - **Themes:** `theme.Select(name, noColor, isDark)`; `build(t)` derives the styles; Daybreak is a sky/rose palette on stone neutrals with a tinted selection. `tui.Options.Theme` comes from `config.theme`; NO_COLOR still wins. Palette items "Theme: X" switch for the session (`Model.applyTheme`; the toast says to set it in config.toml).
+  - **Mouse** (`internal/tui/mouse.go`): `View().MouseMode = CellMotion` when `ui.mouse` (new key, default true). Clicks follow the overlay order: the palette (an item runs; a click outside closes it), confirm buttons (`Confirm.Click`), a pane or editor swallows the click, help closes; then header tabs (`tabAt`, sharing `headerLead`/`tabGap` with `header()`), then the view: `Click(x, y)` in body coordinates. Jobs: rows (via `lineOf`), the filter line starts filtering, clicking the selected row opens the detail (narrow layouts). History: a second click opens the log. Timeline: a second click opens the job. Crontab: revisions, and on narrow screens the preview. The wheel moves selections by 1 and scrolls text by 3 (log, crontab preview, run pane). Clicking to focus editor fields isn't done.
+  - **doctor --fix** (`Service.Fix`, one `apply` = one backup and one undo step): duplicate ids get `NewID()` through `ReID(line, id)` (meta line plus the wrapped exec id; `metaIndex` only finds the first copy), and wrapped jobs whose `Bin` (symlinks resolved) isn't this binary are rewritten to it, only when `CheckBin` passes (otherwise `BinErr` is reported). Orphan meta lines are left alone. The CLI prints what it fixed, then the usual checks.
+  - **Perf:** `TestStartupBudget` (`GOCRON_PERF=1`) and `BenchmarkStartup`: 100 wrapped jobs, 10k runs, from `crontab.Open` to the first rendered screen with stats. Rewriting `store.Stats` to fetch each job's newest runs through `runs_job_started` (DISTINCT job_id ⨝ `id IN (… LIMIT 20)`) instead of a `ROW_NUMBER` window took it from ~80 ms to ~31–44 ms.
+  - Formatting: two pre-existing gofmt misses (`jobs/export.go`, `timeline/build_test.go`) are fixed, since CI now checks gofmt.
+  - **Not done:** the hero GIF (`docs/demo.gif`) needs `vhs docs/demo.tape`, which needs vhs, ttyd, ffmpeg and gocron at `/usr/local/bin`. The header has no stale-binary badge (§12). Editor fields can't be clicked to focus. There's no LICENSE file.
 - _2026-10-11_: **Phase 5 done** (branch `feat/phase-5`). New: `cronexpr.(*Expr).Between` / `crontab.Job.Between` (bounded `iter.Seq`; `Next` shares the walk), cached `time.LoadLocation`; `jobs` `Revisions`/`Restore`/`Replace`/`Disk`/`ValidateEdit`/`Summarize`/`Export`/`PlanImport`/`Import`, `Snapshot.Content`, `crontab.BackupTime`; `tui/views/timeline`, `tui/views/crontab`, `components.Palette`/`FuzzyMatch`/`UnifiedDiff`/`DiffLines`; CLI `export`, `import`. Deps: `aymanbagabas/go-udiff v0.4.1` (was indirect), `gopkg.in/yaml.v3 v3.0.1`.
   - **Timeline:** day mode spans `[now−3h, now+24h)`; the 3h lead-in shows only ✓/✗ marks from `stats[id].Recent` (+ running). Week mode starts at today's midnight, day columns. Lanes: enabled managed jobs, then unmanaged entries (dimmed); paused jobs are left out. `Fires > cols` → band with a count; no fire in the window → "(next: …)"; @reboot → "at boot". Density = distinct jobs per column. Congestion = distinct jobs per minute ≥ `ui.congestion_threshold`, reported as the first minute "(and N more minutes)". Rebuilt only on snapshot/stats/size/mode change or a new minute. Keys: `↑↓` lane, `←→`/`h l` scroll (6h or a day; never before now), `.` now, `d`/`w`, `↵` opens the job (`jobs.Reveal`).
   - **Palette** (`ctrl+k` anywhere, even while a filter is typing; `:` only from the globals, so it stays text in filters). Items are built when it opens and run closures, never replayed keys: actions on the selected job, tabs, new/undo/filter/tag/sort, history filters, timeline day/week, crontab edit/revisions, help/quit, then "Go to job · X" for every job and "History · X" for managed ones. Hints come from the key map. Key order: ForceQuit → palette → diff overlay → confirm → pane → editor → help → ctrl+k → view capture → globals.
@@ -148,7 +160,7 @@ Remote hosts over SSH, multi-user or auth, systemd timers as a backend, a web UI
 | Config | TOML (`BurntSushi/toml` v1.6.0) | |
 | CLI | stdlib `flag` with small subcommand dispatch | No cobra; keep the binary lean. |
 | TUI tests | `charmbracelet/x/exp/teatest/v2` | Golden snapshots. |
-| Release | goreleaser, vhs for demo GIFs | Phase 6. |
+| Release | `build.sh` + GitHub Actions on tags; `install.sh` served via Pages; vhs for demo GIFs | Phase 6 (no goreleaser). |
 
 **Name note:** `go-co-op/gocron` is an unrelated Go scheduling library. Our binary name doesn't collide in practice. The module path is something like `github.com/<user>/gocron`.
 
@@ -280,7 +292,7 @@ Behavior:
 5. On timeout: SIGTERM the process group, wait 10s, then SIGKILL. `status=timeout`.
 6. Record `ended_at`, `exit_code`, and `status` (`success` | `failed` | `timeout` | `skipped` | `error`).
 7. Prune runs and logs beyond `runs.retention` per job (default 100).
-8. Fire notifications (Phase 6).
+8. Fire notifications (`[notify]`; cron-triggered runs only, after the result is recorded).
 9. **Exit with the child's exit code.** If gocron itself fails (e.g. the DB is locked or corrupt), it must **still run the command**. The wrapper failing must never stop the job from running. Log the error to `state/gocron-errors.log`.
 
 Stale `running` rows (whose pid is dead) are shown as `status=unknown` ("lost").
@@ -543,8 +555,8 @@ Mouse (Phase 6): click rows and tabs, and scroll wheel in lists and the viewport
 | `gocron run <id> [--cron-env]` | Run now in the foreground, streaming output, recorded as `manual`/`test` |
 | `gocron logs <id> [-n N] [--run R]` | Print recent run summaries or a run's log |
 | `gocron exec …` | Internal wrapper used in crontab lines (see §4.1) |
-| `gocron describe "<expr>"` | Print the English description and the next 5 runs (handy on its own) |
-| `gocron doctor [--fix]` | Health checks (below) |
+| `gocron describe "<expr>"` | Print the English description and the next 5 runs (handy on its own); plain English like "every weekday at 9am" is interpreted first |
+| `gocron doctor [--fix]` | Health checks (below); `--fix` re-IDs duplicates and repoints stale gocron paths |
 | `gocron export [--file F]` / `import F [--dry-run]` | YAML export/import of managed jobs |
 | `gocron version` | Version, commit, build date |
 
@@ -566,6 +578,7 @@ time_format    = "15:04"        # Go layout
 week_starts    = "monday"
 default_sort   = "next"         # next | name | crontab
 congestion_threshold = 3        # timeline warning: jobs in same minute
+mouse          = true           # clicks + wheel; false restores terminal text selection
 
 [runs]
 retention       = 100           # runs kept per job
@@ -580,7 +593,7 @@ wrap       = true
 no_overlap = true
 timeout    = ""                 # e.g. "1h"
 
-[notify]                        # Phase 6
+[notify]                        # cron-triggered runs only
 on      = "failure"             # never | failure | always | change (fail→ok, ok→fail)
 desktop = true                  # notify-send / osascript
 webhook = ""                    # POST JSON {job, status, exit_code, duration, log_tail}
@@ -679,10 +692,10 @@ Acceptance:
 Scope: notifications (desktop + webhook from `exec`), natural-language schedule input in the editor ("every weekday at 9am", "every 15 minutes", "first monday of the month" → with a fallback explanation when unsupported), the Daybreak and Mono themes, mouse support, `doctor --fix`, performance pass, README with vhs GIFs, goreleaser (linux/darwin, amd64/arm64), and an install script / `go install`.
 
 Acceptance:
-- [ ] A failing job triggers a desktop notification and a webhook POST (tested with `httptest`). Notification errors never affect the job's exit code.
-- [ ] The NL parser handles ≥ 30 phrasings (table tests) and shows the resulting expression before applying it.
-- [ ] Startup to first render is < 150 ms with 100 jobs and 10k runs.
-- [ ] The README has a hero GIF, an install section, and an explanation of the crontab format.
+- [x] A failing job triggers a desktop notification and a webhook POST (tested with `httptest`). Notification errors never affect the job's exit code.
+- [x] The NL parser handles ≥ 30 phrasings (table tests) and shows the resulting expression before applying it.
+- [x] Startup to first render is < 150 ms with 100 jobs and 10k runs.
+- [ ] The README has a hero GIF, an install section, and an explanation of the crontab format. (Install and format sections done; the GIF still has to be recorded with `vhs docs/demo.tape`.)
 
 ---
 
