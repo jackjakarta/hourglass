@@ -122,12 +122,12 @@ func TestNotifyCheck(t *testing.T) {
 		status Status
 		detail string
 	}{
-		"off":           {config.Notify{On: "never", Desktop: true}, "linux", Info, "off"},
-		"no targets":    {config.Notify{On: "failure"}, "linux", Info, "off"},
-		"missing tool":  {config.Notify{On: "failure", Desktop: true}, "linux", Warn, "need notify-send"},
-		"webhook only":  {config.Notify{On: "change", Webhook: "https://x"}, "linux", OK, "webhook, on change"},
-		"mac":           {config.Notify{On: "always", Desktop: true, Webhook: "https://x"}, "darwin", OK, "desktop and webhook, on always"},
-		"other os":      {config.Notify{On: "always", Desktop: true}, "freebsd", Warn, "need notify-send"},
+		"off":          {config.Notify{On: "never", Desktop: true}, "linux", Info, "off"},
+		"no targets":   {config.Notify{On: "failure"}, "linux", Info, "off"},
+		"missing tool": {config.Notify{On: "failure", Desktop: true}, "linux", Warn, "need notify-send"},
+		"webhook only": {config.Notify{On: "change", Webhook: "https://x"}, "linux", OK, "webhook, on change"},
+		"mac":          {config.Notify{On: "always", Desktop: true, Webhook: "https://x"}, "darwin", OK, "desktop and webhook, on always"},
+		"other os":     {config.Notify{On: "always", Desktop: true}, "freebsd", Warn, "need notify-send"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			sys := debianBox
