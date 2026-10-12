@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -190,12 +191,19 @@ func TestSpawnLauncher(t *testing.T) {
 		t.Errorf("stopped = %+v", res)
 	}
 
-	// The status pipe stays out of the job's process.
+	// The status pipe stays out of the job's process. The job should see
+	// the same descriptors as a plain child of this process: the test may
+	// itself inherit stray ones (CI runners leak some), and those pass
+	// through to every child.
+	base, err := exec.Command("ls", "/proc/self/fd").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
 	h, _ = l.Launch(runner.Spec{Command: "ls /proc/self/fd", Trigger: runs.TriggerTest, Env: env})
 	got, _ = io.ReadAll(h.Output)
 	<-h.Done
-	if fds := strings.Fields(string(got)); len(fds) > 4 { // 0, 1, 2 and ls's own directory fd
-		t.Errorf("the job inherited extra descriptors: %v", fds)
+	if fds, want := strings.Fields(string(got)), strings.Fields(string(base)); !slices.Equal(fds, want) {
+		t.Errorf("the job's descriptors = %v, want %v", fds, want)
 	}
 }
 
