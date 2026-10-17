@@ -1,4 +1,4 @@
-// Package keys defines gocron's key bindings (spec §6.4).
+// Package keys defines hourglass's key bindings (spec §6.4).
 package keys
 
 import "charm.land/bubbles/v2/key"

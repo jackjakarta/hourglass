@@ -6,9 +6,9 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/jackjakarta/gocron/internal/humanize"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/humanize"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // View renders the view into its width × height.
@@ -155,7 +155,7 @@ func (m Model) listPanel(w, h int, layout Layout) string {
 		for len(lines) < h-4 {
 			lines = append(lines, "")
 		}
-		lines = append(lines, "", th.Warn.Render(fmt.Sprintf("%s %d %s in the crontab · run gocron doctor", theme.GlyphWarn, n, plural(n, "problem"))))
+		lines = append(lines, "", th.Warn.Render(fmt.Sprintf("%s %d %s in the crontab · run hourglass doctor", theme.GlyphWarn, n, plural(n, "problem"))))
 	}
 	return components.Panel(th, m.listTitle(), lines, w, h, true)
 }
@@ -273,14 +273,14 @@ func (m Model) emptyView(w, h int) string {
 	}
 	lines := []string{
 		"",
-		th.Title.Render("Welcome to gocron"),
+		th.Title.Render("Welcome to hourglass"),
 		"",
 		th.Text.Render("There are no cron jobs in your crontab (" + m.snap.Source + ") yet."),
 		"",
-		th.Text.Render("gocron keeps jobs in your real crontab, so they run whether or not"),
-		th.Text.Render("gocron is open. Each job is a comment line plus a cron line:"),
+		th.Text.Render("hourglass keeps jobs in your real crontab, so they run whether or not"),
+		th.Text.Render("hourglass is open. Each job is a comment line plus a cron line:"),
 		"",
-		"  " + th.Muted.Render(`# gocron:job id=k3f9a2 name="Nightly backup"`),
+		"  " + th.Muted.Render(`# hourglass:job id=k3f9a2 name="Nightly backup"`),
 		"  " + th.Schedule.Render("30 2 * * *") + " " + th.Text.Render("pg_dump app > /bk/app.sql"),
 		"",
 		th.Text.Render("Press ") + th.Key.Render("n") + th.Text.Render(" to create your first job."),

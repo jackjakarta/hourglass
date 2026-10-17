@@ -11,14 +11,14 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/runner"
 )
 
 // ExportVersion is the export format's version.
 const ExportVersion = 1
 
-// ExportDoc is the managed jobs as gocron export writes them.
+// ExportDoc is the managed jobs as hourglass export writes them.
 type ExportDoc struct {
 	Version int         `yaml:"version"`
 	Jobs    []ExportJob `yaml:"jobs"`
@@ -87,9 +87,9 @@ func ParseExport(r io.Reader) (ExportDoc, error) {
 	}
 	switch {
 	case doc.Version == 0:
-		return doc, errors.New("not a gocron export: no version")
+		return doc, errors.New("not a hourglass export: no version")
 	case doc.Version != ExportVersion:
-		return doc, fmt.Errorf("export version %d isn't supported (this gocron reads version %d)", doc.Version, ExportVersion)
+		return doc, fmt.Errorf("export version %d isn't supported (this hourglass reads version %d)", doc.Version, ExportVersion)
 	}
 	seen := map[string]bool{}
 	for i, j := range doc.Jobs {
@@ -213,7 +213,7 @@ func (s *Service) planImport(c *crontab.Crontab, doc ExportDoc) (ImportPlan, err
 	}
 	for _, j := range doc.Jobs {
 		if dup[j.ID] {
-			return plan, fmt.Errorf("job id %s is used twice in the crontab; run gocron doctor first", j.ID)
+			return plan, fmt.Errorf("job id %s is used twice in the crontab; run hourglass doctor first", j.ID)
 		}
 		cur, ok := c.Job(j.ID)
 		needsBin := j.Wrapped && (!ok || cur.Bin == "")

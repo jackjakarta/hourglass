@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
-	"github.com/jackjakarta/gocron/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
 )
 
 // paletteModel builds a Model for realistic_mixed without running it.
@@ -82,7 +82,7 @@ func TestPalettePause(t *testing.T) {
 	hs.waitFor("Type a command or a job")
 	hs.keys("pause", "enter")
 	hs.waitFor(`Paused "Sync photos"`)
-	if !strings.Contains(hs.read(), "#gocron:off */15 * * * *") {
+	if !strings.Contains(hs.read(), "#hourglass:off */15 * * * *") {
 		t.Errorf("Sync photos wasn't paused:\n%s", hs.read())
 	}
 	hs.screen()

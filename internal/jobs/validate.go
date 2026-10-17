@@ -1,6 +1,6 @@
 package jobs
 
-import "github.com/jackjakarta/gocron/internal/crontab"
+import "github.com/jackjakarta/hourglass/internal/crontab"
 
 // ValidateEdit returns the problems in after, a hand-edited crontab, that
 // before didn't already have. Problems are matched by kind and line text,

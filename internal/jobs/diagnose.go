@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 // Diagnose suggests why a run failed, from what's knowable without running

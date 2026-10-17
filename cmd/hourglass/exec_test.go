@@ -20,18 +20,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/notify"
-	"github.com/jackjakarta/gocron/internal/runner"
-	runs "github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/notify"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	runs "github.com/jackjakarta/hourglass/internal/store"
 )
 
-// helper returns a command running this test binary as gocron.
+// helper returns a command running this test binary as hourglass.
 func helper(t *testing.T, state string, args ...string) *exec.Cmd {
 	t.Helper()
 	cmd := exec.Command(os.Args[0], args...)
-	cmd.Env = append(os.Environ(), envHelper+"=1", "GOCRON_STATE_DIR="+state,
-		"GOCRON_CONFIG="+quietConfig(t, t.TempDir()))
+	cmd.Env = append(os.Environ(), envHelper+"=1", "HOURGLASS_STATE_DIR="+state,
+		"HOURGLASS_CONFIG="+quietConfig(t, t.TempDir()))
 	return cmd
 }
 
@@ -59,8 +59,8 @@ func TestExecRecordsAndPassesExitCode(t *testing.T) {
 	if code != 3 || out != "" || errOut != "" {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, out, errOut)
 	}
-	state := os.Getenv("GOCRON_STATE_DIR")
-	errLog, _ := os.ReadFile(filepath.Join(state, "gocron-errors.log"))
+	state := os.Getenv("HOURGLASS_STATE_DIR")
+	errLog, _ := os.ReadFile(filepath.Join(state, "hourglass-errors.log"))
 	if !strings.Contains(string(errLog), "ignoring --timeout=soon") || !strings.Contains(string(errLog), "ignoring unknown option --colour") {
 		t.Errorf("error log = %q", errLog)
 	}
@@ -72,7 +72,7 @@ func TestExecRecordsAndPassesExitCode(t *testing.T) {
 
 func TestExecUsage(t *testing.T) {
 	for _, args := range [][]string{{"exec"}, {"exec", "abc234"}, {"exec", "abc234", "--"}, {"exec", "abc234", "--", " "}} {
-		if _, errOut, code := runCLI(t, filepath.Join(t.TempDir(), "c"), args...); code != exitUsage || !strings.Contains(errOut, "Usage: gocron exec") {
+		if _, errOut, code := runCLI(t, filepath.Join(t.TempDir(), "c"), args...); code != exitUsage || !strings.Contains(errOut, "Usage: hourglass exec") {
 			t.Errorf("%q: code=%d stderr=%q", args, code, errOut)
 		}
 	}
@@ -83,7 +83,7 @@ func TestExecNoRecordTee(t *testing.T) {
 	if code != 0 || out != "streamed\n" {
 		t.Errorf("code=%d stdout=%q", code, out)
 	}
-	if _, err := os.Stat(filepath.Join(os.Getenv("GOCRON_STATE_DIR"), "runs.db")); err == nil {
+	if _, err := os.Stat(filepath.Join(os.Getenv("HOURGLASS_STATE_DIR"), "runs.db")); err == nil {
 		t.Error("--no-record touched the database")
 	}
 }
@@ -119,7 +119,7 @@ func TestExecConcurrent(t *testing.T) {
 			}
 		}
 	}
-	if b, err := os.ReadFile(filepath.Join(state, "gocron-errors.log")); err == nil {
+	if b, err := os.ReadFile(filepath.Join(state, "hourglass-errors.log")); err == nil {
 		t.Errorf("error log:\n%s", b)
 	}
 }
@@ -153,7 +153,7 @@ func TestExecSurvivesClosedTee(t *testing.T) {
 func TestSpawnLauncher(t *testing.T) {
 	state := t.TempDir()
 	paths, err := config.ResolveEnv(func(k string) string {
-		return map[string]string{"GOCRON_STATE_DIR": state, "GOCRON_CONFIG": filepath.Join(state, "none.toml")}[k]
+		return map[string]string{"HOURGLASS_STATE_DIR": state, "HOURGLASS_CONFIG": filepath.Join(state, "none.toml")}[k]
 	}, "/nonexistent")
 	if err != nil {
 		t.Fatal(err)
@@ -209,22 +209,22 @@ func TestSpawnLauncher(t *testing.T) {
 
 func TestRunAndLogs(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "crontab")
-	tab := "FOO=from-crontab\n# gocron:job id=abc234 name=A\n0 0 * * * echo \"$FOO\"; echo \"$0\"; exit 2\n"
+	tab := "FOO=from-crontab\n# hourglass:job id=abc234 name=A\n0 0 * * * echo \"$FOO\"; echo \"$0\"; exit 2\n"
 	if err := os.WriteFile(file, []byte(tab), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	out, errOut, code := runCLI(t, file, "run", "abc234")
 	if code != 2 || out != "from-crontab\n/bin/sh\n" || !strings.Contains(errOut, "✗ failed") || !strings.Contains(errOut, "exit 2") ||
-		!strings.Contains(errOut, "gocron logs abc234 --run 1") {
+		!strings.Contains(errOut, "hourglass logs abc234 --run 1") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, out, errOut)
 	}
-	state := os.Getenv("GOCRON_STATE_DIR")
+	state := os.Getenv("HOURGLASS_STATE_DIR")
 
 	// logs reads the same state dir; runCLI would make a new one.
 	logs := func(args ...string) (string, string, int) {
 		var o, e bytes.Buffer
 		a := &app{stdout: &o, stderr: &e, now: func() time.Time { return time.Now() }}
-		t.Setenv("GOCRON_STATE_DIR", state)
+		t.Setenv("HOURGLASS_STATE_DIR", state)
 		code := a.run(context.Background(), append([]string{"logs"}, args...))
 		return o.String(), e.String(), code
 	}
@@ -254,7 +254,7 @@ func TestRunAndLogs(t *testing.T) {
 }
 
 // The acceptance check from the CLI: a command that only exists in the
-// user's own bin directory fails a cron-env run, and gocron says why.
+// user's own bin directory fails a cron-env run, and hourglass says why.
 func TestRunCronEnvSuggestsPATH(t *testing.T) {
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "only-in-local-bin"), []byte("#!/bin/sh\necho ok\n"), 0o755); err != nil {
@@ -262,7 +262,7 @@ func TestRunCronEnvSuggestsPATH(t *testing.T) {
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	file := filepath.Join(t.TempDir(), "crontab")
-	if err := os.WriteFile(file, []byte("# gocron:job id=abc234 name=A\n0 0 * * * only-in-local-bin\n"), 0o600); err != nil {
+	if err := os.WriteFile(file, []byte("# hourglass:job id=abc234 name=A\n0 0 * * * only-in-local-bin\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if out, _, code := runCLI(t, file, "run", "abc234"); code != 0 || out != "ok\n" {
@@ -301,13 +301,13 @@ func TestExecNotifies(t *testing.T) {
 	cfg := filepath.Join(dir, "config.toml")
 	os.WriteFile(cfg, []byte("[notify]\non = \"change\"\ndesktop = true\nwebhook = \""+srv.URL+"\"\n"), 0o600)
 	tab := filepath.Join(dir, "crontab")
-	os.WriteFile(tab, []byte("# gocron:job id=abc234 name=\"Nightly backup\"\n0 1 * * * /usr/local/bin/gocron exec abc234 -- 'x'\n"), 0o600)
+	os.WriteFile(tab, []byte("# hourglass:job id=abc234 name=\"Nightly backup\"\n0 1 * * * /usr/local/bin/hourglass exec abc234 -- 'x'\n"), 0o600)
 
 	state := t.TempDir()
 	run := func(command string) int {
 		t.Helper()
 		cmd := helper(t, state, "exec", "abc234", "--", command)
-		cmd.Env = append(cmd.Env, "GOCRON_CONFIG="+cfg, "GOCRON_CRONTAB_FILE="+tab,
+		cmd.Env = append(cmd.Env, "HOURGLASS_CONFIG="+cfg, "HOURGLASS_CRONTAB_FILE="+tab,
 			"PATH="+fake+string(os.PathListSeparator)+os.Getenv("PATH"))
 		err := cmd.Run()
 		var ee *exec.ExitError
@@ -343,8 +343,8 @@ func TestExecNotifies(t *testing.T) {
 	}
 	if runtime.GOOS == "linux" {
 		got, _ := os.ReadFile(calls)
-		want := "-a|gocron|-u|critical|gocron: Nightly backup failed|exit 3 after 0s\nboom|\n" +
-			"-a|gocron|-u|normal|gocron: Nightly backup is working again|after 0s\nfine|\n"
+		want := "-a|hourglass|-u|critical|hourglass: Nightly backup failed|exit 3 after 0s\nboom|\n" +
+			"-a|hourglass|-u|normal|hourglass: Nightly backup is working again|after 0s\nfine|\n"
 		if string(got) != want {
 			t.Errorf("notify-send calls:\n%s\nwant:\n%s", got, want)
 		}
@@ -361,13 +361,13 @@ func TestExecNotifyFailureKeepsExitCode(t *testing.T) {
 	os.WriteFile(cfg, []byte("[notify]\ndesktop = false\nwebhook = \""+srv.URL+"\"\n"), 0o600)
 	state := t.TempDir()
 	cmd := helper(t, state, "exec", "abc234", "--", "exit 7")
-	cmd.Env = append(cmd.Env, "GOCRON_CONFIG="+cfg, "GOCRON_CRONTAB_FILE="+filepath.Join(dir, "missing"))
+	cmd.Env = append(cmd.Env, "HOURGLASS_CONFIG="+cfg, "HOURGLASS_CRONTAB_FILE="+filepath.Join(dir, "missing"))
 	err := cmd.Run()
 	var ee *exec.ExitError
 	if !errors.As(err, &ee) || ee.ExitCode() != 7 {
 		t.Fatalf("exec ended with %v, want exit 7", err)
 	}
-	errLog, _ := os.ReadFile(filepath.Join(state, "gocron-errors.log"))
+	errLog, _ := os.ReadFile(filepath.Join(state, "hourglass-errors.log"))
 	if !strings.Contains(string(errLog), "webhook notification") || !strings.Contains(string(errLog), "502") {
 		t.Errorf("error log = %q", errLog)
 	}

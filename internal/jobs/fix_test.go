@@ -10,12 +10,12 @@ import (
 
 func TestFix(t *testing.T) {
 	ctx := context.Background()
-	initial := "# gocron:job id=dup222 name=First\n" +
-		"0 1 * * * /usr/bin/gocron exec dup222 -- 'one'\n" +
+	initial := "# hourglass:job id=dup222 name=First\n" +
+		"0 1 * * * /usr/bin/hourglass exec dup222 -- 'one'\n" +
 		"# hand-written\n" +
-		"# gocron:job id=dup222 name=Second\n" +
-		"0 2 * * * /old/place/gocron exec --no-overlap dup222 -- 'two'\n" +
-		"# gocron:job id=raw333 name=Raw\n" +
+		"# hourglass:job id=dup222 name=Second\n" +
+		"0 2 * * * /old/place/hourglass exec --no-overlap dup222 -- 'two'\n" +
+		"# hourglass:job id=raw333 name=Raw\n" +
 		"0 3 * * * three\n"
 	e := newEnv(t, initial)
 	rep, err := e.svc.Fix(ctx)
@@ -26,12 +26,12 @@ func TestFix(t *testing.T) {
 		t.Fatalf("ReIDs = %+v", rep.ReIDs)
 	}
 	newID := rep.ReIDs[0].ID
-	if len(rep.Rebinned) != 1 || rep.Rebinned[0].ID != newID || rep.Rebinned[0].From != "/old/place/gocron" {
+	if len(rep.Rebinned) != 1 || rep.Rebinned[0].ID != newID || rep.Rebinned[0].From != "/old/place/hourglass" {
 		t.Fatalf("Rebinned = %+v", rep.Rebinned)
 	}
 	want := strings.NewReplacer(
 		"id=dup222 name=Second", "id="+newID+" name=Second",
-		"/old/place/gocron exec --no-overlap dup222", "/usr/bin/gocron exec --no-overlap "+newID,
+		"/old/place/hourglass exec --no-overlap dup222", "/usr/bin/hourglass exec --no-overlap "+newID,
 	).Replace(initial)
 	if got := e.read(t); got != want {
 		t.Errorf("crontab:\n%s\nwant:\n%s", got, want)
@@ -62,8 +62,8 @@ func TestFix(t *testing.T) {
 }
 
 func TestFixWithoutUsableBinary(t *testing.T) {
-	e := newEnv(t, "# gocron:job id=abc234 name=A\n0 1 * * * /old/gocron exec abc234 -- 'one'\n")
-	e.svc.opts.Bin = filepath.Join(os.TempDir(), "go-build123", "exe", "gocron")
+	e := newEnv(t, "# hourglass:job id=abc234 name=A\n0 1 * * * /old/hourglass exec abc234 -- 'one'\n")
+	e.svc.opts.Bin = filepath.Join(os.TempDir(), "go-build123", "exe", "hourglass")
 	rep, err := e.svc.Fix(context.Background())
 	if err != nil {
 		t.Fatal(err)

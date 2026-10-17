@@ -22,7 +22,7 @@ func TestGoldenTimelineWeek(t *testing.T) {
 }
 
 func TestGoldenTimelineEmpty(t *testing.T) {
-	hs := start(t, "inline:# gocron:job id=aaaaaa name=Paused\n#gocron:off 0 3 * * * x\n", 100, 20)
+	hs := start(t, "inline:# hourglass:job id=aaaaaa name=Paused\n#hourglass:off 0 3 * * * x\n", 100, 20)
 	hs.waitFor("Paused")
 	hs.keys("2")
 	hs.waitFor("No enabled jobs")

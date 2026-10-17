@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/doctor"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/tui"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/doctor"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/tui"
 )
 
 func (a *app) tui(ctx context.Context) int {
@@ -48,11 +48,11 @@ func (a *app) tui(ctx context.Context) int {
 	return exitOK
 }
 
-// selfPath is the running gocron binary, symlinks resolved.
+// selfPath is the running hourglass binary, symlinks resolved.
 func selfPath() string {
 	p, err := os.Executable()
 	if err != nil {
-		return "gocron"
+		return "hourglass"
 	}
 	if r, err := filepath.EvalSymlinks(p); err == nil {
 		return r

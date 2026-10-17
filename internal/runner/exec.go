@@ -1,8 +1,8 @@
-// Package runner runs job commands the way gocron exec does: in their own
+// Package runner runs job commands the way hourglass exec does: in their own
 // process group, with output captured to a capped log, a timeout, overlap
 // prevention, and a row in the run history.
 //
-// The one rule above all others: whatever goes wrong inside gocron (a
+// The one rule above all others: whatever goes wrong inside hourglass (a
 // locked or corrupt database, a full disk, bad arguments), the user's
 // command still runs and its exit code comes back.
 package runner
@@ -20,9 +20,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/lockfile"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/lockfile"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 // Exit codes Exec uses for outcomes that aren't the command's own.
@@ -43,7 +43,7 @@ type Options struct {
 	NoOverlap bool
 	Trigger   string // store.Trigger*; default cron
 	Record    bool   // write a history row and a log
-	// Tee receives the output as it happens (gocron exec --tee).
+	// Tee receives the output as it happens (hourglass exec --tee).
 	Tee io.Writer
 	// Stdout is where output goes when it isn't recorded, and where
 	// runs.mail_output echoes it for cron to mail. Default os.Stdout.
@@ -75,7 +75,7 @@ type Result struct {
 	Prev string
 }
 
-// validID accepts what gocron generates (6 chars of a-z2-7) and what
+// validID accepts what hourglass generates (6 chars of a-z2-7) and what
 // people plausibly hand-edit, but nothing that could escape a directory.
 var validID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 
@@ -83,7 +83,7 @@ var validID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 func ValidID(id string) bool { return validID.MatchString(id) }
 
 // Exec runs the command and records it. It never refuses to run the
-// command: problems with gocron's own state are logged to the error log
+// command: problems with hourglass's own state are logged to the error log
 // and the run carries on unrecorded.
 func Exec(ctx context.Context, o Options) Result {
 	if o.Now == nil {
@@ -141,7 +141,7 @@ func Exec(ctx context.Context, o Options) Result {
 	// the shell exits; don't wait on it forever.
 	cmd.WaitDelay = 2 * time.Second
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(out, "gocron: can't start %s: %v\n", shell, err)
+		fmt.Fprintf(out, "hourglass: can't start %s: %v\n", shell, err)
 		return r.finish(dbCtx, store.StatusError, ExitCantStart)
 	}
 	status, code := r.wait(ctx, cmd)
@@ -308,7 +308,7 @@ loop:
 	}
 	switch {
 	case timedOut:
-		fmt.Fprintf(cmd.Stdout, "\n[gocron: timed out after %s]\n", r.o.Timeout)
+		fmt.Fprintf(cmd.Stdout, "\n[hourglass: timed out after %s]\n", r.o.Timeout)
 		return store.StatusTimeout, ExitTimeout
 	case code == 0:
 		return store.StatusSuccess, 0
@@ -323,7 +323,7 @@ func (r *run) finish(ctx context.Context, status string, code int) Result {
 	if r.log != nil {
 		logBytes, res.Truncated = r.log.total, r.log.truncated
 		if res.Truncated {
-			fmt.Fprintf(r.logFile, "\n[gocron: output truncated at %d bytes; the run wrote %d]\n", r.log.limit, r.log.total)
+			fmt.Fprintf(r.logFile, "\n[hourglass: output truncated at %d bytes; the run wrote %d]\n", r.log.limit, r.log.total)
 		}
 	}
 	if r.o.Config.Runs.MailOutput == config.MailOnFailure && r.echo == nil && status != store.StatusSuccess && status != store.StatusSkipped {
@@ -369,7 +369,7 @@ func Lookup(env []string, key string) string {
 	return ""
 }
 
-// maxErrorLog caps gocron-errors.log; past it the log rotates once.
+// maxErrorLog caps hourglass-errors.log; past it the log rotates once.
 const maxErrorLog = 1 << 20
 
 // LogError appends a wrapper problem to the error log. It never fails:

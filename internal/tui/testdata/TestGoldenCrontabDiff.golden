@@ -1,4 +1,4 @@
- ◷ gocron   Jobs  Timeline  History  Crontab                                                                   ● cron active · Sun 14:32:07
+ ◷ hourglass   Jobs  Timeline  History  Crontab                                                                ● cron active · Sun 14:32:07
 
 ╭─ Revision · Sun 11 Oct 12:00:00 ──────────────────────────────────────────╮ ╭─ Revisions · 2 ────────────────────────────────────────────╮
 │ RESTORING WOULD                                                           │ │   Current crontab                                 23 lines │
@@ -7,11 +7,11 @@
 │ +++ revision                                                              │ │                                                            │
 │ @@ -10,5 +10,5 @@                                                         │ │                                                            │
 │                                                                           │ │                                                            │
-│  # gocron:job id=k3f9a2 name="Nightly backup" tags=backup,db desc="Dump … │ │                                                            │
-│ -30 2 * * * /home/jack/.local/bin/gocron exec --timeout=30m --no-overlap… │ │                                                            │
-│ +30 3 * * * /home/jack/.local/bin/gocron exec --timeout=30m --no-overlap… │ │                                                            │
-│  # gocron:job id=s7nc0p name="Sync photos" tags=photos                    │ │                                                            │
-│  */15 * * * * /home/jack/.local/bin/gocron exec --no-overlap s7nc0p -- '… │ │                                                            │
+│  # hourglass:job id=k3f9a2 name="Nightly backup" tags=backup,db desc="Du… │ │                                                            │
+│ -30 2 * * * /home/jack/.local/bin/hourglass exec --timeout=30m --no-over… │ │                                                            │
+│ +30 3 * * * /home/jack/.local/bin/hourglass exec --timeout=30m --no-over… │ │                                                            │
+│  # hourglass:job id=s7nc0p name="Sync photos" tags=photos                 │ │                                                            │
+│  */15 * * * * /home/jack/.local/bin/hourglass exec --no-overlap s7nc0p -… │ │                                                            │
 │                                                                           │ │                                                            │
 │                                                                           │ │                                                            │
 │                                                                           │ │                                                            │

@@ -1,4 +1,4 @@
-// Package version reports gocron's build information.
+// Package version reports hourglass's build information.
 package version
 
 import (
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Set by the release build: -ldflags "-X github.com/jackjakarta/gocron/internal/version.Version=…".
+// Set by the release build: -ldflags "-X github.com/jackjakarta/hourglass/internal/version.Version=…".
 var (
 	Version = ""
 	Commit  = ""
@@ -46,7 +46,7 @@ func Get() Info {
 }
 
 func (i Info) String() string {
-	s := "gocron " + i.Version
+	s := "hourglass " + i.Version
 	if i.Commit != "" {
 		c, dirty := strings.CutSuffix(i.Commit, "-dirty")
 		if len(c) > 12 {

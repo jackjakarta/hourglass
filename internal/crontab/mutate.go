@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/jackjakarta/gocron/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
 )
 
 // ErrNotFound means no managed job has the given ID.
@@ -47,7 +47,7 @@ func (c *Crontab) metaIndex(id string) (int, error) {
 	return 0, fmt.Errorf("%w: %s", ErrNotFound, id)
 }
 
-// SetEnabled pauses or resumes a managed job by toggling the "#gocron:off "
+// SetEnabled pauses or resumes a managed job by toggling the "#hourglass:off "
 // prefix on its cron line. Nothing else changes.
 func (c *Crontab) SetEnabled(id string, enabled bool) error {
 	i, err := c.metaIndex(id)
@@ -82,7 +82,7 @@ func (c *Crontab) RemoveJob(id string) error {
 }
 
 // AddJob appends a managed job and returns its ID (j.ID, or a new one).
-// bin is the gocron binary path used when j.Wrapped.
+// bin is the hourglass binary path used when j.Wrapped.
 func (c *Crontab) AddJob(j Job, bin string) (string, error) {
 	if j.ID == "" {
 		j.ID = c.NewID()
@@ -105,7 +105,7 @@ func (c *Crontab) AddJob(j Job, bin string) (string, error) {
 }
 
 // UpdateJob rewrites the meta and cron lines of the managed job j.ID. Meta
-// keys gocron doesn't know are kept. bin overrides the binary path of a
+// keys hourglass doesn't know are kept. bin overrides the binary path of a
 // wrapped job; "" keeps j.Bin.
 func (c *Crontab) UpdateJob(j Job, bin string) error {
 	i, err := c.metaIndex(j.ID)
@@ -156,7 +156,7 @@ func renderJobLine(j Job, bin string) (string, error) {
 	cmd := j.Command
 	if j.Wrapped {
 		if bin == "" {
-			return "", errors.New("wrapped job needs the gocron binary path")
+			return "", errors.New("wrapped job needs the hourglass binary path")
 		}
 		cmd = Wrapped{Bin: bin, ID: j.ID, Timeout: j.Timeout, NoOverlap: j.NoOverlap, Command: j.Command}.Encode()
 	}
@@ -182,7 +182,7 @@ func (c *Crontab) eol() string {
 // inserting a meta line above it, and returns the new job's ID. raw must
 // match the line's current text, so a stale request fails with ErrNotFound
 // instead of adopting a different line. Without wrap the cron line is kept
-// byte for byte; with wrap it is rewritten to run through "gocron exec" at
+// byte for byte; with wrap it is rewritten to run through "hourglass exec" at
 // bin.
 func (c *Crontab) Adopt(line int, raw, name string, wrap bool, bin string) (string, error) {
 	i := line - 1
@@ -297,7 +297,7 @@ func clip(s string, n int) string {
 func (c *Crontab) ReID(line int, id string) error {
 	i := line - 1
 	if i < 0 || i+1 >= len(c.Lines) || c.Lines[i].Kind != JobMeta {
-		return fmt.Errorf("%w: no gocron job on line %d", ErrNotFound, line)
+		return fmt.Errorf("%w: no hourglass job on line %d", ErrNotFound, line)
 	}
 	m := &Meta{Pairs: append([]Pair(nil), c.Lines[i].Meta.Pairs...)}
 	m.Set("id", id)

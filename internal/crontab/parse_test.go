@@ -41,7 +41,7 @@ func TestRoundTripFixtures(t *testing.T) {
 func TestRoundTripEdgeCases(t *testing.T) {
 	for _, in := range []string{
 		"", "\n", "\n\n", "\r\n", "x", "\r", "a\rb\n", "no newline", "0 0 * * * cmd", "trailing \t \n",
-		"\r\n\r\n", "mixed\r\nendings\nhere\r\n", "# gocron:job id=x\n", "# gocron:job id=x\n0 0 * * * y",
+		"\r\n\r\n", "mixed\r\nendings\nhere\r\n", "# hourglass:job id=x\n", "# hourglass:job id=x\n0 0 * * * y",
 	} {
 		if out := string(Parse([]byte(in)).Serialize()); out != in {
 			t.Errorf("round trip %q → %q", in, out)
@@ -119,7 +119,7 @@ func TestParseGolden(t *testing.T) {
 }
 
 func FuzzRoundTrip(f *testing.F) {
-	for _, s := range []string{"", "0 0 * * * x\n", "# gocron:job id=a\n#gocron:off @daily y\r\n", "A=b\n\tz"} {
+	for _, s := range []string{"", "0 0 * * * x\n", "# hourglass:job id=a\n#hourglass:off @daily y\r\n", "A=b\n\tz"} {
 		f.Add([]byte(s))
 	}
 	f.Fuzz(func(t *testing.T, in []byte) {

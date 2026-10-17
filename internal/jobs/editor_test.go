@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 func reloadedJob(t *testing.T, e *env, id string) crontab.Job {
@@ -36,7 +36,7 @@ func TestCreate(t *testing.T) {
 	if res.ID == "" || res.Backup == "" {
 		t.Errorf("result = %+v", res)
 	}
-	want := tab + "# gocron:job id=" + res.ID + ` name="Nightly backup" tags=backup,db` + "\n30 2 * * * /usr/bin/gocron exec --timeout=1h --no-overlap " + res.ID + " -- 'pg_dump app'\n"
+	want := tab + "# hourglass:job id=" + res.ID + ` name="Nightly backup" tags=backup,db` + "\n30 2 * * * /usr/bin/hourglass exec --timeout=1h --no-overlap " + res.ID + " -- 'pg_dump app'\n"
 	if got := e.read(t); got != want {
 		t.Errorf("crontab:\n%s\nwant:\n%s", got, want)
 	}
@@ -89,10 +89,10 @@ func TestUpdateMinimalDiff(t *testing.T) {
 		"# my notes   \n" +
 		"PATH=/usr/local/bin:/usr/bin:/bin\n" +
 		"*/5 * * * *    ~/bin/sync.sh\n" +
-		"# gocron:job id=abc234 name=A future=kept\n" +
+		"# hourglass:job id=abc234 name=A future=kept\n" +
 		"0  0 * * *\ta\n" +
-		"# gocron:job id=def567 name=B\n" +
-		"#gocron:off 0 1 * * * b\n" +
+		"# hourglass:job id=def567 name=B\n" +
+		"#hourglass:off 0 1 * * * b\n" +
 		"\n" +
 		"# trailing comment\n" // Save always ends the file with a newline
 	e := newEnv(t, before)
@@ -113,7 +113,7 @@ func TestUpdateMinimalDiff(t *testing.T) {
 	if len(changed) != 2 || changed[0] != 7 || changed[1] != 8 {
 		t.Errorf("changed lines %v, want [7 8]:\n%s", changed, e.read(t))
 	}
-	if got[6] != "# gocron:job id=def567 name=Bee tags=t" || got[7] != "#gocron:off */15 9-17 * * 1-5 b --flag 'x y'" {
+	if got[6] != "# hourglass:job id=def567 name=Bee tags=t" || got[7] != "#hourglass:off */15 9-17 * * 1-5 b --flag 'x y'" {
 		t.Errorf("job lines:\n%s\n%s", got[6], got[7])
 	}
 
@@ -121,13 +121,13 @@ func TestUpdateMinimalDiff(t *testing.T) {
 	if _, err := e.svc.Update(context.Background(), "abc234", Draft{Name: "A", Schedule: "0 0 * * *", Command: "a2"}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(e.read(t), "# gocron:job id=abc234 name=A future=kept\n0 0 * * * a2\n") {
+	if !strings.Contains(e.read(t), "# hourglass:job id=abc234 name=A future=kept\n0 0 * * * a2\n") {
 		t.Errorf("crontab:\n%s", e.read(t))
 	}
 }
 
 func TestUpdateNoChange(t *testing.T) {
-	const before = "# gocron:job id=abc234 name=A tags=x\n0  0 * * *\ta\n"
+	const before = "# hourglass:job id=abc234 name=A tags=x\n0  0 * * *\ta\n"
 	e := newEnv(t, before)
 	res, err := e.svc.Update(context.Background(), "abc234", Draft{Name: "A", Schedule: "0 0 * * *", Command: "a", Tags: []string{"x"}})
 	if err != nil || res.Backup != "" {
@@ -141,8 +141,8 @@ func TestUpdateNoChange(t *testing.T) {
 // A Reapply after a conflict keeps the job paused if it was paused
 // meanwhile: the draft only carries what the editor edits.
 func TestUpdateKeepsPausedStateAndDesc(t *testing.T) {
-	e := newEnv(t, "# gocron:job id=abc234 name=A desc=\"keep me\"\n0 0 * * * a\n")
-	e.write(t, "# gocron:job id=abc234 name=A desc=\"keep me\"\n#gocron:off 0 0 * * * a\n")
+	e := newEnv(t, "# hourglass:job id=abc234 name=A desc=\"keep me\"\n0 0 * * * a\n")
+	e.write(t, "# hourglass:job id=abc234 name=A desc=\"keep me\"\n#hourglass:off 0 0 * * * a\n")
 	_, err := e.svc.Update(context.Background(), "abc234", Draft{Name: "A2", Schedule: "0 0 * * *", Command: "a"})
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) {
@@ -151,33 +151,33 @@ func TestUpdateKeepsPausedStateAndDesc(t *testing.T) {
 	if _, err := conflict.Retry(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if want := "# gocron:job id=abc234 name=A2 desc=\"keep me\"\n#gocron:off 0 0 * * * a\n"; e.read(t) != want {
+	if want := "# hourglass:job id=abc234 name=A2 desc=\"keep me\"\n#hourglass:off 0 0 * * * a\n"; e.read(t) != want {
 		t.Errorf("crontab:\n%s\nwant:\n%s", e.read(t), want)
 	}
 }
 
 func TestUpdateWrapping(t *testing.T) {
-	const wrapped = "# gocron:job id=abc234 name=A\n0 0 * * * /opt/gocron exec --timeout=30m abc234 -- 'a | b'\n"
+	const wrapped = "# hourglass:job id=abc234 name=A\n0 0 * * * /opt/hourglass exec --timeout=30m abc234 -- 'a | b'\n"
 	e := newEnv(t, wrapped)
 	// Keeps the binary path, edits the options.
 	if _, err := e.svc.Update(context.Background(), "abc234", Draft{Name: "A", Schedule: "0 0 * * *", Command: "a | b", Wrapped: true, NoOverlap: true}); err != nil {
 		t.Fatal(err)
 	}
-	if want := "# gocron:job id=abc234 name=A\n0 0 * * * /opt/gocron exec --no-overlap abc234 -- 'a | b'\n"; e.read(t) != want {
+	if want := "# hourglass:job id=abc234 name=A\n0 0 * * * /opt/hourglass exec --no-overlap abc234 -- 'a | b'\n"; e.read(t) != want {
 		t.Errorf("crontab:\n%s", e.read(t))
 	}
 	// Turning tracking off unwraps.
 	if _, err := e.svc.Update(context.Background(), "abc234", Draft{Name: "A", Schedule: "0 0 * * *", Command: "a | b"}); err != nil {
 		t.Fatal(err)
 	}
-	if want := "# gocron:job id=abc234 name=A\n0 0 * * * a | b\n"; e.read(t) != want {
+	if want := "# hourglass:job id=abc234 name=A\n0 0 * * * a | b\n"; e.read(t) != want {
 		t.Errorf("crontab:\n%s", e.read(t))
 	}
-	// Turning it back on wraps it with this gocron.
+	// Turning it back on wraps it with this hourglass.
 	if _, err := e.svc.Update(context.Background(), "abc234", Draft{Name: "A", Schedule: "0 0 * * *", Command: "a | b", Wrapped: true, Timeout: time.Minute}); err != nil {
 		t.Fatal(err)
 	}
-	if want := "# gocron:job id=abc234 name=A\n0 0 * * * /usr/bin/gocron exec --timeout=1m abc234 -- 'a | b'\n"; e.read(t) != want {
+	if want := "# hourglass:job id=abc234 name=A\n0 0 * * * /usr/bin/hourglass exec --timeout=1m abc234 -- 'a | b'\n"; e.read(t) != want {
 		t.Errorf("crontab:\n%s", e.read(t))
 	}
 }
@@ -191,7 +191,7 @@ func TestUpdateMissing(t *testing.T) {
 }
 
 func TestCronEnv(t *testing.T) {
-	e := newEnv(t, "PATH=/a\n0 0 * * * x\nCRON_TZ=Europe/Berlin\nPATH=/b\n# gocron:job id=abc234\n0 0 * * * y\n")
+	e := newEnv(t, "PATH=/a\n0 0 * * * x\nCRON_TZ=Europe/Berlin\nPATH=/b\n# hourglass:job id=abc234\n0 0 * * * y\n")
 	snap := e.svc.Snapshot()
 	tests := []struct {
 		line int

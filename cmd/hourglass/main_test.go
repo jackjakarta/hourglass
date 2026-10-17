@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
-// envHelper makes the test binary act as gocron itself, so tests can run
-// "gocron exec" as real, separate processes.
-const envHelper = "GOCRON_TEST_MAIN"
+// envHelper makes the test binary act as hourglass itself, so tests can run
+// "hourglass exec" as real, separate processes.
+const envHelper = "HOURGLASS_TEST_MAIN"
 
 func TestMain(m *testing.M) {
 	if os.Getenv(envHelper) == "1" {
@@ -25,8 +25,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// testBin is the gocron path tests write into wrapped lines.
-const testBin = "/usr/local/bin/gocron"
+// testBin is the hourglass path tests write into wrapped lines.
+const testBin = "/usr/local/bin/hourglass"
 
 // Sun 11 Oct 2026 14:32:07 UTC
 var testNow = time.Date(2026, 10, 11, 14, 32, 7, 0, time.UTC)
@@ -34,9 +34,9 @@ var testNow = time.Date(2026, 10, 11, 14, 32, 7, 0, time.UTC)
 func runCLI(t *testing.T, crontabFile string, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
 	t.Setenv(crontab.EnvCrontabFile, crontabFile)
-	t.Setenv("GOCRON_STATE_DIR", t.TempDir())
-	if os.Getenv("GOCRON_CONFIG") == "" {
-		t.Setenv("GOCRON_CONFIG", quietConfig(t, t.TempDir()))
+	t.Setenv("HOURGLASS_STATE_DIR", t.TempDir())
+	if os.Getenv("HOURGLASS_CONFIG") == "" {
+		t.Setenv("HOURGLASS_CONFIG", quietConfig(t, t.TempDir()))
 	}
 	var out, errOut bytes.Buffer
 	a := &app{stdout: &out, stderr: &errOut, now: func() time.Time { return testNow }, source: crontab.SourceFromEnv,
@@ -75,7 +75,7 @@ r0tl6s  Rotate logs     0 * * * *     Every hour                       in 27m 53
 wkrp7t  Weekly report   0 9 * * 1     At 09:00, on Mondays             —           ○ paused
 p7m2qd  Say hi          0 9 * * 1-5   At 09:00, Monday through Friday  in 18h 27m  ● enabled
 
-+ 3 unmanaged entries (gocron list --all)
++ 3 unmanaged entries (hourglass list --all)
 `
 	if out != want {
 		t.Errorf("list output:\n%s\nwant:\n%s", out, want)
@@ -116,11 +116,11 @@ func TestListJSON(t *testing.T) {
 
 func TestListEmpty(t *testing.T) {
 	out, _, code := runCLI(t, filepath.Join(t.TempDir(), "missing"), "list")
-	if code != 0 || !strings.HasPrefix(out, "No gocron jobs in file: ") {
+	if code != 0 || !strings.HasPrefix(out, "No hourglass jobs in file: ") {
 		t.Errorf("code=%d out=%q", code, out)
 	}
 	out, _, _ = runCLI(t, fixture("simple"), "list")
-	if !strings.Contains(out, "3 unmanaged entries; see them with gocron list --all") {
+	if !strings.Contains(out, "3 unmanaged entries; see them with hourglass list --all") {
 		t.Errorf("out=%q", out)
 	}
 }
@@ -169,21 +169,21 @@ func TestExitCodes(t *testing.T) {
 		code int
 		out  string // in stdout or stderr
 	}{
-		{nil, 0, "The gocron TUI needs a terminal."},
+		{nil, 0, "The hourglass TUI needs a terminal."},
 		{[]string{"help"}, 0, "Usage:"},
 		{[]string{"bogus"}, 2, `unknown command "bogus"`},
-		{[]string{"describe"}, 2, "Usage: gocron describe"},
+		{[]string{"describe"}, 2, "Usage: hourglass describe"},
 		{[]string{"describe", "61 * * * *"}, 1, `minute: "61" is out of range`},
 		{[]string{"describe", "first monday of the month"}, 1, "cron can't run a job on the first monday"},
-		{[]string{"enable"}, 2, "Usage: gocron enable ID"},
-		{[]string{"-v"}, 0, "gocron "},
+		{[]string{"enable"}, 2, "Usage: hourglass enable ID"},
+		{[]string{"-v"}, 0, "hourglass "},
 		{[]string{"list", "--nope"}, 2, "flag provided but not defined"},
-		{[]string{"version"}, 0, "gocron "},
+		{[]string{"version"}, 0, "hourglass "},
 	}
 	for _, tt := range tests {
 		out, errOut, code := runCLI(t, fixture("simple"), tt.args...)
 		if code != tt.code || !strings.Contains(out+errOut, tt.out) {
-			t.Errorf("gocron %v: code=%d (want %d)\nstdout: %s\nstderr: %s", tt.args, code, tt.code, out, errOut)
+			t.Errorf("hourglass %v: code=%d (want %d)\nstdout: %s\nstderr: %s", tt.args, code, tt.code, out, errOut)
 		}
 	}
 }

@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 // Spec is a run to launch on the user's behalf (run now, test runs).
@@ -60,10 +60,10 @@ type Launcher interface {
 	Launch(Spec) (*Handle, error)
 }
 
-// SpawnLauncher runs each job through "gocron exec" in its own session,
+// SpawnLauncher runs each job through "hourglass exec" in its own session,
 // so a run started from the TUI outlives it and still gets recorded.
 type SpawnLauncher struct {
-	Bin   string       // the gocron binary
+	Bin   string       // the hourglass binary
 	Paths config.Paths // passed explicitly so the run writes where the TUI reads
 }
 
@@ -90,9 +90,9 @@ func (l SpawnLauncher) Launch(s Spec) (*Handle, error) {
 	if env == nil {
 		env = os.Environ()
 	}
-	env = Set(env, "GOCRON_STATE_DIR", l.Paths.StateDir)
+	env = Set(env, "HOURGLASS_STATE_DIR", l.Paths.StateDir)
 	if l.Paths.ConfigFile != "" {
-		env = Set(env, "GOCRON_CONFIG", l.Paths.ConfigFile)
+		env = Set(env, "HOURGLASS_CONFIG", l.Paths.ConfigFile)
 	}
 	cmd.Env, cmd.Dir = env, s.Dir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -213,7 +213,7 @@ func (s StatusReporter) Done(r Result) {
 
 // InProcessLauncher runs jobs with Exec in a goroutine. The runs are real
 // (a real shell, a real database) but end with the process; tests use it
-// where there's no gocron binary to spawn.
+// where there's no hourglass binary to spawn.
 type InProcessLauncher struct {
 	Paths     config.Paths
 	Config    config.Config

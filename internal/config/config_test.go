@@ -94,7 +94,7 @@ func TestResolveEnvForCron(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.StateDir != "/home/u/.local/state/gocron" {
+	if p.StateDir != "/home/u/.local/state/hourglass" {
 		t.Errorf("StateDir = %q", p.StateDir)
 	}
 	if _, err := ResolveEnv(func(string) string { return "" }, ""); err == nil {

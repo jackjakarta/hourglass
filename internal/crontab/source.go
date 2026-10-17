@@ -22,12 +22,12 @@ type Source interface {
 }
 
 // EnvCrontabFile names a plain file to use instead of the real crontab.
-const EnvCrontabFile = "GOCRON_CRONTAB_FILE"
+const EnvCrontabFile = "HOURGLASS_CRONTAB_FILE"
 
 // EnvAllowSystem must be "1" for tests to construct a SystemSource.
-const EnvAllowSystem = "GOCRON_ALLOW_SYSTEM_CRONTAB"
+const EnvAllowSystem = "HOURGLASS_ALLOW_SYSTEM_CRONTAB"
 
-// SourceFromEnv returns a FileSource when GOCRON_CRONTAB_FILE is set, and
+// SourceFromEnv returns a FileSource when HOURGLASS_CRONTAB_FILE is set, and
 // the user's real crontab otherwise.
 func SourceFromEnv() (Source, error) {
 	if p := os.Getenv(EnvCrontabFile); p != "" {
@@ -51,7 +51,7 @@ func (f FileSource) Read(context.Context) ([]byte, error) {
 
 // Write replaces the file atomically: temp file, fsync, rename.
 func (f FileSource) Write(_ context.Context, content []byte) error {
-	tmp, err := os.CreateTemp(filepath.Dir(f.Path), ".gocron-crontab-*")
+	tmp, err := os.CreateTemp(filepath.Dir(f.Path), ".hourglass-crontab-*")
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ type SystemSource struct {
 }
 
 // NewSystemSource returns the real crontab. Under "go test" it refuses
-// unless GOCRON_ALLOW_SYSTEM_CRONTAB=1, so no test touches a real crontab
+// unless HOURGLASS_ALLOW_SYSTEM_CRONTAB=1, so no test touches a real crontab
 // by accident.
 func NewSystemSource() (*SystemSource, error) {
 	if testing.Testing() && os.Getenv(EnvAllowSystem) != "1" {

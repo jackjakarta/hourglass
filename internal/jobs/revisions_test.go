@@ -88,8 +88,8 @@ func TestValidateEdit(t *testing.T) {
 		{"unchanged", before, nil},
 		{"old problem moved", "bogus line\n" + tab, nil},
 		{"new invalid line", tab + "bogus line\n* * * *\n", []string{"line 8: not a valid cron line"}},
-		{"new orphan meta", before + "# gocron:job id=zzz234 name=Z\n", []string{"line 8: gocron job zzz234 has no cron line below it"}},
-		{"duplicate id", before + "# gocron:job id=abc234 name=Copy\n0 0 * * * a\n", []string{"line 8: job id abc234 is also used on line 3"}},
+		{"new orphan meta", before + "# hourglass:job id=zzz234 name=Z\n", []string{"line 8: hourglass job zzz234 has no cron line below it"}},
+		{"duplicate id", before + "# hourglass:job id=abc234 name=Copy\n0 0 * * * a\n", []string{"line 8: job id abc234 is also used on line 3"}},
 		{"a second copy of an old problem", before + "bogus line\n", []string{"line 8: not a valid cron line"}},
 	}
 	for _, tt := range tests {
@@ -111,12 +111,12 @@ func TestSummarize(t *testing.T) {
 		name, after, want string
 	}{
 		{"same", tab, "no changes"},
-		{"job added", tab + "# gocron:job id=zzz234 name=Z\n0 3 * * * z\n", "+1 job"},
+		{"job added", tab + "# hourglass:job id=zzz234 name=Z\n0 3 * * * z\n", "+1 job"},
 		{"entry added", tab + "* * * * * x\n", "+1 job"},
-		{"job removed", strings.Replace(tab, "# gocron:job id=abc234 name=A\n0 0 * * * a\n", "", 1), "−1 job"},
+		{"job removed", strings.Replace(tab, "# hourglass:job id=abc234 name=A\n0 0 * * * a\n", "", 1), "−1 job"},
 		{"edited", strings.Replace(tab, "0 0 * * * a", "5 0 * * * a", 1), "~1 edited"},
-		{"resumed", strings.Replace(tab, "#gocron:off 0 1", "0 1", 1), "1 resumed"},
-		{"renamed and paused", strings.Replace(strings.Replace(tab, "name=A", "name=AA", 1), "0 0 * * * a", "#gocron:off 0 0 * * * a", 1), "~1 edited, 1 paused"},
+		{"resumed", strings.Replace(tab, "#hourglass:off 0 1", "0 1", 1), "1 resumed"},
+		{"renamed and paused", strings.Replace(strings.Replace(tab, "name=A", "name=AA", 1), "0 0 * * * a", "#hourglass:off 0 0 * * * a", 1), "~1 edited, 1 paused"},
 		{"env changed", strings.Replace(tab, `MAILTO=""`, "MAILTO=me@x.com", 1), "2 other lines"},
 		{"comment added", "# hi\n" + tab, "1 other line"},
 	}

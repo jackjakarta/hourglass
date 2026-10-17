@@ -5,7 +5,7 @@ import (
 
 	"github.com/aymanbagabas/go-udiff"
 
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // UnifiedDiff is a unified diff from a to b, with a little context. It's

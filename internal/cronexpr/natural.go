@@ -143,7 +143,7 @@ func (p *nlParser) parse() error {
 				p.i++
 				continue
 			}
-			return naturalErr("gocron doesn't understand %q", "try phrases like \"every 15 minutes\", \"weekdays at 9am\" or \"on the 1st at noon\"", t)
+			return naturalErr("hourglass doesn't understand %q", "try phrases like \"every 15 minutes\", \"weekdays at 9am\" or \"on the 1st at noon\"", t)
 		}
 		p.understood = true
 		p.i += n

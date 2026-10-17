@@ -1,4 +1,4 @@
-// Package config resolves gocron's files and directories and loads
+// Package config resolves hourglass's files and directories and loads
 // config.toml.
 package config
 
@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-// Paths are gocron's files and directories.
+// Paths are hourglass's files and directories.
 type Paths struct {
 	ConfigFile string // config.toml
 	StateDir   string
@@ -19,7 +19,7 @@ type Paths struct {
 	ErrorLog   string // wrapper errors
 }
 
-// Resolve applies, in order: GOCRON_CONFIG / GOCRON_STATE_DIR, then
+// Resolve applies, in order: HOURGLASS_CONFIG / HOURGLASS_STATE_DIR, then
 // XDG_CONFIG_HOME / XDG_STATE_HOME, then ~/.config and ~/.local/state.
 func Resolve() (Paths, error) {
 	home, err := os.UserHomeDir()
@@ -37,16 +37,16 @@ func ResolveEnv(getenv func(string) string, home string) (Paths, error) {
 			return v, nil
 		}
 		if v := getenv(xdg); filepath.IsAbs(v) { // XDG says relative values are invalid
-			return filepath.Join(v, "gocron"), nil
+			return filepath.Join(v, "hourglass"), nil
 		}
 		if home == "" {
 			return "", errors.New("can't find your home directory; set " + override)
 		}
-		return filepath.Join(home, fallback, "gocron"), nil
+		return filepath.Join(home, fallback, "hourglass"), nil
 	}
 
 	var p Paths
-	if v := getenv("GOCRON_CONFIG"); v != "" {
+	if v := getenv("HOURGLASS_CONFIG"); v != "" {
 		p.ConfigFile = v
 	} else {
 		cfgDir, err := dir("", "XDG_CONFIG_HOME", ".config")
@@ -55,7 +55,7 @@ func ResolveEnv(getenv func(string) string, home string) (Paths, error) {
 		}
 		p.ConfigFile = filepath.Join(cfgDir, "config.toml")
 	}
-	state, err := dir("GOCRON_STATE_DIR", "XDG_STATE_HOME", filepath.Join(".local", "state"))
+	state, err := dir("HOURGLASS_STATE_DIR", "XDG_STATE_HOME", filepath.Join(".local", "state"))
 	if err != nil {
 		return Paths{}, err
 	}
@@ -64,7 +64,7 @@ func ResolveEnv(getenv func(string) string, home string) (Paths, error) {
 	p.LogsDir = filepath.Join(state, "logs")
 	p.BackupsDir = filepath.Join(state, "backups")
 	p.LocksDir = filepath.Join(state, "locks")
-	p.ErrorLog = filepath.Join(state, "gocron-errors.log")
+	p.ErrorLog = filepath.Join(state, "hourglass-errors.log")
 	return p, nil
 }
 

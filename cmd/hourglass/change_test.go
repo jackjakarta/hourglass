@@ -17,14 +17,14 @@ func writeCrontab(t *testing.T, content string) string {
 }
 
 func TestEnableDisableRm(t *testing.T) {
-	const initial = "# gocron:job id=abc234 name=A\n0 1 * * * a\n# gocron:job id=def567 name=B\n0 2 * * * b\n"
+	const initial = "# hourglass:job id=abc234 name=A\n0 1 * * * a\n# hourglass:job id=def567 name=B\n0 2 * * * b\n"
 	file := writeCrontab(t, initial)
 
 	out, errOut, code := runCLI(t, file, "disable", "abc234")
 	if code != 0 || !strings.HasPrefix(out, "Paused job abc234 · backup: ") {
 		t.Fatalf("disable: code=%d out=%q err=%q", code, out, errOut)
 	}
-	if got := readFile(t, file); !strings.Contains(got, "#gocron:off 0 1 * * * a\n") {
+	if got := readFile(t, file); !strings.Contains(got, "#hourglass:off 0 1 * * * a\n") {
 		t.Errorf("after disable:\n%s", got)
 	}
 	out, _, code = runCLI(t, file, "disable", "abc234")
@@ -39,7 +39,7 @@ func TestEnableDisableRm(t *testing.T) {
 	if code != 0 || !strings.HasPrefix(out, "Deleted job def567") {
 		t.Errorf("rm: code=%d out=%q", code, out)
 	}
-	if got := readFile(t, file); got != "# gocron:job id=abc234 name=A\n0 1 * * * a\n" {
+	if got := readFile(t, file); got != "# hourglass:job id=abc234 name=A\n0 1 * * * a\n" {
 		t.Errorf("after rm:\n%s", got)
 	}
 
@@ -53,12 +53,12 @@ func TestEnableDisableRm(t *testing.T) {
 }
 
 func TestDoctorFix(t *testing.T) {
-	file := writeCrontab(t, "# gocron:job id=dup222 name=First\n0 1 * * * a\n"+
-		"# gocron:job id=dup222 name=Second\n0 2 * * * /old/gocron exec dup222 -- 'b'\n")
+	file := writeCrontab(t, "# hourglass:job id=dup222 name=First\n0 1 * * * a\n"+
+		"# hourglass:job id=dup222 name=Second\n0 2 * * * /old/hourglass exec dup222 -- 'b'\n")
 	out, _, _ := runCLI(t, file, "doctor", "--fix")
 	for _, want := range []string{
 		`Fixed: job "Second" on line 4 had duplicate id dup222`,
-		"ran /old/gocron; it now runs " + testBin,
+		"ran /old/hourglass; it now runs " + testBin,
 		"Backup: ",
 	} {
 		if !strings.Contains(out, want) {

@@ -7,8 +7,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/humanize"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/humanize"
 )
 
 type jsonJob struct {
@@ -59,7 +59,7 @@ func (a *app) list(ctx context.Context, args []string) int {
 		jobs = append(jobs, j)
 	}
 	if problems := tab.Problems(); len(problems) > 0 {
-		fmt.Fprintf(a.stderr, "⚠ %d problem(s) in the crontab. Run gocron doctor for details.\n", len(problems))
+		fmt.Fprintf(a.stderr, "⚠ %d problem(s) in the crontab. Run hourglass doctor for details.\n", len(problems))
 	}
 
 	if *asJSON {
@@ -76,9 +76,9 @@ func (a *app) list(ctx context.Context, args []string) int {
 	}
 
 	if len(jobs) == 0 {
-		fmt.Fprintf(a.stdout, "No gocron jobs in %s.\n", src.Name())
+		fmt.Fprintf(a.stdout, "No hourglass jobs in %s.\n", src.Name())
 		if unmanaged > 0 {
-			fmt.Fprintf(a.stdout, "It has %d unmanaged %s; see them with gocron list --all.\n", unmanaged, plural(unmanaged, "entry", "entries"))
+			fmt.Fprintf(a.stdout, "It has %d unmanaged %s; see them with hourglass list --all.\n", unmanaged, plural(unmanaged, "entry", "entries"))
 		}
 		return exitOK
 	}
@@ -96,7 +96,7 @@ func (a *app) list(ctx context.Context, args []string) int {
 	}
 	w.Flush()
 	if !*all && unmanaged > 0 {
-		fmt.Fprintf(a.stdout, "\n+ %d unmanaged %s (gocron list --all)\n", unmanaged, plural(unmanaged, "entry", "entries"))
+		fmt.Fprintf(a.stdout, "\n+ %d unmanaged %s (hourglass list --all)\n", unmanaged, plural(unmanaged, "entry", "entries"))
 	}
 	return exitOK
 }

@@ -1,4 +1,4 @@
-// Package theme holds gocron's palettes, styles and glyphs. Views take
+// Package theme holds hourglass's palettes, styles and glyphs. Views take
 // every color and style from a Theme and never hardcode them.
 package theme
 

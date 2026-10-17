@@ -1,7 +1,7 @@
 // Package store keeps run history in SQLite: one row per run, with the
 // captured output in a log file beside the database.
 //
-// Many gocron exec processes write at once, so every write transaction is
+// Many hourglass exec processes write at once, so every write transaction is
 // BEGIN IMMEDIATE (a deferred one that reads first fails at once in WAL
 // mode instead of waiting) and short; nothing holds a transaction while a
 // job runs.
@@ -18,7 +18,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/lockfile"
+	"github.com/jackjakarta/hourglass/internal/lockfile"
 
 	_ "modernc.org/sqlite" // database/sql driver "sqlite"
 )
@@ -169,7 +169,7 @@ func (d *DB) setup(ctx context.Context) error {
 	case err != nil:
 		return err
 	}
-	// A newer schema was made by a newer gocron. Carry on: the runs table
+	// A newer schema was made by a newer hourglass. Carry on: the runs table
 	// only ever gains columns, and exec must run the job regardless.
 	return tx.Commit()
 }

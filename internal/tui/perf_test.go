@@ -12,13 +12,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
-// startupBudget is how long gocron may take from reading the crontab to
+// startupBudget is how long hourglass may take from reading the crontab to
 // the first screen with jobs and their run history (spec §10, Phase 6).
 const startupBudget = 150 * time.Millisecond
 
@@ -32,8 +32,8 @@ func bigState(tb testing.TB, nJobs, runsPerJob int) (string, store.Options) {
 	ids := make([]string, nJobs)
 	for i := range nJobs {
 		ids[i] = fmt.Sprintf("job%03d", i)
-		fmt.Fprintf(&b, "# gocron:job id=%s name=\"Job number %d\" tags=perf,t%d\n", ids[i], i, i%7)
-		fmt.Fprintf(&b, "%d %d * * %d /usr/local/bin/gocron exec --no-overlap %s -- 'echo %d | gzip > /tmp/x-$(date +\\%%F)'\n",
+		fmt.Fprintf(&b, "# hourglass:job id=%s name=\"Job number %d\" tags=perf,t%d\n", ids[i], i, i%7)
+		fmt.Fprintf(&b, "%d %d * * %d /usr/local/bin/hourglass exec --no-overlap %s -- 'echo %d | gzip > /tmp/x-$(date +\\%%F)'\n",
 			i%60, i%24, i%7, ids[i], i)
 	}
 	path := filepath.Join(dir, "crontab")
@@ -81,7 +81,7 @@ func bigState(tb testing.TB, nJobs, runsPerJob int) (string, store.Options) {
 	return path, opts
 }
 
-// startup does what launching gocron does before its first full screen:
+// startup does what launching hourglass does before its first full screen:
 // read the crontab, build the TUI, load the jobs and their run stats, and
 // render.
 func startup(tb testing.TB, path string, so store.Options) string {
@@ -91,7 +91,7 @@ func startup(tb testing.TB, path string, so store.Options) string {
 		tb.Fatal(err)
 	}
 	svc := jobs.New(st, jobs.Options{
-		Bin:      "/usr/local/bin/gocron",
+		Bin:      "/usr/local/bin/hourglass",
 		Defaults: config.Default().Defaults,
 		OpenRuns: func(ctx context.Context) (*store.DB, error) { return store.Open(ctx, so) },
 	})
@@ -104,8 +104,8 @@ func startup(tb testing.TB, path string, so store.Options) string {
 }
 
 func TestStartupBudget(t *testing.T) {
-	if os.Getenv("GOCRON_PERF") == "" {
-		t.Skip("set GOCRON_PERF=1 to check the startup budget")
+	if os.Getenv("HOURGLASS_PERF") == "" {
+		t.Skip("set HOURGLASS_PERF=1 to check the startup budget")
 	}
 	path, so := bigState(t, 100, 100)
 	startup(t, path, so) // warm the file cache, like a second launch

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/jobs"
 )
 
 // change runs enable, disable or rm on one managed job.
@@ -38,7 +38,7 @@ func (a *app) change(ctx context.Context, cmd string, args []string) int {
 		done = "Deleted"
 	}
 	if errors.Is(err, crontab.ErrNotFound) {
-		return a.fail(fmt.Errorf("no managed job with id %s (gocron list shows the ids)", id))
+		return a.fail(fmt.Errorf("no managed job with id %s (hourglass list shows the ids)", id))
 	}
 	if err != nil {
 		return a.fail(err)

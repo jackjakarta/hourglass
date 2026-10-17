@@ -1,6 +1,6 @@
 # The README's hero GIF. Record it from the repository root with
 #   vhs docs/demo.tape
-# (needs vhs, ttyd and ffmpeg, and gocron installed at /usr/local/bin/gocron).
+# (needs vhs, ttyd and ffmpeg, and hourglass installed at /usr/local/bin/hourglass).
 # It works on a copy of docs/demo.crontab and never touches your crontab.
 
 Output docs/demo.gif
@@ -16,19 +16,19 @@ Set TypingSpeed 60ms
 Hide
 Type "export D=$(mktemp -d) && cp docs/demo.crontab $D/crontab"
 Enter
-Type "export GOCRON_CRONTAB_FILE=$D/crontab GOCRON_STATE_DIR=$D/state GOCRON_CONFIG=$D/config.toml"
+Type "export HOURGLASS_CRONTAB_FILE=$D/crontab HOURGLASS_STATE_DIR=$D/state HOURGLASS_CONFIG=$D/config.toml"
 Enter
 Type `printf '[notify]\non = "never"\n' > $D/config.toml`
 Enter
 # Some run history, so the run strips and the History view have content.
-Type "for i in $(seq 12); do gocron exec k3f9a2 -- 'echo dumped; sleep 0.2'; gocron exec s7nc0p -- 'echo synced'; done"
+Type "for i in $(seq 12); do hourglass exec k3f9a2 -- 'echo dumped; sleep 0.2'; hourglass exec s7nc0p -- 'echo synced'; done"
 Enter
-Type "gocron exec pdk4r2 -- 'echo docker: command not found; exit 127'; gocron exec r0tl6s -- 'echo rotated'; clear"
+Type "hourglass exec pdk4r2 -- 'echo docker: command not found; exit 127'; hourglass exec r0tl6s -- 'echo rotated'; clear"
 Enter
 Sleep 4s
 Show
 
-Type "gocron"
+Type "hourglass"
 Enter
 Sleep 2.5s
 

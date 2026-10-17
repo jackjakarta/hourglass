@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 // Event is a finished run.
@@ -112,7 +112,7 @@ func lastLine(s string) string {
 type Sender struct {
 	Desktop bool
 	Webhook string
-	// UserAgent identifies gocron to the webhook.
+	// UserAgent identifies hourglass to the webhook.
 	UserAgent string
 	// Client posts to the webhook; nil uses a client with a 10s timeout.
 	Client *http.Client
@@ -170,14 +170,14 @@ func (s Sender) desktop(ctx context.Context, e Event) error {
 	}
 	switch goos {
 	case "darwin":
-		script := fmt.Sprintf("display notification %s with title %s", appleString(e.Body()), appleString("gocron: "+e.Title()))
+		script := fmt.Sprintf("display notification %s with title %s", appleString(e.Body()), appleString("hourglass: "+e.Title()))
 		return run(ctx, env, "osascript", "-e", script)
 	default:
 		urgency := "normal"
 		if failed(e.Status) {
 			urgency = "critical"
 		}
-		return run(ctx, sessionBus(env), "notify-send", "-a", "gocron", "-u", urgency, "gocron: "+e.Title(), e.Body())
+		return run(ctx, sessionBus(env), "notify-send", "-a", "hourglass", "-u", urgency, "hourglass: "+e.Title(), e.Body())
 	}
 }
 

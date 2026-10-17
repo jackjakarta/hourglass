@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 func copyFixture(t *testing.T, name string) string {
@@ -84,7 +84,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "Imported: 6 created, 0 updated, 0 unchanged · backup:") {
 		t.Fatalf("import into empty: code=%d out=%q stderr=%q", code, out, errOut)
 	}
-	if got := readFile(t, dst); !strings.Contains(got, "#gocron:off 0 9 * * 1 "+testBin+" exec wkrp7t") ||
+	if got := readFile(t, dst); !strings.Contains(got, "#hourglass:off 0 9 * * 1 "+testBin+" exec wkrp7t") ||
 		!strings.Contains(got, `desc="Dump app DB to /bk"`) {
 		t.Errorf("imported crontab:\n%s", got)
 	}
@@ -149,7 +149,7 @@ func TestImportRejects(t *testing.T) {
 	}
 }
 
-// racySource changes the crontab on disk right after gocron loads it.
+// racySource changes the crontab on disk right after hourglass loads it.
 type racySource struct {
 	crontab.FileSource
 	reads int
@@ -169,7 +169,7 @@ func TestImportConflict(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "jobs.yaml")
 	os.WriteFile(file, []byte(strings.Replace(out, "name: Prune docker", "name: Prune images", 1)), 0o600)
 
-	t.Setenv("GOCRON_STATE_DIR", t.TempDir())
+	t.Setenv("HOURGLASS_STATE_DIR", t.TempDir())
 	var o, e bytes.Buffer
 	a := &app{stdout: &o, stderr: &e, now: func() time.Time { return testNow }, bin: func() string { return testBin },
 		source: func() (crontab.Source, error) { return &racySource{FileSource: crontab.FileSource{Path: src}}, nil }}

@@ -6,13 +6,13 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/doctor"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/doctor"
 )
 
 func (a *app) doctor(ctx context.Context, args []string) int {
 	fs := a.flags("doctor", "doctor [--fix]")
-	fix := fs.Bool("fix", false, "give duplicate job IDs new IDs and point wrapped jobs at this gocron")
+	fix := fs.Bool("fix", false, "give duplicate job IDs new IDs and point wrapped jobs at this hourglass")
 	if code, ok := parse(fs, args); !ok {
 		return code
 	}
@@ -71,7 +71,7 @@ func (a *app) fix(ctx context.Context) int {
 		fmt.Fprintf(a.stdout, "Fixed: job %s %q ran %s; it now runs %s\n", r.ID, r.Name, r.From, a.binPath())
 	}
 	if rep.BinErr != nil {
-		fmt.Fprintf(a.stdout, "Not fixed: wrapped jobs run another gocron, but %v\n", rep.BinErr)
+		fmt.Fprintf(a.stdout, "Not fixed: wrapped jobs run another hourglass, but %v\n", rep.BinErr)
 	}
 	switch {
 	case rep.Changed() && rep.Result.Backup != "":

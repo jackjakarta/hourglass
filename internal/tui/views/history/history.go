@@ -12,11 +12,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/jackjakarta/gocron/internal/humanize"
-	"github.com/jackjakarta/gocron/internal/store"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/keys"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/humanize"
+	"github.com/jackjakarta/hourglass/internal/store"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/keys"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // Requests the view returns from Update.
@@ -297,7 +297,7 @@ func (m Model) View() string {
 	case m.err != nil:
 		lines = append(lines, "", th.Fail.Render(theme.GlyphFail+" Can't read the run history"))
 		lines = append(lines, wrapLines(th.Text, m.err.Error(), iw)...)
-		lines = append(lines, "", th.Muted.Render("Run ")+th.Key.Render("gocron doctor")+th.Muted.Render(" to see what's wrong."))
+		lines = append(lines, "", th.Muted.Render("Run ")+th.Key.Render("hourglass doctor")+th.Muted.Render(" to see what's wrong."))
 		return components.Panel(th, title, lines, w, h, true)
 	case !m.loaded:
 		lines = append(lines, "", th.Muted.Render("Reading run history…"))

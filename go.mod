@@ -1,4 +1,4 @@
-module github.com/jackjakarta/gocron
+module github.com/jackjakarta/hourglass
 
 go 1.25.0
 

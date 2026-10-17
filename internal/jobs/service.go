@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 // Job is a crontab job as the UI shows it. Its run statistics come
@@ -46,7 +46,7 @@ type EnvLine struct {
 // DefaultCronPATH is the PATH cron gives jobs when the crontab sets none.
 const DefaultCronPATH = runner.DefaultCronPATH
 
-// CronEnv is the environment cron gives a job, as far as gocron uses it.
+// CronEnv is the environment cron gives a job, as far as hourglass uses it.
 type CronEnv struct {
 	PATH string // cron's PATH for the job
 	TZ   string // CRON_TZ in effect, if any
@@ -90,7 +90,7 @@ type Draft struct {
 	Schedule string
 	Command  string
 	Tags     []string
-	// Wrapped asks for run tracking via gocron exec; Timeout and NoOverlap
+	// Wrapped asks for run tracking via hourglass exec; Timeout and NoOverlap
 	// only apply to wrapped jobs.
 	Wrapped   bool
 	Timeout   time.Duration
@@ -123,7 +123,7 @@ var (
 	ErrUndoStale = errors.New("the crontab changed since your last change, so it can't be undone")
 )
 
-// ConflictError means the crontab changed outside gocron before a save.
+// ConflictError means the crontab changed outside hourglass before a save.
 // It matches crontab.ErrConflict with errors.Is.
 type ConflictError struct {
 	// Retry reloads the crontab and applies the same change to it. It is
@@ -143,7 +143,7 @@ type undoEntry struct {
 
 // Options configures a Service.
 type Options struct {
-	// Bin is the gocron binary path written into wrapped job lines.
+	// Bin is the hourglass binary path written into wrapped job lines.
 	Bin string
 	// Defaults apply to new and adopted jobs.
 	Defaults config.Defaults
@@ -186,19 +186,19 @@ func New(store *crontab.Store, opts Options) *Service {
 func (s *Service) Defaults() config.Defaults { return s.opts.Defaults }
 
 // WrapError says why jobs can't be wrapped to track their runs, or is nil
-// when they can: cron must be able to run gocron at a lasting path whose
-// name gocron recognizes.
+// when they can: cron must be able to run hourglass at a lasting path whose
+// name hourglass recognizes.
 func (s *Service) WrapError() error { return CheckBin(s.opts.Bin) }
 
 // CheckBin reports whether bin can be written into wrapped job lines.
 func CheckBin(bin string) error {
 	switch {
 	case bin == "" || !filepath.IsAbs(bin):
-		return errors.New("run tracking needs gocron's full path, and it can't be found")
-	case filepath.Base(bin) != "gocron":
-		return fmt.Errorf("run tracking needs the binary to be named gocron, not %s", filepath.Base(bin))
+		return errors.New("run tracking needs hourglass's full path, and it can't be found")
+	case filepath.Base(bin) != "hourglass":
+		return fmt.Errorf("run tracking needs the binary to be named hourglass, not %s", filepath.Base(bin))
 	case strings.HasPrefix(bin, filepath.Clean(os.TempDir())+string(filepath.Separator)):
-		return fmt.Errorf("run tracking needs gocron installed at a lasting path; %s is a temporary build (go run?)", bin)
+		return fmt.Errorf("run tracking needs hourglass installed at a lasting path; %s is a temporary build (go run?)", bin)
 	}
 	return nil
 }
@@ -301,7 +301,7 @@ func (s *Service) Delete(ctx context.Context, id string) (Result, error) {
 
 // Adopt makes the unmanaged entry on line (1-based) with text raw a managed
 // job, named after the comment above it or its program. It wraps the
-// entry to track its runs when the defaults say so and gocron can.
+// entry to track its runs when the defaults say so and hourglass can.
 func (s *Service) Adopt(ctx context.Context, line int, raw string) (Result, error) {
 	wrap := s.opts.Defaults.Wrap && s.WrapError() == nil
 	return s.apply(ctx, func(c *crontab.Crontab) (string, error) {
@@ -333,7 +333,7 @@ func (s *Service) Undo(ctx context.Context) (Result, error) {
 	return Result{Backup: backup}, nil
 }
 
-// CheckExternal reloads the crontab if it changed outside gocron and
+// CheckExternal reloads the crontab if it changed outside hourglass and
 // reports whether it did. Changes made before the reload can no longer be
 // undone.
 func (s *Service) CheckExternal(ctx context.Context) (bool, error) {

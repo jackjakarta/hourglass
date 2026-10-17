@@ -8,11 +8,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jackjakarta/gocron/internal/cronexpr"
-	"github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/jobs"
 )
 
-const exportHeader = `# gocron export: your managed jobs. Import with gocron import FILE.
+const exportHeader = `# hourglass export: your managed jobs. Import with hourglass import FILE.
 # Environment lines (PATH, MAILTO, CRON_TZ, …) aren't included.
 `
 
@@ -82,7 +82,7 @@ func (a *app) importJobs(ctx context.Context, args []string) int {
 	}
 	doc, err := jobs.ParseExport(r)
 	if err != nil {
-		fmt.Fprintf(a.stderr, "gocron: %s: %v\n", fs.Arg(0), err)
+		fmt.Fprintf(a.stderr, "hourglass: %s: %v\n", fs.Arg(0), err)
 		return exitError
 	}
 
@@ -100,7 +100,7 @@ func (a *app) importJobs(ctx context.Context, args []string) int {
 		}
 	}
 	if bad {
-		fmt.Fprintln(a.stderr, "gocron: nothing was imported")
+		fmt.Fprintln(a.stderr, "hourglass: nothing was imported")
 		return exitError
 	}
 
@@ -117,7 +117,7 @@ func (a *app) importJobs(ctx context.Context, args []string) int {
 	}
 	if err != nil {
 		if !*dryRun {
-			fmt.Fprintln(a.stderr, "gocron: nothing was imported")
+			fmt.Fprintln(a.stderr, "hourglass: nothing was imported")
 		}
 		return a.fail(err)
 	}

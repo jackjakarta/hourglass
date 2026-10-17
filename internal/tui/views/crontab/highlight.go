@@ -7,16 +7,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // offPrefix starts the cron line of a paused job.
-const offPrefix = "#gocron:off "
+const offPrefix = "#hourglass:off "
 
 // Highlight renders a crontab's lines with line numbers: schedules in the
-// schedule color, env names as keys, comments muted, gocron's meta lines
+// schedule color, env names as keys, comments muted, hourglass's meta lines
 // dimmed, paused prefixes muted and invalid lines as failures.
 func Highlight(th *theme.Theme, content []byte) []string {
 	tab := crontab.Parse(content)
@@ -64,8 +64,8 @@ func entry(th *theme.Theme, raw string) string {
 	end := fieldsEnd(raw, fields)
 	b.WriteString(th.Schedule.Render(raw[:end]))
 	cmd := raw[end:]
-	// A wrapped command: the gocron exec part is plumbing, dimmed.
-	if words := strings.Fields(cmd); len(words) > 1 && filepath.Base(words[0]) == "gocron" && words[1] == "exec" {
+	// A wrapped command: the hourglass exec part is plumbing, dimmed.
+	if words := strings.Fields(cmd); len(words) > 1 && filepath.Base(words[0]) == "hourglass" && words[1] == "exec" {
 		if i := strings.Index(cmd, " -- "); i >= 0 {
 			b.WriteString(th.Meta.Render(cmd[:i+4]) + th.Text.Render(cmd[i+4:]))
 			return b.String()

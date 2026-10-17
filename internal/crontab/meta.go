@@ -8,8 +8,8 @@ import (
 	"unicode"
 )
 
-// Meta is the key=value metadata of a "# gocron:job" line. Pairs keep their
-// order, and keys gocron doesn't know survive a rewrite.
+// Meta is the key=value metadata of a "# hourglass:job" line. Pairs keep their
+// order, and keys hourglass doesn't know survive a rewrite.
 type Meta struct {
 	Pairs []Pair
 }
@@ -60,11 +60,11 @@ func (m *Meta) Tags() []string {
 	return out
 }
 
-// ParseMeta parses a "# gocron:job key=value …" line.
+// ParseMeta parses a "# hourglass:job key=value …" line.
 func ParseMeta(line string) (*Meta, error) {
 	s, ok := strings.CutPrefix(strings.TrimSpace(line), metaPrefix)
 	if !ok {
-		return nil, errors.New("not a gocron meta line")
+		return nil, errors.New("not a hourglass meta line")
 	}
 	m := &Meta{}
 	for {
@@ -77,7 +77,7 @@ func ParseMeta(line string) (*Meta, error) {
 			i++
 		}
 		if i == 0 || i == len(s) || s[i] != '=' {
-			return nil, fmt.Errorf("malformed gocron meta near %q (want key=value)", truncate(s, 20))
+			return nil, fmt.Errorf("malformed hourglass meta near %q (want key=value)", truncate(s, 20))
 		}
 		key := s[:i]
 		s = s[i+1:]
@@ -108,7 +108,7 @@ func ParseMeta(line string) (*Meta, error) {
 		m.Pairs = append(m.Pairs, Pair{key, value})
 	}
 	if m.Get("id") == "" {
-		return nil, errors.New("gocron meta line has no id")
+		return nil, errors.New("hourglass meta line has no id")
 	}
 	return m, nil
 }

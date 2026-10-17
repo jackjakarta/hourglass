@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/jackjakarta/gocron/internal/humanize"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/humanize"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 func (a *app) runJob(ctx context.Context, args []string) int {
@@ -37,7 +37,7 @@ func (a *app) runJob(ctx context.Context, args []string) int {
 		}
 	}
 	if job == nil {
-		fmt.Fprintf(a.stderr, "gocron: no job with id %q (gocron list shows the ids)\n", id)
+		fmt.Fprintf(a.stderr, "hourglass: no job with id %q (hourglass list shows the ids)\n", id)
 		return exitError
 	}
 	kind := jobs.RunManual
@@ -46,7 +46,7 @@ func (a *app) runJob(ctx context.Context, args []string) int {
 	}
 	spec, _ := svc.Plan(job.Job, kind)
 
-	// The job runs in its own process group, so ^C reaches only gocron;
+	// The job runs in its own process group, so ^C reaches only hourglass;
 	// pass it on.
 	sig := make(chan os.Signal, 4)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
@@ -69,7 +69,7 @@ func (a *app) runJob(ctx context.Context, args []string) int {
 		summary = fmt.Sprintf("✗ %s · exit %d", summary, res.ExitCode)
 	}
 	if res.RunID != 0 {
-		summary += fmt.Sprintf(" · run %d (gocron logs %s --run %d)", res.RunID, id, res.RunID)
+		summary += fmt.Sprintf(" · run %d (hourglass logs %s --run %d)", res.RunID, id, res.RunID)
 	}
 	fmt.Fprintln(a.stderr, summary)
 	for _, tip := range jobs.Diagnose(spec.Command, res, string(tail.buf), spec.Env, svc.UserEnv(), jobs.NewPathCache()) {

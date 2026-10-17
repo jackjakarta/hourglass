@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 func TestAdd(t *testing.T) {
@@ -34,7 +34,7 @@ func TestAdd(t *testing.T) {
 	// Tracked by default (config defaults: wrap, no_overlap), with the
 	// command as one quoted, %-escaped word.
 	b, _ := os.ReadFile(file)
-	want := "MAILTO=\"\"\n# gocron:job id=" + id + " name=\"Nightly backup\" tags=backup,db,ops\n" +
+	want := "MAILTO=\"\"\n# hourglass:job id=" + id + " name=\"Nightly backup\" tags=backup,db,ops\n" +
 		"30 2 * * * " + testBin + " exec --no-overlap " + id + " -- " +
 		crontab.EscapePercent(crontab.ShellQuote(cmd)) + "\n"
 	if string(b) != want {
@@ -60,7 +60,7 @@ func TestAddDefaultsAndJoinedWords(t *testing.T) {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, out, errOut)
 	}
 	b, _ := os.ReadFile(file)
-	if !regexp.MustCompile(`name=echo\n@daily /usr/local/bin/gocron exec --no-overlap [a-z2-7]{6} -- 'echo hello world'\n$`).Match(b) {
+	if !regexp.MustCompile(`name=echo\n@daily /usr/local/bin/hourglass exec --no-overlap [a-z2-7]{6} -- 'echo hello world'\n$`).Match(b) {
 		t.Errorf("crontab:\n%s", b)
 	}
 }
@@ -71,8 +71,8 @@ func TestAddErrors(t *testing.T) {
 		code   int
 		stderr string
 	}{
-		{[]string{"add", "--", "echo"}, exitUsage, "Usage: gocron add"},
-		{[]string{"add", "--schedule", "@daily"}, exitUsage, "Usage: gocron add"},
+		{[]string{"add", "--", "echo"}, exitUsage, "Usage: hourglass add"},
+		{[]string{"add", "--schedule", "@daily"}, exitUsage, "Usage: hourglass add"},
 		{[]string{"add", "--bogus"}, exitUsage, "flag provided but not defined"},
 		{[]string{"add", "--schedule", "61 * * * *", "--", "echo"}, exitError, `minute: "61" is out of range`},
 		{[]string{"add", "--schedule", "@daily", "--tag", "a b", "--", "echo"}, exitError, `can't contain spaces`},
@@ -109,7 +109,7 @@ func TestAddOptionsAndConfigDefaults(t *testing.T) {
 	if err := os.WriteFile(cfg, []byte("[defaults]\nwrap = false\nno_overlap = false\ntimeout = \"2h\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("GOCRON_CONFIG", cfg)
+	t.Setenv("HOURGLASS_CONFIG", cfg)
 
 	// wrap = false gives a plain line.
 	if _, errOut, code := runCLI(t, file, "add", "--schedule", "@hourly", "--", "echo a"); code != 0 {
@@ -124,20 +124,20 @@ func TestAddOptionsAndConfigDefaults(t *testing.T) {
 		t.Fatalf("code=%d stderr=%q", code, errOut)
 	}
 	b, _ := os.ReadFile(file)
-	want := `(?s)@hourly echo a\n.*@hourly /usr/local/bin/gocron exec --timeout=2h --no-overlap [a-z2-7]{6} -- 'echo b'\n` +
-		`.*@hourly /usr/local/bin/gocron exec --timeout=5m [a-z2-7]{6} -- 'echo c'\n$`
+	want := `(?s)@hourly echo a\n.*@hourly /usr/local/bin/hourglass exec --timeout=2h --no-overlap [a-z2-7]{6} -- 'echo b'\n` +
+		`.*@hourly /usr/local/bin/hourglass exec --timeout=5m [a-z2-7]{6} -- 'echo c'\n$`
 	if !regexp.MustCompile(want).Match(b) {
 		t.Errorf("crontab:\n%s", b)
 	}
 }
 
-func TestAddNeedsAnInstalledGocron(t *testing.T) {
+func TestAddNeedsAnInstalledHourglass(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "crontab")
 	t.Setenv(crontab.EnvCrontabFile, file)
-	t.Setenv("GOCRON_STATE_DIR", t.TempDir())
+	t.Setenv("HOURGLASS_STATE_DIR", t.TempDir())
 	var out, errOut strings.Builder
 	a := &app{stdout: &out, stderr: &errOut, now: time.Now, source: crontab.SourceFromEnv,
-		bin: func() string { return filepath.Join(os.TempDir(), "go-build123/b001/exe/gocron") }}
+		bin: func() string { return filepath.Join(os.TempDir(), "go-build123/b001/exe/hourglass") }}
 	if code := a.run(context.Background(), []string{"add", "--schedule", "@daily", "--", "echo"}); code != exitError ||
 		!strings.Contains(errOut.String(), "temporary build") || !strings.Contains(errOut.String(), "--raw") {
 		t.Errorf("code=%d stderr=%q", code, errOut.String())

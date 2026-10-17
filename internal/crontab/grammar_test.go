@@ -14,19 +14,19 @@ func TestParseMeta(t *testing.T) {
 		want    []Pair
 		wantErr string
 	}{
-		{`# gocron:job id=k3f9a2`, []Pair{{"id", "k3f9a2"}}, ""},
-		{`  # gocron:job   id=k3f9a2  name="Nightly backup" tags=backup,db  `,
+		{`# hourglass:job id=k3f9a2`, []Pair{{"id", "k3f9a2"}}, ""},
+		{`  # hourglass:job   id=k3f9a2  name="Nightly backup" tags=backup,db  `,
 			[]Pair{{"id", "k3f9a2"}, {"name", "Nightly backup"}, {"tags", "backup,db"}}, ""},
-		{`# gocron:job id=a desc="say \"hi\"\tthere" x_2=""`,
+		{`# hourglass:job id=a desc="say \"hi\"\tthere" x_2=""`,
 			[]Pair{{"id", "a"}, {"desc", "say \"hi\"\tthere"}, {"x_2", ""}}, ""},
-		{`# gocron:job id=a name=caf√©`, []Pair{{"id", "a"}, {"name", "caf√©"}}, ""},
-		{`# gocron:job name=x`, nil, "no id"},
-		{`# gocron:job id=a name="open`, nil, "unterminated"},
-		{`# gocron:job id=a Name=x`, nil, "malformed"},
-		{`# gocron:job id=a name`, nil, "malformed"},
-		{`# gocron:job id=a name="x"y`, nil, "missing space"},
-		{`# gocron:job id=a name=x"y`, nil, "unexpected quote"},
-		{`# gocron:job id=a name="\q"`, nil, "bad quoted value"},
+		{`# hourglass:job id=a name=caf√©`, []Pair{{"id", "a"}, {"name", "caf√©"}}, ""},
+		{`# hourglass:job name=x`, nil, "no id"},
+		{`# hourglass:job id=a name="open`, nil, "unterminated"},
+		{`# hourglass:job id=a Name=x`, nil, "malformed"},
+		{`# hourglass:job id=a name`, nil, "malformed"},
+		{`# hourglass:job id=a name="x"y`, nil, "missing space"},
+		{`# hourglass:job id=a name=x"y`, nil, "unexpected quote"},
+		{`# hourglass:job id=a name="\q"`, nil, "bad quoted value"},
 	}
 	for _, tt := range tests {
 		m, err := ParseMeta(tt.line)
@@ -48,20 +48,20 @@ func TestParseMeta(t *testing.T) {
 
 func TestFormatMetaQuoting(t *testing.T) {
 	m := &Meta{Pairs: []Pair{{"id", "k3f9a2"}, {"name", "Nightly backup"}, {"tags", "a,b"}, {"desc", ""}, {"x", "a=b"}, {"y", "#1"}, {"z", `back\slash`}}}
-	want := `# gocron:job id=k3f9a2 name="Nightly backup" tags=a,b desc="" x="a=b" y="#1" z=back\slash`
+	want := `# hourglass:job id=k3f9a2 name="Nightly backup" tags=a,b desc="" x="a=b" y="#1" z=back\slash`
 	if got := m.Format(); got != want {
 		t.Errorf("Format\n got: %s\nwant: %s", got, want)
 	}
 }
 
 func TestMetaUnknownKeysSurviveUpdate(t *testing.T) {
-	c := Parse([]byte("# gocron:job id=abc234 future=1 name=Old\n0 0 * * * x\n"))
+	c := Parse([]byte("# hourglass:job id=abc234 future=1 name=Old\n0 0 * * * x\n"))
 	j, _ := c.Job("abc234")
 	j.Name = "New name"
 	if err := c.UpdateJob(j, ""); err != nil {
 		t.Fatal(err)
 	}
-	if got := c.Lines[0].Raw; got != `# gocron:job id=abc234 future=1 name="New name"` {
+	if got := c.Lines[0].Raw; got != `# hourglass:job id=abc234 future=1 name="New name"` {
 		t.Errorf("meta after update = %s", got)
 	}
 }
@@ -99,12 +99,12 @@ func TestWrappedEncode(t *testing.T) {
 		w    Wrapped
 		want string
 	}{
-		{Wrapped{Bin: "/usr/local/bin/gocron", ID: "k3f9a2", Command: "echo hi"},
-			`/usr/local/bin/gocron exec k3f9a2 -- 'echo hi'`},
-		{Wrapped{Bin: "/home/jack/.local/bin/gocron", ID: "k3f9a2", Timeout: 30 * time.Minute, NoOverlap: true, Command: "pg_dump app | gzip > /bk/app-$(date +%F).sql.gz"},
-			`/home/jack/.local/bin/gocron exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +%F).sql.gz'`},
-		{Wrapped{Bin: "/home/my tools/gocron", ID: "a", Timeout: 90 * time.Minute, Command: "it's"},
-			`'/home/my tools/gocron' exec --timeout=1h30m a -- 'it'\''s'`},
+		{Wrapped{Bin: "/usr/local/bin/hourglass", ID: "k3f9a2", Command: "echo hi"},
+			`/usr/local/bin/hourglass exec k3f9a2 -- 'echo hi'`},
+		{Wrapped{Bin: "/home/jack/.local/bin/hourglass", ID: "k3f9a2", Timeout: 30 * time.Minute, NoOverlap: true, Command: "pg_dump app | gzip > /bk/app-$(date +%F).sql.gz"},
+			`/home/jack/.local/bin/hourglass exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +%F).sql.gz'`},
+		{Wrapped{Bin: "/home/my tools/hourglass", ID: "a", Timeout: 90 * time.Minute, Command: "it's"},
+			`'/home/my tools/hourglass' exec --timeout=1h30m a -- 'it'\''s'`},
 	}
 	for _, tt := range tests {
 		if got := tt.w.Encode(); got != tt.want {
@@ -120,13 +120,13 @@ func TestWrappedEncode(t *testing.T) {
 func TestDecodeWrappedRejects(t *testing.T) {
 	for _, cmd := range []string{
 		"echo hi",
-		"gocron list",
-		"/usr/bin/gocron-other exec id -- 'x'",
-		"gocron exec --tee id -- 'x'",
-		"gocron exec --timeout=banana id -- 'x'",
-		"gocron exec id 'x'",
-		"gocron exec -- 'x'",
-		"gocron exec id -- 'unterminated",
+		"hourglass list",
+		"/usr/bin/hourglass-other exec id -- 'x'",
+		"hourglass exec --tee id -- 'x'",
+		"hourglass exec --timeout=banana id -- 'x'",
+		"hourglass exec id 'x'",
+		"hourglass exec -- 'x'",
+		"hourglass exec id -- 'unterminated",
 	} {
 		if w, ok := DecodeWrapped(cmd); ok {
 			t.Errorf("DecodeWrapped(%q) = %+v, want not wrapped", cmd, w)
@@ -142,7 +142,7 @@ func FuzzWrapped(f *testing.F) {
 		if strings.ContainsAny(cmd, "\r\n") || !utf8.ValidString(cmd) || timeoutSec < 0 || timeoutSec > 1e6 {
 			return
 		}
-		w := Wrapped{Bin: "/usr/local/bin/gocron", ID: "abc234", Timeout: time.Duration(timeoutSec) * time.Second, NoOverlap: noOverlap, Command: cmd}
+		w := Wrapped{Bin: "/usr/local/bin/hourglass", ID: "abc234", Timeout: time.Duration(timeoutSec) * time.Second, NoOverlap: noOverlap, Command: cmd}
 		line := EscapePercent(w.Encode())
 		got, ok := DecodeWrapped(UnescapePercent(line))
 		if !ok || got != w {

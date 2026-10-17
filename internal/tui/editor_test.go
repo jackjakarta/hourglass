@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jackjakarta/gocron/internal/cronexpr"
-	"github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/jobs"
 )
 
 func TestGoldenEditorNew(t *testing.T) {
@@ -44,12 +44,12 @@ func TestGoldenEditorNarrow(t *testing.T) {
 
 func TestEditorCreate(t *testing.T) {
 	hs := start(t, "", 100, 32)
-	hs.waitFor("Welcome to gocron")
+	hs.waitFor("Welcome to hourglass")
 	const cmd = `pg_dump app | gzip > /bk/app-$(date +%F).sql.gz`
 	hs.keys("n", "Nightly backup", "tab", "tab", "0230", "tab", "tab", cmd, "tab", "backup, db", "ctrl+s")
 	hs.waitFor(`Created "Nightly backup" · backup created · u undo`)
 	// Tracked by default: wrapped, skipping overlaps (config defaults).
-	re := regexp.MustCompile(`^# gocron:job id=([a-z2-7]{6}) name="Nightly backup" tags=backup,db\n30 2 \* \* \* /usr/bin/gocron exec --no-overlap [a-z2-7]{6} -- 'pg_dump app \| gzip > /bk/app-\$\(date \+\\%F\)\.sql\.gz'\n$`)
+	re := regexp.MustCompile(`^# hourglass:job id=([a-z2-7]{6}) name="Nightly backup" tags=backup,db\n30 2 \* \* \* /usr/bin/hourglass exec --no-overlap [a-z2-7]{6} -- 'pg_dump app \| gzip > /bk/app-\$\(date \+\\%F\)\.sql\.gz'\n$`)
 	if got := hs.read(); !re.MatchString(got) {
 		t.Errorf("crontab:\n%s", got)
 	}
@@ -77,7 +77,7 @@ func TestEditorEditTouchesOnlyItsLines(t *testing.T) {
 			changed = append(changed, got[i])
 		}
 	}
-	if len(changed) != 1 || changed[0] != `30 2 * * 1-5 /home/jack/.local/bin/gocron exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\%F).sql.gz'` {
+	if len(changed) != 1 || changed[0] != `30 2 * * 1-5 /home/jack/.local/bin/hourglass exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\%F).sql.gz'` {
 		t.Errorf("changed lines: %q", changed)
 	}
 	hs.screen()
@@ -134,7 +134,7 @@ func TestEditorCapturesKeys(t *testing.T) {
 
 func TestEditorBlockedSave(t *testing.T) {
 	hs := start(t, "", 100, 32)
-	hs.waitFor("Welcome to gocron")
+	hs.waitFor("Welcome to hourglass")
 	hs.keys("n", "ctrl+s")
 	hs.waitFor("Fix the problems marked ✗ before saving.")
 	hs.waitFor("Enter the command to run.")
@@ -153,7 +153,7 @@ func TestEditorPathLint(t *testing.T) {
 			return nil
 		}
 	})
-	hs.waitFor("Welcome to gocron")
+	hs.waitFor("Welcome to hourglass")
 	hs.keys("n", "tab", "tab", "tab", "tab", "pg_dump app")
 	hs.waitFor("pg_dump is in /usr/local/bin, which isn't on cron's PATH")
 	hs.screen()
@@ -174,12 +174,12 @@ func TestEditorConflictKeepEditing(t *testing.T) {
 	hs.waitFor("echo hi")
 	hs.write(hs.read() + "# edited elsewhere\n") // the dirty editor keeps this from reloading
 	hs.keys("ctrl+s")
-	hs.waitFor("Crontab changed outside gocron")
+	hs.waitFor("Crontab changed outside hourglass")
 	hs.keys("enter") // Keep editing
 	hs.waitFor("your edits are still here")
 	hs.keys("ctrl+s")
 	hs.waitFor(`Created "echo"`)
-	if got := hs.read(); !strings.Contains(got, "# edited elsewhere\n# gocron:job id=") || !regexp.MustCompile(`0 9 \* \* \* /usr/bin/gocron exec --no-overlap [a-z2-7]{6} -- 'echo hi'\n$`).MatchString(got) {
+	if got := hs.read(); !strings.Contains(got, "# edited elsewhere\n# hourglass:job id=") || !regexp.MustCompile(`0 9 \* \* \* /usr/bin/hourglass exec --no-overlap [a-z2-7]{6} -- 'echo hi'\n$`).MatchString(got) {
 		t.Errorf("crontab:\n%s", got)
 	}
 	hs.screen()

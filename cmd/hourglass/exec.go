@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/notify"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/store"
-	"github.com/jackjakarta/gocron/internal/version"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/notify"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/store"
+	"github.com/jackjakarta/hourglass/internal/version"
 )
 
 const execSynopsis = "exec [--timeout=D] [--no-overlap] [--trigger=cron|manual|test] [--tee] ID -- COMMAND"
@@ -78,7 +78,7 @@ func (a *app) exec(ctx context.Context, args []string) int {
 		}
 	}
 	if i >= len(args) || strings.TrimSpace(strings.Join(args[i+1:], " ")) == "" {
-		fmt.Fprintf(a.stderr, "Usage: gocron %s\n", execSynopsis)
+		fmt.Fprintf(a.stderr, "Usage: hourglass %s\n", execSynopsis)
 		return exitUsage
 	}
 	// A hand-edited line may split the command into several words; exec
@@ -103,7 +103,7 @@ func (a *app) exec(ctx context.Context, args []string) int {
 
 	var status runner.StatusReporter
 	if statusFD > 0 {
-		// The status pipe is for gocron, not the job: keep it out of the
+		// The status pipe is for hourglass, not the job: keep it out of the
 		// command's process.
 		syscall.CloseOnExec(statusFD)
 		f := os.NewFile(uintptr(statusFD), "status")
@@ -144,7 +144,7 @@ func (a *app) notify(ctx context.Context, o runner.Options, res runner.Result) {
 	if e.LogTail, err = notify.Tail(res.LogPath, 20, 4<<10); err != nil {
 		runner.LogError(o.Paths.ErrorLog, time.Now(), o.JobID, fmt.Errorf("notify: reading the log: %w", err))
 	}
-	s := notify.Sender{Desktop: n.Desktop, Webhook: n.Webhook, UserAgent: "gocron/" + version.Get().Version}
+	s := notify.Sender{Desktop: n.Desktop, Webhook: n.Webhook, UserAgent: "hourglass/" + version.Get().Version}
 	for _, err := range s.Send(ctx, e) {
 		runner.LogError(o.Paths.ErrorLog, time.Now(), o.JobID, err)
 	}

@@ -17,13 +17,13 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/doctor"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/doctor"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // pkgDir is the package directory; tests chdir away from it.
@@ -137,7 +137,7 @@ func startFull(t *testing.T, fixture string, w, h int, svcOpts func(*jobs.Option
 		t.Fatal(err)
 	}
 	jo := jobs.Options{
-		Bin:      "/usr/bin/gocron",
+		Bin:      "/usr/bin/hourglass",
 		Defaults: config.Default().Defaults,
 		Identity: &runner.Identity{Name: "jack", Home: "/home/jack"},
 		Environ:  []string{"HOME=/home/jack", "PATH=/usr/local/bin:/usr/bin:/bin"},
@@ -289,7 +289,7 @@ func TestGoldenDetailNarrow(t *testing.T) {
 
 func TestGoldenEmpty(t *testing.T) {
 	hs := start(t, "", 100, 24)
-	hs.waitFor("Welcome to gocron")
+	hs.waitFor("Welcome to hourglass")
 	requireGolden(t, hs.screen())
 }
 
@@ -314,7 +314,7 @@ func TestLoadError(t *testing.T) {
 	hs.waitFor("can't read your crontab")
 	hs.keys("space", "u") // no service: nothing happens
 	s := hs.screen()
-	for _, want := range []string{"not allowed to use this program", "gocron doctor", "q quit"} {
+	for _, want := range []string{"not allowed to use this program", "hourglass doctor", "q quit"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("screen lacks %q:\n%s", want, s)
 		}
@@ -329,7 +329,7 @@ func TestPauseAndUndo(t *testing.T) {
 	// The first row is the next job to run: Sync photos.
 	hs.keys("space")
 	hs.waitFor(`Paused "Sync photos" · backup created · u undo`)
-	if !strings.Contains(hs.read(), "#gocron:off */15 * * * * ") {
+	if !strings.Contains(hs.read(), "#hourglass:off */15 * * * * ") {
 		t.Errorf("not paused:\n%s", hs.read())
 	}
 
@@ -378,7 +378,7 @@ func TestAdopt(t *testing.T) {
 	hs.waitFor(`Adopted "first-or-monday.sh"`)
 	got := hs.read()
 	// Adopting wraps the entry to track its runs (defaults.wrap).
-	if ok, _ := regexp.MatchString(`# gocron:job id=([a-z2-7]{6}) name=first-or-monday.sh\n0 0 1 \* 1 /usr/bin/gocron exec [a-z2-7]{6} -- '~/bin/first-or-monday.sh'\n$`, got); !ok {
+	if ok, _ := regexp.MatchString(`# hourglass:job id=([a-z2-7]{6}) name=first-or-monday.sh\n0 0 1 \* 1 /usr/bin/hourglass exec [a-z2-7]{6} -- '~/bin/first-or-monday.sh'\n$`, got); !ok {
 		t.Errorf("adopt:\n%s", got)
 	}
 	s := hs.screen()
@@ -402,9 +402,9 @@ func TestSpaceOnUnmanagedAsksToAdopt(t *testing.T) {
 func TestExternalChangeReloads(t *testing.T) {
 	hs := start(t, "realistic_mixed", 140, 32)
 	hs.waitFor("Nightly backup")
-	hs.write(hs.read() + "# gocron:job id=zz2345 name=\"Added by hand\"\n0 6 * * * ~/bin/morning.sh\n")
+	hs.write(hs.read() + "# hourglass:job id=zz2345 name=\"Added by hand\"\n0 6 * * * ~/bin/morning.sh\n")
 	hs.tm.Send(tea.FocusMsg{})
-	hs.waitFor("Crontab reloaded (changed outside gocron)")
+	hs.waitFor("Crontab reloaded (changed outside hourglass)")
 	if s := hs.screen(); !strings.Contains(s, "Added by hand") || !strings.Contains(s, "Jobs · 7") {
 		t.Errorf("reloaded list:\n%s", s)
 	}
@@ -416,10 +416,10 @@ func TestConflictReapply(t *testing.T) {
 	external := hs.read() + "# by hand\n"
 	hs.write(external)
 	hs.keys("space")
-	hs.waitFor("Crontab changed outside gocron")
+	hs.waitFor("Crontab changed outside hourglass")
 	hs.keys("right", "enter")
 	hs.waitFor(`Paused "Sync photos"`)
-	want := strings.Replace(external, "*/15 * * * * /home", "#gocron:off */15 * * * * /home", 1)
+	want := strings.Replace(external, "*/15 * * * * /home", "#hourglass:off */15 * * * * /home", 1)
 	if got := hs.read(); got != want {
 		t.Errorf("reapply:\n%s", got)
 	}
@@ -440,7 +440,7 @@ func TestConflictViewDiff(t *testing.T) {
 	hs.waitFor("Reapply")
 	hs.keys("right", "enter") // focus starts on Discard; right is Reapply
 	hs.waitFor(`Paused "Sync photos"`)
-	if !strings.Contains(hs.read(), "# by hand") || !strings.Contains(hs.read(), "#gocron:off */15") {
+	if !strings.Contains(hs.read(), "# by hand") || !strings.Contains(hs.read(), "#hourglass:off */15") {
 		t.Errorf("reapply after viewing the diff:\n%s", hs.read())
 	}
 	hs.screen()
