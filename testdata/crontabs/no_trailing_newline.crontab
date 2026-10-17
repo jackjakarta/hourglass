@@ -1,3 +1,3 @@
 # last line has no newline
-# gocron:job id=nonl22 name=Tail
+# hourglass:job id=nonl22 name=Tail
 0 1 * * * /usr/bin/tail-job

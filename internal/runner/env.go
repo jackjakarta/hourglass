@@ -5,7 +5,7 @@ import (
 	"os/user"
 	"strings"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 // DefaultCronPATH is the PATH cron gives jobs when the crontab sets none.
@@ -17,7 +17,7 @@ type Identity struct {
 	Home string
 }
 
-// CurrentIdentity is the user running gocron.
+// CurrentIdentity is the user running hourglass.
 func CurrentIdentity() Identity {
 	id := Identity{Name: os.Getenv("USER"), Home: os.Getenv("HOME")}
 	if u, err := user.Current(); err == nil {

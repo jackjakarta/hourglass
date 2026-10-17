@@ -6,8 +6,8 @@ import (
 	"text/tabwriter"
 	"unicode"
 
-	"github.com/jackjakarta/gocron/internal/cronexpr"
-	"github.com/jackjakarta/gocron/internal/humanize"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/humanize"
 )
 
 func (a *app) describe(args []string) int {

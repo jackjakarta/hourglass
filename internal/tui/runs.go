@@ -6,13 +6,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/store"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/views/editor"
-	"github.com/jackjakarta/gocron/internal/tui/views/runpane"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/store"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/views/editor"
+	"github.com/jackjakarta/hourglass/internal/tui/views/runpane"
 )
 
 // Messages about runs started from the TUI and run history.

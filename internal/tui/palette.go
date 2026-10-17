@@ -8,11 +8,11 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jackjakarta/gocron/internal/store"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
-	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
-	"github.com/jackjakarta/gocron/internal/tui/views/timeline"
+	"github.com/jackjakarta/hourglass/internal/store"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
+	jobsview "github.com/jackjakarta/hourglass/internal/tui/views/jobs"
+	"github.com/jackjakarta/hourglass/internal/tui/views/timeline"
 )
 
 // paletteAction is a palette item and what choosing it does.
@@ -194,7 +194,7 @@ func (m Model) paletteItems() []paletteAction {
 			m.help = true
 			return m, nil
 		}),
-		act("Quit gocron", km.Quit, func(m Model) (tea.Model, tea.Cmd) { return m, tea.Quit }),
+		act("Quit hourglass", km.Quit, func(m Model) (tea.Model, tea.Cmd) { return m, tea.Quit }),
 	)
 
 	// Every job by name.

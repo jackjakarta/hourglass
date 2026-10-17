@@ -1,4 +1,4 @@
-# gocron export: your managed jobs. Import with gocron import FILE.
+# hourglass export: your managed jobs. Import with hourglass import FILE.
 # Environment lines (PATH, MAILTO, CRON_TZ, …) aren't included.
 version: 1
 jobs:

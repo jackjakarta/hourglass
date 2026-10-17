@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/cronexpr"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	runs "github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	runs "github.com/jackjakarta/hourglass/internal/store"
 )
 
 // tagsFlag collects repeated --tag flags; each may hold several tags
@@ -29,7 +29,7 @@ func (t *tagsFlag) Set(s string) error {
 const addSynopsis = `add [--name N] --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD
 
 Quote a command with pipes or redirects as one argument:
-  gocron add --name backup --schedule "30 2 * * *" -- 'pg_dump app | gzip > /bk/app.sql.gz'`
+  hourglass add --name backup --schedule "30 2 * * *" -- 'pg_dump app | gzip > /bk/app.sql.gz'`
 
 func (a *app) add(ctx context.Context, args []string) int {
 	fs := a.flags("add", addSynopsis)
@@ -51,11 +51,11 @@ func (a *app) add(ctx context.Context, args []string) int {
 	set := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
 	if *raw && (set["timeout"] || set["no-overlap"]) {
-		fmt.Fprintln(a.stderr, "gocron: --timeout and --no-overlap need run tracking, which --raw turns off")
+		fmt.Fprintln(a.stderr, "hourglass: --timeout and --no-overlap need run tracking, which --raw turns off")
 		return exitUsage
 	}
 	if *timeout < 0 {
-		fmt.Fprintln(a.stderr, "gocron: --timeout can't be negative")
+		fmt.Fprintln(a.stderr, "hourglass: --timeout can't be negative")
 		return exitUsage
 	}
 
@@ -74,7 +74,7 @@ func (a *app) add(ctx context.Context, args []string) int {
 	}
 	if wrap {
 		if err := svc.WrapError(); err != nil {
-			fmt.Fprintf(a.stderr, "gocron: %v.\nInstall gocron (go install, or a release binary), or pass --raw to add the job without run tracking.\n", err)
+			fmt.Fprintf(a.stderr, "hourglass: %v.\nInstall hourglass (go install, or a release binary), or pass --raw to add the job without run tracking.\n", err)
 			return exitError
 		}
 	}
@@ -100,7 +100,7 @@ func (a *app) add(ctx context.Context, args []string) int {
 		}
 	}
 	if jobs.HasErrors(issues) {
-		fmt.Fprintln(a.stderr, "gocron: the job wasn't added")
+		fmt.Fprintln(a.stderr, "hourglass: the job wasn't added")
 		return exitError
 	}
 
@@ -116,7 +116,7 @@ func (a *app) add(ctx context.Context, args []string) int {
 	return exitOK
 }
 
-// setup resolves gocron's paths and loads its config. A broken config
+// setup resolves hourglass's paths and loads its config. A broken config
 // falls back to the defaults with a warning, so it never blocks a command.
 func (a *app) setup() (config.Paths, config.Config, error) {
 	paths, err := config.Resolve()
@@ -128,10 +128,10 @@ func (a *app) setup() (config.Paths, config.Config, error) {
 	}
 	cfg, warnings, err := config.Load(paths.ConfigFile)
 	if err != nil {
-		fmt.Fprintf(a.stderr, "gocron: %v (using the defaults)\n", err)
+		fmt.Fprintf(a.stderr, "hourglass: %v (using the defaults)\n", err)
 	}
 	for _, w := range warnings {
-		fmt.Fprintf(a.stderr, "gocron: %s\n", w)
+		fmt.Fprintf(a.stderr, "hourglass: %s\n", w)
 	}
 	return paths, cfg, nil
 }

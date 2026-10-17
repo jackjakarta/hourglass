@@ -46,7 +46,7 @@ func (e *storeEnv) read(t *testing.T) string {
 	return string(b)
 }
 
-const managedTab = "# gocron:job id=abc234 name=A\n0 0 * * * a\n"
+const managedTab = "# hourglass:job id=abc234 name=A\n0 0 * * * a\n"
 
 func TestSaveWritesAndBacksUp(t *testing.T) {
 	ctx := context.Background()
@@ -111,7 +111,7 @@ func TestSaveConflict(t *testing.T) {
 	if _, err := e.store.Save(ctx, c); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.read(t); !strings.Contains(got, "added-by-crontab-e") || !strings.Contains(got, "#gocron:off 0 0 * * * a") {
+	if got := e.read(t); !strings.Contains(got, "added-by-crontab-e") || !strings.Contains(got, "#hourglass:off 0 0 * * * a") {
 		t.Errorf("reapplied content = %q", got)
 	}
 }
@@ -130,7 +130,7 @@ func TestSaveFromNoCrontab(t *testing.T) {
 	if b, _ := os.ReadFile(backup); len(b) != 0 {
 		t.Errorf("backup of a missing crontab should be empty, got %q", b)
 	}
-	if got := e.read(t); got != "# gocron:job id=new234\n@daily x\n" {
+	if got := e.read(t); got != "# hourglass:job id=new234\n@daily x\n" {
 		t.Errorf("file = %q", got)
 	}
 }
@@ -147,7 +147,7 @@ func TestSaveUnchangedIsNoop(t *testing.T) {
 }
 
 func TestSaveAddsFinalNewline(t *testing.T) {
-	e := newStoreEnv(t, "# gocron:job id=abc234\n0 0 * * * a", 50)
+	e := newStoreEnv(t, "# hourglass:job id=abc234\n0 0 * * * a", 50)
 	c := e.store.Crontab()
 	if err := c.SetEnabled("abc234", false); err != nil {
 		t.Fatal(err)
@@ -155,7 +155,7 @@ func TestSaveAddsFinalNewline(t *testing.T) {
 	if _, err := e.store.Save(context.Background(), c); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.read(t); got != "# gocron:job id=abc234\n#gocron:off 0 0 * * * a\n" {
+	if got := e.read(t); got != "# hourglass:job id=abc234\n#hourglass:off 0 0 * * * a\n" {
 		t.Errorf("file = %q", got)
 	}
 }

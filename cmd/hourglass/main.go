@@ -1,4 +1,4 @@
-// Command gocron manages your crontab. With no arguments it opens the TUI.
+// Command hourglass manages your crontab. With no arguments it opens the TUI.
 package main
 
 import (
@@ -13,14 +13,14 @@ import (
 
 	"github.com/charmbracelet/x/term"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 const (
 	exitOK       = 0
 	exitError    = 1
 	exitUsage    = 2
-	exitConflict = 3 // crontab changed outside gocron
+	exitConflict = 3 // crontab changed outside hourglass
 )
 
 type app struct {
@@ -29,7 +29,7 @@ type app struct {
 	now            func() time.Time
 	source         func() (crontab.Source, error)
 	interactive    func() bool   // stdin and stdout are terminals
-	bin            func() string // the gocron binary written into wrapped lines; default selfPath
+	bin            func() string // the hourglass binary written into wrapped lines; default selfPath
 }
 
 func main() {
@@ -46,33 +46,33 @@ func (a *app) binPath() string {
 	return selfPath()
 }
 
-const usage = `gocron — a home for your cron jobs
+const usage = `hourglass — a home for your cron jobs
 
 Usage:
-  gocron                      open the TUI
-  gocron list [--json] [--all]
+  hourglass                      open the TUI
+  hourglass list [--json] [--all]
                               list jobs (--all includes unmanaged entries)
-  gocron add [--name N] --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD
+  hourglass add [--name N] --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD
                               add a job (quote a pipeline as one argument)
-  gocron enable ID / disable ID
+  hourglass enable ID / disable ID
                               resume / pause a job
-  gocron rm ID                delete a job (a backup is kept)
-  gocron run [--cron-env] ID  run a job now, streaming its output
-  gocron logs [-n N] [--run R] ID
+  hourglass rm ID                delete a job (a backup is kept)
+  hourglass run [--cron-env] ID  run a job now, streaming its output
+  hourglass logs [-n N] [--run R] ID
                               show a job's recent runs, or one run's output
-  gocron exec …               the wrapper cron runs tracked jobs through
-  gocron export [--file F]    write the managed jobs as YAML
-  gocron import [--dry-run] F import jobs from an export (- reads stdin), merging by id
-  gocron describe [-n N] EXPR describe a schedule and show its next runs; EXPR
+  hourglass exec …               the wrapper cron runs tracked jobs through
+  hourglass export [--file F]    write the managed jobs as YAML
+  hourglass import [--dry-run] F import jobs from an export (- reads stdin), merging by id
+  hourglass describe [-n N] EXPR describe a schedule and show its next runs; EXPR
                               may be plain English ("every weekday at 9am")
-  gocron doctor [--fix]       check your cron setup and crontab (--fix repairs
-                              duplicate ids and stale gocron paths)
-  gocron version              print version information
+  hourglass doctor [--fix]       check your cron setup and crontab (--fix repairs
+                              duplicate ids and stale hourglass paths)
+  hourglass version              print version information
 
 Environment:
-  GOCRON_CRONTAB_FILE=PATH    use a plain file instead of your real crontab
-  GOCRON_STATE_DIR=PATH       override the state directory
-  GOCRON_CONFIG=PATH          override the config file
+  HOURGLASS_CRONTAB_FILE=PATH    use a plain file instead of your real crontab
+  HOURGLASS_STATE_DIR=PATH       override the state directory
+  HOURGLASS_CONFIG=PATH          override the config file
 `
 
 func (a *app) run(ctx context.Context, args []string) int {
@@ -80,7 +80,7 @@ func (a *app) run(ctx context.Context, args []string) int {
 		if a.interactive != nil && a.interactive() {
 			return a.tui(ctx)
 		}
-		fmt.Fprint(a.stdout, "The gocron TUI needs a terminal.\n\n"+usage)
+		fmt.Fprint(a.stdout, "The hourglass TUI needs a terminal.\n\n"+usage)
 		return exitOK
 	}
 	cmd, rest := args[0], args[1:]
@@ -111,7 +111,7 @@ func (a *app) run(ctx context.Context, args []string) int {
 		fmt.Fprint(a.stdout, usage)
 		return exitOK
 	}
-	fmt.Fprintf(a.stderr, "gocron: unknown command %q\n\n%s", cmd, usage)
+	fmt.Fprintf(a.stderr, "hourglass: unknown command %q\n\n%s", cmd, usage)
 	return exitUsage
 }
 
@@ -120,7 +120,7 @@ func (a *app) flags(name, synopsis string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(a.stderr)
 	fs.Usage = func() {
-		fmt.Fprintf(a.stderr, "Usage: gocron %s\n", synopsis)
+		fmt.Fprintf(a.stderr, "Usage: hourglass %s\n", synopsis)
 		fs.PrintDefaults()
 	}
 	return fs
@@ -139,7 +139,7 @@ func parse(fs *flag.FlagSet, args []string) (int, bool) {
 
 // fail prints an error and returns the matching exit code.
 func (a *app) fail(err error) int {
-	fmt.Fprintf(a.stderr, "gocron: %v\n", err)
+	fmt.Fprintf(a.stderr, "hourglass: %v\n", err)
 	if errors.Is(err, crontab.ErrConflict) {
 		return exitConflict
 	}

@@ -7,13 +7,13 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/jackjakarta/gocron/internal/cronexpr"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/humanize"
-	svc "github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/store"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/humanize"
+	svc "github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/store"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 const (
@@ -101,7 +101,7 @@ func (m Model) detailLines(j svc.Job, iw, ih int) []string {
 		notes = append(notes, wrapPlain(st, glyph+" "+is.Message, iw)...)
 	}
 	if !j.Managed {
-		notes = append(notes, wrapPlain(th.Muted, "Press a to adopt it: gocron adds a comment line above it and leaves the cron line unchanged.", iw)...)
+		notes = append(notes, wrapPlain(th.Muted, "Press a to adopt it: hourglass adds a comment line above it and leaves the cron line unchanged.", iw)...)
 	}
 	if len(notes) > 0 {
 		add("")
@@ -169,7 +169,7 @@ func (m Model) recentLines(j svc.Job, vw int) []string {
 	}
 	out = append(out, line+th.Muted.Render(strings.Join(parts, " · "))+result)
 	if !j.Wrapped {
-		out = append(out, wrapPlain(th.Muted, "only runs started from gocron · cron runs aren't tracked", vw)...)
+		out = append(out, wrapPlain(th.Muted, "only runs started from hourglass · cron runs aren't tracked", vw)...)
 	}
 	return out
 }
@@ -203,7 +203,7 @@ func tracking(j crontab.Job) string {
 	if !j.Wrapped {
 		return "not tracked (plain cron line)"
 	}
-	parts := []string{"runs via gocron exec"}
+	parts := []string{"runs via hourglass exec"}
 	if j.Timeout > 0 {
 		parts = append(parts, "timeout "+crontab.FormatDuration(j.Timeout))
 	}

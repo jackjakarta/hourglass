@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/jackjakarta/gocron/internal/humanize"
-	runs "github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/humanize"
+	runs "github.com/jackjakarta/hourglass/internal/store"
 )
 
 func (a *app) logs(ctx context.Context, args []string) int {
@@ -76,24 +76,24 @@ func (a *app) printLog(ctx context.Context, db *runs.DB, id, which string) int {
 			return a.fail(err)
 		}
 		if len(list) == 0 {
-			fmt.Fprintf(a.stderr, "gocron: no runs of %s yet\n", id)
+			fmt.Fprintf(a.stderr, "hourglass: no runs of %s yet\n", id)
 			return exitError
 		}
 		r = list[0]
 	} else {
 		runID, err := strconv.ParseInt(which, 10, 64)
 		if err != nil {
-			fmt.Fprintf(a.stderr, "gocron: --run takes a run number or \"last\", not %q\n", which)
+			fmt.Fprintf(a.stderr, "hourglass: --run takes a run number or \"last\", not %q\n", which)
 			return exitUsage
 		}
 		if r, err = db.Get(ctx, runID); err != nil || r.JobID != id {
-			fmt.Fprintf(a.stderr, "gocron: %s has no run %d (gocron logs %s lists them)\n", id, runID, id)
+			fmt.Fprintf(a.stderr, "hourglass: %s has no run %d (hourglass logs %s lists them)\n", id, runID, id)
 			return exitError
 		}
 	}
 	f, err := os.Open(r.LogPath)
 	if errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintf(a.stderr, "gocron: run %d has no saved output\n", r.ID)
+		fmt.Fprintf(a.stderr, "hourglass: run %d has no saved output\n", r.ID)
 		return exitOK
 	}
 	if err != nil {

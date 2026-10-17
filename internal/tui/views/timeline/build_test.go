@@ -8,11 +8,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/store"
-	"github.com/jackjakarta/gocron/internal/tui/keys"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/store"
+	"github.com/jackjakarta/hourglass/internal/tui/keys"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // Sun 11 Oct 2026 14:32:07 UTC
@@ -47,7 +47,7 @@ func TestBuildBandsAndMarks(t *testing.T) {
 }
 
 func TestBuildSparseRebootAndPaused(t *testing.T) {
-	js := parse(t, "0 4 * * 0 weekly\n@reboot boot\n#gocron:off 0 * * * * paused\n# gocron:job id=aaaaaa name=Off\n#gocron:off 0 * * * * off\n0 0 30 2 * never\n")
+	js := parse(t, "0 4 * * 0 weekly\n@reboot boot\n#hourglass:off 0 * * * * paused\n# hourglass:job id=aaaaaa name=Off\n#hourglass:off 0 * * * * off\n0 0 30 2 * never\n")
 	g := day(js, 80, 0)
 	if len(g.Lanes) != 3 {
 		t.Fatalf("lanes = %d, want weekly, boot and never (paused left out)", len(g.Lanes))
@@ -116,7 +116,7 @@ func TestBuildFallBack(t *testing.T) {
 }
 
 func TestBuildWeekColumnsAndPast(t *testing.T) {
-	js := parse(t, "# gocron:job id=aaaaaa name=Daily\n0 3 * * * daily\n")
+	js := parse(t, "# hourglass:job id=aaaaaa name=Daily\n0 3 * * * daily\n")
 	from := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
 	stats := map[string]store.JobStats{"aaaaaa": {Recent: []store.Run{
 		{StartedAt: time.Date(2026, 10, 11, 3, 0, 0, 0, time.UTC), Status: store.StatusFailed},

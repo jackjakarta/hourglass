@@ -9,15 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 func statePaths(t *testing.T) config.Paths {
 	t.Helper()
 	dir := t.TempDir()
 	p, err := config.ResolveEnv(func(k string) string {
-		return map[string]string{"GOCRON_STATE_DIR": filepath.Join(dir, "state"), "GOCRON_CONFIG": filepath.Join(dir, "config.toml")}[k]
+		return map[string]string{"HOURGLASS_STATE_DIR": filepath.Join(dir, "state"), "HOURGLASS_CONFIG": filepath.Join(dir, "config.toml")}[k]
 	}, "/home/u")
 	if err != nil {
 		t.Fatal(err)
@@ -62,10 +62,10 @@ func TestStateChecksProblems(t *testing.T) {
 	db.Close()
 	os.WriteFile(p.ConfigFile, []byte("x = 1\n"), 0o600)
 
-	env := debianBox.env(fakeSource{content: "# gocron:job id=abc234\n0 0 * * * /usr/local/bin/gocron exec abc234 -- 'x'\n"})
-	env.SelfPath = "/tmp/go-build1/exe/gocron"
-	// The shell points gocron at p; cron, without that variable, would use
-	// ~/.local/state/gocron.
+	env := debianBox.env(fakeSource{content: "# hourglass:job id=abc234\n0 0 * * * /usr/local/bin/hourglass exec abc234 -- 'x'\n"})
+	env.SelfPath = "/tmp/go-build1/exe/hourglass"
+	// The shell points hourglass at p; cron, without that variable, would use
+	// ~/.local/state/hourglass.
 	env.State = &State{Paths: p, Home: "/home/u", ConfigWarnings: []string{"unknown key \"x\""}}
 	checks := Run(context.Background(), env)
 	if c := find(t, checks, "config"); c.Status != Warn || len(c.More) != 1 {
@@ -78,7 +78,7 @@ func TestStateChecksProblems(t *testing.T) {
 		t.Errorf("tracking = %+v", c)
 	}
 	c := find(t, checks, "state seen by cron")
-	if c.Status != Warn || !strings.Contains(c.Detail, "/home/u/.local/state/gocron") || !strings.Contains(c.Hint, "GOCRON_STATE_DIR="+p.StateDir) {
+	if c.Status != Warn || !strings.Contains(c.Detail, "/home/u/.local/state/hourglass") || !strings.Contains(c.Hint, "HOURGLASS_STATE_DIR="+p.StateDir) {
 		t.Errorf("cron state = %+v", c)
 	}
 
@@ -90,7 +90,7 @@ func TestStateChecksProblems(t *testing.T) {
 
 func TestStateChecksCronSeesSameDir(t *testing.T) {
 	p := statePaths(t)
-	env := debianBox.env(fakeSource{content: "GOCRON_STATE_DIR=" + p.StateDir + "\n"})
+	env := debianBox.env(fakeSource{content: "HOURGLASS_STATE_DIR=" + p.StateDir + "\n"})
 	env.State = &State{Paths: p, Home: "/home/u"}
 	for _, c := range Run(context.Background(), env) {
 		if c.Name == "state seen by cron" {

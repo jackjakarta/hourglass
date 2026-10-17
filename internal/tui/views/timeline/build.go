@@ -6,8 +6,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 // Lane is one job's row in the timeline.

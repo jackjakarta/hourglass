@@ -15,18 +15,18 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/doctor"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/store"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/keys"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
-	crontabview "github.com/jackjakarta/gocron/internal/tui/views/crontab"
-	"github.com/jackjakarta/gocron/internal/tui/views/editor"
-	historyview "github.com/jackjakarta/gocron/internal/tui/views/history"
-	jobsview "github.com/jackjakarta/gocron/internal/tui/views/jobs"
-	"github.com/jackjakarta/gocron/internal/tui/views/timeline"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/doctor"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/store"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/keys"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
+	crontabview "github.com/jackjakarta/hourglass/internal/tui/views/crontab"
+	"github.com/jackjakarta/hourglass/internal/tui/views/editor"
+	historyview "github.com/jackjakarta/hourglass/internal/tui/views/history"
+	jobsview "github.com/jackjakarta/hourglass/internal/tui/views/jobs"
+	"github.com/jackjakarta/hourglass/internal/tui/views/timeline"
 )
 
 const (
@@ -747,7 +747,7 @@ func (m Model) handleExternal(msg externalMsg) Model {
 	case msg.changed:
 		m.readErr = ""
 		m.setSnapshot(msg.snap)
-		text := "Crontab reloaded (changed outside gocron)"
+		text := "Crontab reloaded (changed outside hourglass)"
 		if msg.toast != "" {
 			text = msg.toast
 		}
@@ -775,9 +775,9 @@ func (m Model) handleMutation(msg mutationMsg) (tea.Model, tea.Cmd) {
 	case errors.As(msg.err, &conflict) && conflict.Retry != nil:
 		retry := conflict.Retry
 		m.confirm = &components.Confirm{
-			Title: "Crontab changed outside gocron",
+			Title: "Crontab changed outside hourglass",
 			Body: []string{
-				"Someone edited your crontab after gocron loaded it,",
+				"Someone edited your crontab after hourglass loaded it,",
 				"so your change wasn't saved.",
 				"",
 				"Reapply: load their version and apply your change to it.",
@@ -791,7 +791,7 @@ func (m Model) handleMutation(msg mutationMsg) (tea.Model, tea.Cmd) {
 		}
 		m.confirm.OnExtra = m.viewDiff(m.confirm)
 	case errors.As(msg.err, &conflict):
-		return m, m.reload("Crontab changed outside gocron, so nothing was undone · reloaded")
+		return m, m.reload("Crontab changed outside hourglass, so nothing was undone · reloaded")
 	case errors.Is(msg.err, jobs.ErrNothingToUndo):
 		m.toast(components.ToastInfo, "", "Nothing to undo.")
 	case errors.Is(msg.err, jobs.ErrUndoStale):
@@ -799,7 +799,7 @@ func (m Model) handleMutation(msg mutationMsg) (tea.Model, tea.Cmd) {
 	case errors.Is(msg.err, crontab.ErrNotFound):
 		m.toast(components.ToastFail, "", "That entry is no longer in the crontab. The list is up to date now.")
 	default:
-		m.toast(components.ToastFail, "", "Couldn't save: "+msg.err.Error()+". Run gocron doctor for details.")
+		m.toast(components.ToastFail, "", "Couldn't save: "+msg.err.Error()+". Run hourglass doctor for details.")
 	}
 	return m, nil
 }
@@ -822,9 +822,9 @@ func (m Model) handleEditorSave(msg mutationMsg) (tea.Model, tea.Cmd) {
 		m.jobs.SelectJob(msg.res.ID)
 	case errors.As(msg.err, &conflict) && conflict.Retry != nil:
 		m.confirm = &components.Confirm{
-			Title: "Crontab changed outside gocron",
+			Title: "Crontab changed outside hourglass",
 			Body: []string{
-				"Someone edited your crontab after gocron loaded it,",
+				"Someone edited your crontab after hourglass loaded it,",
 				"so your job wasn't saved.",
 				"",
 				"Keep editing: load their version; your edits stay here.",
@@ -852,7 +852,7 @@ func (m Model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
 	v.ReportFocus = true
-	v.WindowTitle = "gocron"
+	v.WindowTitle = "hourglass"
 	if m.opts.UI.Mouse {
 		v.MouseMode = tea.MouseModeCellMotion
 	}
@@ -899,14 +899,14 @@ func (m Model) render() string {
 
 func (m Model) tooSmall() string {
 	msg := m.th.Title.Render("Make me a bit bigger") + "\n\n" +
-		m.th.Muted.Render(fmt.Sprintf("gocron needs %d×%d;", minWidth, minHeight)) + "\n" +
+		m.th.Muted.Render(fmt.Sprintf("hourglass needs %d×%d;", minWidth, minHeight)) + "\n" +
 		m.th.Muted.Render(fmt.Sprintf("this terminal is %d×%d.", m.width, m.height))
 	return components.Center(lipgloss.NewStyle().Align(lipgloss.Center).Render(msg), m.width, m.height)
 }
 
 func (m Model) header() string {
 	th := m.th
-	left := " " + th.AccentText.Bold(true).Render(theme.GlyphClock+" gocron") + "   " // headerLead
+	left := " " + th.AccentText.Bold(true).Render(theme.GlyphClock+" hourglass") + "   " // headerLead
 	for i, name := range tabNames {
 		if i > 0 {
 			left += tabGap
@@ -964,13 +964,13 @@ func (m Model) loadError(w, h int) string {
 	th := m.th
 	lines := []string{
 		"",
-		th.Fail.Render(theme.GlyphFail + " gocron can't read your crontab"),
+		th.Fail.Render(theme.GlyphFail + " hourglass can't read your crontab"),
 		"",
 	}
 	for _, l := range strings.Split(lipgloss.NewStyle().Width(w-6).Render(m.opts.LoadErr.Error()), "\n") {
 		lines = append(lines, th.Text.Render(l))
 	}
-	lines = append(lines, "", th.Muted.Render("Run ")+th.Key.Render("gocron doctor")+th.Muted.Render(" to see what's wrong. Press q to quit."))
+	lines = append(lines, "", th.Muted.Render("Run ")+th.Key.Render("hourglass doctor")+th.Muted.Render(" to see what's wrong. Press q to quit."))
 	return components.Panel(th, "Jobs", lines, w, h, true)
 }
 

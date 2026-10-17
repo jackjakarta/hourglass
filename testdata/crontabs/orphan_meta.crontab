@@ -1,12 +1,12 @@
-# gocron:job id=orph01 name="Before blank"
+# hourglass:job id=orph01 name="Before blank"
 
-# gocron:job id=orph02 name="Before comment"
+# hourglass:job id=orph02 name="Before comment"
 # just a comment
-# gocron:job id=orph03 name="Before another meta"
-# gocron:job id=good04 name="Has its line"
+# hourglass:job id=orph03 name="Before another meta"
+# hourglass:job id=good04 name="Has its line"
 0 * * * * /usr/bin/true
-# gocron:job id=orph05 name="Before invalid"
+# hourglass:job id=orph05 name="Before invalid"
 99 * * * * /usr/bin/bad-minute
-# gocron:job name="No id"
+# hourglass:job name="No id"
 0 1 * * * /usr/bin/unmanaged-after-bad-meta
-# gocron:job id=orph06 name="At EOF"
+# hourglass:job id=orph06 name="At EOF"

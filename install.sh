@@ -1,15 +1,15 @@
 #!/bin/sh
-# gocron installer — curl -fsSL https://gocron.jackjakarta.xyz/install.sh | sh
+# hourglass installer — curl -fsSL https://hourglass.jackjakarta.xyz/install.sh | sh
 #
 # Environment variables:
-#   GOCRON_VERSION      — specific version to install (e.g. v0.1.0), default: latest
-#   GOCRON_INSTALL_DIR  — custom install directory, default: /usr/local/bin or ~/.local/bin
+#   HOURGLASS_VERSION      — specific version to install (e.g. v0.1.0), default: latest
+#   HOURGLASS_INSTALL_DIR  — custom install directory, default: /usr/local/bin or ~/.local/bin
 #   GH_TOKEN            — GitHub token, if you hit API rate limits (also accepts GITHUB_TOKEN)
 
 set -e
 
-REPO="jackjakarta/gocron"
-RELEASES_URL="${GOCRON_RELEASES_URL:-https://github.com/${REPO}/releases}"
+REPO="jackjakarta/hourglass"
+RELEASES_URL="${HOURGLASS_RELEASES_URL:-https://github.com/${REPO}/releases}"
 
 main() {
     setup_colors
@@ -26,18 +26,18 @@ main() {
     install_binary
 
     printf "\n"
-    printf "%s  gocron %s installed successfully!%s\n" "$GREEN" "$VERSION" "$RESET"
+    printf "%s  hourglass %s installed successfully!%s\n" "$GREEN" "$VERSION" "$RESET"
     printf "\n"
     printf "  Location: %s\n" "$INSTALL_PATH"
     printf "  Version:  %s\n" "$("$INSTALL_PATH" version 2>/dev/null || printf '%s' "$VERSION")"
     printf "\n"
     printf "  Check your cron setup, then open the TUI:\n"
     printf "\n"
-    printf "    $ gocron doctor\n"
-    printf "    $ gocron\n"
+    printf "    $ hourglass doctor\n"
+    printf "    $ hourglass\n"
     printf "\n"
     printf "  Tracked jobs call this binary by its full path. When you upgrade,\n"
-    printf "  install to the same place (or run %sgocron doctor --fix%s afterwards).\n" "$BOLD" "$RESET"
+    printf "  install to the same place (or run %shourglass doctor --fix%s afterwards).\n" "$BOLD" "$RESET"
     printf "\n"
 }
 
@@ -150,8 +150,8 @@ detect_platform() {
 }
 
 resolve_version() {
-    if [ -n "$GOCRON_VERSION" ]; then
-        VERSION="$GOCRON_VERSION"
+    if [ -n "$HOURGLASS_VERSION" ]; then
+        VERSION="$HOURGLASS_VERSION"
         info "Using specified version: ${VERSION}"
         return
     fi
@@ -164,14 +164,14 @@ resolve_version() {
     VERSION=$(printf '%s' "$RESPONSE" | grep '"tag_name"' | sed 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
 
     if [ -z "$VERSION" ]; then
-        error "Could not determine latest version. Set GOCRON_VERSION to install a specific version."
+        error "Could not determine latest version. Set HOURGLASS_VERSION to install a specific version."
     fi
 
     info "Latest version: ${VERSION}"
 }
 
 download() {
-    ARCHIVE="gocron-${OS}-${ARCH}.tar.gz"
+    ARCHIVE="hourglass-${OS}-${ARCH}.tar.gz"
     DOWNLOAD_URL="${RELEASES_URL}/download/${VERSION}/${ARCHIVE}"
 
     info "Downloading ${ARCHIVE}..."
@@ -211,15 +211,15 @@ verify_checksum() {
 install_binary() {
     tar -xzf "${TMPDIR}/${ARCHIVE}" -C "$TMPDIR"
 
-    if [ ! -f "${TMPDIR}/gocron" ]; then
-        error "Archive did not contain the 'gocron' binary."
+    if [ ! -f "${TMPDIR}/hourglass" ]; then
+        error "Archive did not contain the 'hourglass' binary."
     fi
 
-    chmod +x "${TMPDIR}/gocron"
+    chmod +x "${TMPDIR}/hourglass"
 
     # Determine install directory
-    if [ -n "$GOCRON_INSTALL_DIR" ]; then
-        INSTALL_DIR="$GOCRON_INSTALL_DIR"
+    if [ -n "$HOURGLASS_INSTALL_DIR" ]; then
+        INSTALL_DIR="$HOURGLASS_INSTALL_DIR"
     elif [ -w "/usr/local/bin" ]; then
         INSTALL_DIR="/usr/local/bin"
     elif command -v sudo >/dev/null 2>&1; then
@@ -228,7 +228,7 @@ install_binary() {
         INSTALL_DIR="$HOME/.local/bin"
     fi
 
-    INSTALL_PATH="${INSTALL_DIR}/gocron"
+    INSTALL_PATH="${INSTALL_DIR}/hourglass"
 
     # Create directory if it doesn't exist
     if [ ! -d "$INSTALL_DIR" ]; then
@@ -243,12 +243,12 @@ install_binary() {
 
     # Install the binary
     if [ -w "$INSTALL_DIR" ]; then
-        mv "${TMPDIR}/gocron" "$INSTALL_PATH"
+        mv "${TMPDIR}/hourglass" "$INSTALL_PATH"
     elif command -v sudo >/dev/null 2>&1; then
         info "Elevated permissions required to install to ${INSTALL_DIR}"
-        sudo mv "${TMPDIR}/gocron" "$INSTALL_PATH"
+        sudo mv "${TMPDIR}/hourglass" "$INSTALL_PATH"
     else
-        error "Cannot write to ${INSTALL_DIR} and sudo is not available. Set GOCRON_INSTALL_DIR to a writable directory."
+        error "Cannot write to ${INSTALL_DIR} and sudo is not available. Set HOURGLASS_INSTALL_DIR to a writable directory."
     fi
 
     # macOS: remove quarantine attribute

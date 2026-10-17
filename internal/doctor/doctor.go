@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 // Status is a check's outcome.
@@ -67,9 +67,9 @@ type Env struct {
 	Processes func() []string
 	// Stat reports whether a path exists.
 	Exists func(path string) bool
-	// SelfPath is the running gocron binary, symlinks resolved.
+	// SelfPath is the running hourglass binary, symlinks resolved.
 	SelfPath string
-	// State is gocron's own files; nil skips the checks about them.
+	// State is hourglass's own files; nil skips the checks about them.
 	State *State
 	// GOOS picks the desktop notifier to look for.
 	GOOS string
@@ -197,7 +197,7 @@ func checkAccess(ctx context.Context, env Env) (Check, []byte) {
 	}
 	if fs, ok := env.Source.(crontab.FileSource); ok {
 		if err := writable(fs.Path); err != nil {
-			c.Status, c.Hint = Warn, "gocron can read but not write this file: "+err.Error()
+			c.Status, c.Hint = Warn, "hourglass can read but not write this file: "+err.Error()
 		}
 	}
 	return c, b
@@ -213,7 +213,7 @@ func writable(path string) error {
 	if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".gocron-doctor-*")
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".hourglass-doctor-*")
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func checkProblems(tab *crontab.Crontab) Check {
 	for _, p := range problems {
 		c.More = append(c.More, p.String())
 	}
-	c.Hint = "cron skips invalid lines; gocron keeps them untouched until you fix them"
+	c.Hint = "cron skips invalid lines; hourglass keeps them untouched until you fix them"
 	return c
 }
 
@@ -330,7 +330,7 @@ func checkCronTZ(tab *crontab.Crontab, d Daemon) (Check, bool) {
 }
 
 func checkWrappedPaths(tab *crontab.Crontab, env Env) (Check, bool) {
-	c := Check{Name: "gocron path in jobs"}
+	c := Check{Name: "hourglass path in jobs"}
 	wrapped, stale, missing := 0, map[string][]string{}, map[string][]string{}
 	for _, j := range tab.Jobs() {
 		if !j.Wrapped {
@@ -360,21 +360,21 @@ func checkWrappedPaths(tab *crontab.Crontab, env Env) (Check, bool) {
 		c.More = append(c.More, fmt.Sprintf("%s doesn't exist (jobs %s)", bin, strings.Join(missing[bin], ", ")))
 	}
 	for _, bin := range sortedKeys(stale) {
-		c.More = append(c.More, fmt.Sprintf("%s isn't this gocron (jobs %s)", bin, strings.Join(stale[bin], ", ")))
+		c.More = append(c.More, fmt.Sprintf("%s isn't this hourglass (jobs %s)", bin, strings.Join(stale[bin], ", ")))
 	}
 	switch {
 	case len(missing) > 0:
-		c.Status, c.Detail = Fail, "some jobs run a gocron binary that doesn't exist, so they fail"
-		c.Hint = "reinstall gocron at that path, or update the jobs to " + env.SelfPath
+		c.Status, c.Detail = Fail, "some jobs run a hourglass binary that doesn't exist, so they fail"
+		c.Hint = "reinstall hourglass at that path, or update the jobs to " + env.SelfPath
 	case len(stale) > 0:
-		c.Status, c.Detail = Warn, "some jobs run a different gocron binary than this one"
+		c.Status, c.Detail = Warn, "some jobs run a different hourglass binary than this one"
 		c.Hint = "fine if intended; otherwise update them to " + env.SelfPath
 	default:
 		verb := "use"
 		if wrapped == 1 {
 			verb = "uses"
 		}
-		c.Status, c.Detail = OK, fmt.Sprintf("%d wrapped %s %s this gocron", wrapped, plural(wrapped, "job"), verb)
+		c.Status, c.Detail = OK, fmt.Sprintf("%d wrapped %s %s this hourglass", wrapped, plural(wrapped, "job"), verb)
 	}
 	return c, true
 }

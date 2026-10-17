@@ -9,10 +9,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/jackjakarta/gocron/internal/humanize"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/keys"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/humanize"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/keys"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // logView shows one run's output, with search.

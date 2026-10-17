@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-// Wrapped is a command that runs through "gocron exec".
+// Wrapped is a command that runs through "hourglass exec".
 type Wrapped struct {
-	Bin       string // path to the gocron binary as written
+	Bin       string // path to the hourglass binary as written
 	ID        string
 	Timeout   time.Duration // 0 = none
 	NoOverlap bool
@@ -35,12 +35,12 @@ func (w Wrapped) Encode() string {
 }
 
 // DecodeWrapped recognizes a command whose first word's basename is
-// "gocron" and whose second word is "exec". cmd must already be
-// %-unescaped. Flags gocron didn't write make it unrecognized, so the
+// "hourglass" and whose second word is "exec". cmd must already be
+// %-unescaped. Flags hourglass didn't write make it unrecognized, so the
 // command is shown and preserved as-is.
 func DecodeWrapped(cmd string) (Wrapped, bool) {
 	words, err := shellWords(cmd)
-	if err != nil || len(words) < 4 || path.Base(words[0].text) != "gocron" || words[1].text != "exec" {
+	if err != nil || len(words) < 4 || path.Base(words[0].text) != "hourglass" || words[1].text != "exec" {
 		return Wrapped{}, false
 	}
 	w := Wrapped{Bin: words[0].text}

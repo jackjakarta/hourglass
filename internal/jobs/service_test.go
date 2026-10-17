@@ -10,15 +10,15 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 const tab = `MAILTO=""
 @reboot ~/bin/start-tmux.sh
-# gocron:job id=abc234 name=A
+# hourglass:job id=abc234 name=A
 0 0 * * * a
-# gocron:job id=def567 name=B
-#gocron:off 0 1 * * * b
+# hourglass:job id=def567 name=B
+#hourglass:off 0 1 * * * b
 `
 
 type env struct {
@@ -37,7 +37,7 @@ func newEnv(t *testing.T, initial string) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.svc = New(store, Options{Bin: "/usr/bin/gocron"})
+	e.svc = New(store, Options{Bin: "/usr/bin/hourglass"})
 	return e
 }
 
@@ -85,7 +85,7 @@ func TestChangesAndUndo(t *testing.T) {
 		t.Fatal(err)
 	}
 	afterPause := e.read(t)
-	if !strings.Contains(afterPause, "#gocron:off 0 0 * * * a\n") {
+	if !strings.Contains(afterPause, "#hourglass:off 0 0 * * * a\n") {
 		t.Errorf("not paused:\n%s", afterPause)
 	}
 	res, err := e.svc.Delete(ctx, "def567")
@@ -97,7 +97,7 @@ func TestChangesAndUndo(t *testing.T) {
 		t.Fatal(err)
 	}
 	adopted := e.read(t)
-	if !strings.Contains(adopted, "# gocron:job id="+res.ID+" name=start-tmux.sh\n@reboot ~/bin/start-tmux.sh\n") {
+	if !strings.Contains(adopted, "# hourglass:job id="+res.ID+" name=start-tmux.sh\n@reboot ~/bin/start-tmux.sh\n") {
 		t.Errorf("adopt:\n%s", adopted)
 	}
 	if n := e.backupCount(t); n != 3 {
@@ -111,7 +111,7 @@ func TestChangesAndUndo(t *testing.T) {
 
 	// Undo walks back through each change, each with its own backup.
 	for _, want := range []string{
-		strings.Replace(afterPause, "# gocron:job id=def567 name=B\n#gocron:off 0 1 * * * b\n", "", 1),
+		strings.Replace(afterPause, "# hourglass:job id=def567 name=B\n#hourglass:off 0 1 * * * b\n", "", 1),
 		afterPause,
 		tab,
 	} {
@@ -175,7 +175,7 @@ func TestConflictRetry(t *testing.T) {
 	if _, err := conflict.Retry(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.read(t); got != strings.Replace(external, "0 0 * * * a", "#gocron:off 0 0 * * * a", 1) {
+	if got := e.read(t); got != strings.Replace(external, "0 0 * * * a", "#hourglass:off 0 0 * * * a", 1) {
 		t.Errorf("retry didn't reapply onto the external change:\n%s", got)
 	}
 	// Undo goes back to the external version, not past it.
@@ -216,7 +216,7 @@ func TestConcurrentChanges(t *testing.T) {
 	ctx := context.Background()
 	var b strings.Builder
 	for i := range 20 {
-		fmt.Fprintf(&b, "# gocron:job id=job%03d\n0 0 * * * x\n", i)
+		fmt.Fprintf(&b, "# hourglass:job id=job%03d\n0 0 * * * x\n", i)
 	}
 	e := newEnv(t, b.String())
 	var wg sync.WaitGroup
@@ -231,7 +231,7 @@ func TestConcurrentChanges(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	if n := strings.Count(e.read(t), "#gocron:off "); n != 20 {
+	if n := strings.Count(e.read(t), "#hourglass:off "); n != 20 {
 		t.Errorf("%d of 20 jobs paused", n)
 	}
 }

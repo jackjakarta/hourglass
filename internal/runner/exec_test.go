@@ -12,18 +12,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/lockfile"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/lockfile"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 const job = "k3f9a2"
 
 func paths(t *testing.T) config.Paths {
 	t.Helper()
-	t.Setenv("GOCRON_STATE_DIR", t.TempDir())
-	t.Setenv("GOCRON_CONFIG", filepath.Join(t.TempDir(), "none.toml"))
+	t.Setenv("HOURGLASS_STATE_DIR", t.TempDir())
+	t.Setenv("HOURGLASS_CONFIG", filepath.Join(t.TempDir(), "none.toml"))
 	p, err := config.Resolve()
 	if err != nil {
 		t.Fatal(err)
@@ -222,7 +222,7 @@ func TestExecCapsLog(t *testing.T) {
 		t.Fatal("not truncated")
 	}
 	got := readLog(t, res.LogPath)
-	if !strings.HasPrefix(got, strings.Repeat("x", 1024)+"\n[gocron: output truncated at 1024 bytes; the run wrote 5000]") {
+	if !strings.HasPrefix(got, strings.Repeat("x", 1024)+"\n[hourglass: output truncated at 1024 bytes; the run wrote 5000]") {
 		t.Errorf("log = %q", got)
 	}
 	if rs := runs(t, p); !rs[0].Truncated || rs[0].LogBytes != 5000 {

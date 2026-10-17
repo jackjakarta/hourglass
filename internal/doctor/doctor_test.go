@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 // fakeSource is a non-file Source, standing in for the real crontab.
@@ -46,14 +46,14 @@ func (f fakeSystem) env(src crontab.Source) Env {
 		},
 		Processes: func() []string { return f.procs },
 		Exists:    func(p string) bool { return f.files[p] },
-		SelfPath:  "/usr/local/bin/gocron",
+		SelfPath:  "/usr/local/bin/hourglass",
 	}
 }
 
 var debianBox = fakeSystem{
-	paths:  map[string]string{"crontab": "/usr/bin/crontab", "systemctl": "/usr/bin/systemctl", "gocron": "/usr/local/bin/gocron"},
+	paths:  map[string]string{"crontab": "/usr/bin/crontab", "systemctl": "/usr/bin/systemctl", "hourglass": "/usr/local/bin/hourglass"},
 	active: map[string]bool{"cron": true},
-	files:  map[string]bool{"/usr/local/bin/gocron": true, "/old/gocron": true},
+	files:  map[string]bool{"/usr/local/bin/hourglass": true, "/old/hourglass": true},
 }
 
 func find(t *testing.T, checks []Check, name string) Check {
@@ -68,18 +68,18 @@ func find(t *testing.T, checks []Check, name string) Check {
 }
 
 func TestHealthySystem(t *testing.T) {
-	tab := "MAILTO=\"\"\n# gocron:job id=abc234\n0 0 * * * /usr/local/bin/gocron exec abc234 -- 'x'\n*/5 * * * * y\n"
+	tab := "MAILTO=\"\"\n# hourglass:job id=abc234\n0 0 * * * /usr/local/bin/hourglass exec abc234 -- 'x'\n*/5 * * * * y\n"
 	checks := Run(context.Background(), debianBox.env(fakeSource{content: tab}))
 	if Failed(checks) {
 		t.Fatalf("healthy system failed: %+v", checks)
 	}
 	for name, want := range map[string]string{
-		"crontab command":     "/usr/bin/crontab",
-		"crontab access":      "user crontab · 4 lines",
-		"cron daemon":         "Debian cron is active (systemd unit cron)",
-		"crontab contents":    "1 managed job, 1 unmanaged entry",
-		"gocron path in jobs": "1 wrapped job uses this gocron",
-		"MAILTO":              "empty: cron mail is off",
+		"crontab command":        "/usr/bin/crontab",
+		"crontab access":         "user crontab · 4 lines",
+		"cron daemon":            "Debian cron is active (systemd unit cron)",
+		"crontab contents":       "1 managed job, 1 unmanaged entry",
+		"hourglass path in jobs": "1 wrapped job uses this hourglass",
+		"MAILTO":                 "empty: cron mail is off",
 	} {
 		if got := find(t, checks, name).Detail; got != want {
 			t.Errorf("%s: %q, want %q", name, got, want)
@@ -150,11 +150,11 @@ func TestCronTZ(t *testing.T) {
 
 func TestProblemsAndPaths(t *testing.T) {
 	tab := strings.Join([]string{
-		"# gocron:job id=aaa222",
-		"0 0 * * * /old/gocron exec aaa222 -- 'x'",
-		"# gocron:job id=aaa222",
-		"0 1 * * * /gone/gocron exec aaa222 -- 'y'",
-		"# gocron:job id=orphan",
+		"# hourglass:job id=aaa222",
+		"0 0 * * * /old/hourglass exec aaa222 -- 'x'",
+		"# hourglass:job id=aaa222",
+		"0 1 * * * /gone/hourglass exec aaa222 -- 'y'",
+		"# hourglass:job id=orphan",
 		"",
 		"bogus line",
 	}, "\n") + "\n"
@@ -163,8 +163,8 @@ func TestProblemsAndPaths(t *testing.T) {
 	if c.Status != Warn || len(c.More) != 3 {
 		t.Errorf("problems = %+v", c)
 	}
-	p := find(t, checks, "gocron path in jobs")
-	if p.Status != Fail || strings.Join(p.More, "|") != "/gone/gocron doesn't exist (jobs aaa222)|/old/gocron isn't this gocron (jobs aaa222)" {
+	p := find(t, checks, "hourglass path in jobs")
+	if p.Status != Fail || strings.Join(p.More, "|") != "/gone/hourglass doesn't exist (jobs aaa222)|/old/hourglass isn't this hourglass (jobs aaa222)" {
 		t.Errorf("paths = %+v", p)
 	}
 }

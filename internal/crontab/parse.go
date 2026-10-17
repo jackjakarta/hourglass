@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/jackjakarta/gocron/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
 )
 
 // Kind classifies a crontab line.
@@ -16,11 +16,11 @@ type Kind int
 
 const (
 	Blank   Kind = iota
-	Comment      // includes orphaned gocron meta lines (Line.Orphan)
+	Comment      // includes orphaned hourglass meta lines (Line.Orphan)
 	Env          // NAME=value
-	Entry        // a cron entry gocron doesn't manage
-	JobMeta      // "# gocron:job …" followed by its JobLine
-	JobLine      // the cron line of a managed job (maybe "#gocron:off ")
+	Entry        // a cron entry hourglass doesn't manage
+	JobMeta      // "# hourglass:job …" followed by its JobLine
+	JobLine      // the cron line of a managed job (maybe "#hourglass:off ")
 	Invalid      // not a comment, env line or valid entry
 )
 
@@ -51,9 +51,9 @@ type Line struct {
 	Kind Kind
 
 	Env    *EnvVar    // Kind == Env
-	Entry  *CronEntry // Kind == Entry or JobLine; also a "#gocron:off" comment
+	Entry  *CronEntry // Kind == Entry or JobLine; also a "#hourglass:off" comment
 	Meta   *Meta      // Kind == JobMeta, or an orphan meta comment
-	Orphan bool       // a gocron meta line not followed by its cron line
+	Orphan bool       // a hourglass meta line not followed by its cron line
 	Err    error      // Kind == Invalid, or a malformed meta comment
 }
 
@@ -64,13 +64,13 @@ type EnvVar struct{ Name, Value string }
 type CronEntry struct {
 	Schedule string // as written, including internal whitespace
 	Command  string // as written: still %-escaped, trailing whitespace kept
-	Disabled bool   // written as "#gocron:off <entry>"
+	Disabled bool   // written as "#hourglass:off <entry>"
 	Expr     *cronexpr.Expr
 }
 
 const (
-	metaPrefix = "# gocron:job"
-	offPrefix  = "#gocron:off "
+	metaPrefix = "# hourglass:job"
+	offPrefix  = "#hourglass:off "
 )
 
 // Crontab is a parsed crontab.

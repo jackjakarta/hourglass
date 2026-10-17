@@ -1,4 +1,4 @@
- ◷ gocron   Jobs  Timeline  History  Crontab                           ● cron active · Sun 14:32:07
+ ◷ hourglass   Jobs  Timeline  History  Crontab                        ● cron active · Sun 14:32:07
 
 ╭─ Nightly backup ─────────────────────────────────────────────────────────────────────────────────╮
 │ ● enabled · #backup #db · k3f9a2                                                                 │
@@ -9,7 +9,7 @@
 │                                                                                                  │
 │ COMMAND    pg_dump app | gzip > /bk/app-$(date +%F).sql.gz                                       │
 │                                                                                                  │
-│ TRACKING   runs via gocron exec · timeout 30m · skips if still running                           │
+│ TRACKING   runs via hourglass exec · timeout 30m · skips if still running                        │
 │                                                                                                  │
 │ RECENT     no runs yet · r runs it now                                                           │
 │                                                                                                  │

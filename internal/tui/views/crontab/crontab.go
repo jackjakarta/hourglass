@@ -10,11 +10,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/jackjakarta/gocron/internal/humanize"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/keys"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/humanize"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/keys"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // Requests the view returns from Update.
@@ -326,7 +326,7 @@ func (m Model) listPanel(w, h int) string {
 	case m.err != nil:
 		lines = append(lines, "", th.Fail.Render("Can't read the backups: "+m.err.Error()))
 	case m.loaded && len(m.revs) == 0:
-		lines = append(lines, "", th.Muted.Render("No revisions yet. gocron backs up the"), th.Muted.Render("crontab before every change it makes."))
+		lines = append(lines, "", th.Muted.Render("No revisions yet. hourglass backs up the"), th.Muted.Render("crontab before every change it makes."))
 	}
 	title := "Revisions"
 	if n := len(m.revs); n > 0 {

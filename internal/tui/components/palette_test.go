@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 func TestFuzzyMatch(t *testing.T) {

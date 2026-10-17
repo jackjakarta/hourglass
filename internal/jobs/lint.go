@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/jackjakarta/gocron/internal/cronexpr"
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 // Field is the part of a draft an issue is about.

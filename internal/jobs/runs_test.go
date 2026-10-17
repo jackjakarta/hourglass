@@ -9,20 +9,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 func TestCheckBin(t *testing.T) {
 	for bin, ok := range map[string]bool{
-		"/usr/local/bin/gocron":     true,
-		"/home/u/go/bin/gocron":     true,
-		"":                          false,
-		"gocron":                    false,
-		"/usr/local/bin/gocron-dev": false,
-		filepath.Join(os.TempDir(), "go-build1/exe/gocron"): false,
+		"/usr/local/bin/hourglass":     true,
+		"/home/u/go/bin/hourglass":     true,
+		"":                             false,
+		"hourglass":                    false,
+		"/usr/local/bin/hourglass-dev": false,
+		filepath.Join(os.TempDir(), "go-build1/exe/hourglass"): false,
 	} {
 		if err := CheckBin(bin); (err == nil) != ok {
 			t.Errorf("CheckBin(%q) = %v", bin, err)
@@ -36,12 +36,12 @@ func TestCreateWrapsOnlyWithAStableBinary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "# gocron:job id=" + res.ID + " name=x\n@daily /usr/bin/gocron exec --no-overlap " + res.ID + " -- 'echo hi'\n"; e.read(t) != want {
+	if want := "# hourglass:job id=" + res.ID + " name=x\n@daily /usr/bin/hourglass exec --no-overlap " + res.ID + " -- 'echo hi'\n"; e.read(t) != want {
 		t.Errorf("crontab:\n%s", e.read(t))
 	}
 
 	cstore, _ := crontab.Open(context.Background(), crontab.FileSource{Path: e.path}, crontab.Options{BackupDir: e.backups})
-	bad := New(cstore, Options{Bin: "/tmp/go-build1/exe/gocron"})
+	bad := New(cstore, Options{Bin: "/tmp/go-build1/exe/hourglass"})
 	if bad.WrapError() == nil {
 		t.Fatal("a temporary build should not be wrappable")
 	}
@@ -54,7 +54,7 @@ func TestAdoptFollowsDefaults(t *testing.T) {
 	for _, wrap := range []bool{true, false} {
 		e := newEnv(t, "@daily x\n")
 		cstore, _ := crontab.Open(context.Background(), crontab.FileSource{Path: e.path}, crontab.Options{BackupDir: e.backups})
-		svc := New(cstore, Options{Bin: "/usr/bin/gocron", Defaults: config.Defaults{Wrap: wrap}})
+		svc := New(cstore, Options{Bin: "/usr/bin/hourglass", Defaults: config.Defaults{Wrap: wrap}})
 		res, err := svc.Adopt(context.Background(), 1, "@daily x")
 		if err != nil {
 			t.Fatal(err)
@@ -98,11 +98,11 @@ func (r *recorder) Launch(s runner.Spec) (*runner.Handle, error) {
 }
 
 func TestLaunchSpecs(t *testing.T) {
-	e := newEnv(t, "PATH=/opt/bin:/usr/bin\nFOO=1\n# gocron:job id=abc234 name=A\n0 0 * * * /usr/bin/gocron exec --timeout=5m --no-overlap abc234 -- 'a'\n0 0 * * * b\n")
+	e := newEnv(t, "PATH=/opt/bin:/usr/bin\nFOO=1\n# hourglass:job id=abc234 name=A\n0 0 * * * /usr/bin/hourglass exec --timeout=5m --no-overlap abc234 -- 'a'\n0 0 * * * b\n")
 	rec := &recorder{}
 	cstore, _ := crontab.Open(context.Background(), crontab.FileSource{Path: e.path}, crontab.Options{BackupDir: e.backups})
 	svc := New(cstore, Options{
-		Bin:      "/usr/bin/gocron",
+		Bin:      "/usr/bin/hourglass",
 		Launcher: rec,
 		Identity: &runner.Identity{Name: "jack", Home: "/home/jack"},
 		Environ:  []string{"PATH=/home/jack/bin:/usr/bin", "SHELL=/bin/zsh", "TERM=xterm"},
@@ -155,11 +155,11 @@ func TestCronEnvTestOfLocalBinCommand(t *testing.T) {
 	state := t.TempDir()
 	p := config.Paths{StateDir: state, DB: filepath.Join(state, "runs.db"), LogsDir: filepath.Join(state, "logs"),
 		LocksDir: filepath.Join(state, "locks"), ErrorLog: filepath.Join(state, "errors.log")}
-	e := newEnv(t, "# gocron:job id=abc234 name=A\n0 0 * * * only-in-local-bin --now\n")
+	e := newEnv(t, "# hourglass:job id=abc234 name=A\n0 0 * * * only-in-local-bin --now\n")
 	cstore, _ := crontab.Open(context.Background(), crontab.FileSource{Path: e.path}, crontab.Options{BackupDir: e.backups})
 	userEnv := []string{"PATH=" + bin + ":/usr/bin:/bin", "HOME=" + t.TempDir()}
 	svc := New(cstore, Options{
-		Bin:      "/usr/bin/gocron",
+		Bin:      "/usr/bin/hourglass",
 		Launcher: runner.InProcessLauncher{Paths: p, Config: config.Default()},
 		Identity: &runner.Identity{Name: "u", Home: t.TempDir()},
 		Environ:  userEnv,

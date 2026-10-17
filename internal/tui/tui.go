@@ -1,4 +1,4 @@
-// Package tui is gocron's terminal UI.
+// Package tui is hourglass's terminal UI.
 package tui
 
 import (
@@ -7,9 +7,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/doctor"
-	"github.com/jackjakarta/gocron/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/doctor"
+	"github.com/jackjakarta/hourglass/internal/jobs"
 )
 
 // Clock tells the time. Views get the time from it, never from time.Now,

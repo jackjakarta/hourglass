@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
 )
 
-// Job is a cron job as gocron presents it: a managed job (meta + cron
+// Job is a cron job as hourglass presents it: a managed job (meta + cron
 // line) or an unmanaged entry.
 type Job struct {
 	ID        string // "" for unmanaged entries
@@ -21,11 +21,11 @@ type Job struct {
 	Command   string // the user's plain command (unquoted, unescaped)
 	Enabled   bool
 	Managed   bool
-	Wrapped   bool // runs via gocron exec
+	Wrapped   bool // runs via hourglass exec
 	Timeout   time.Duration
 	NoOverlap bool
 	Line      int    // 1-based line number of the cron line
-	Bin       string // gocron binary path in a wrapped line
+	Bin       string // hourglass binary path in a wrapped line
 	TZ        string // CRON_TZ in effect for this line, if any
 	Raw       string `json:"-"` // the cron line as written (unmanaged entries)
 
@@ -206,7 +206,7 @@ func (c *Crontab) Problems() []Problem {
 			out = append(out, Problem{n, "bad-meta", l.Err.Error()})
 		case l.Orphan:
 			out = append(out, Problem{n, "orphan-meta", fmt.Sprintf(
-				"gocron job %s has no cron line below it", l.Meta.Get("id"))})
+				"hourglass job %s has no cron line below it", l.Meta.Get("id"))})
 		case l.Kind == JobMeta:
 			id := l.Meta.Get("id")
 			if first, dup := seen[id]; dup {

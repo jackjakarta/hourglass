@@ -10,10 +10,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 type (
@@ -89,7 +89,7 @@ func (m Model) editCrontab() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	base := m.snap.Content
-	f, err := os.CreateTemp("", "gocron-crontab-*.txt") // 0600
+	f, err := os.CreateTemp("", "hourglass-crontab-*.txt") // 0600
 	if err == nil {
 		_, err = f.Write(base)
 		if cerr := f.Close(); err == nil {
@@ -181,7 +181,7 @@ func (m Model) handleCrontabEdit(msg crontabEditMsg) (tea.Model, tea.Cmd) {
 		return m, m.loadRevisions()
 	case errors.As(msg.err, &conflict):
 		m.toast(components.ToastFail, "", "The crontab changed while you were editing, so your edit wasn't saved. It's in "+msg.path)
-		return m, m.reload("Crontab reloaded (changed outside gocron)")
+		return m, m.reload("Crontab reloaded (changed outside hourglass)")
 	}
 	m.toast(components.ToastFail, "", "Couldn't save: "+msg.err.Error()+". Your edit is in "+msg.path)
 	return m, nil

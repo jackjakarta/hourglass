@@ -1,4 +1,4 @@
- ◷ gocron   Jobs  Timeline  History  Crontab                                               ● cron active · Sun 14:32:07
+ ◷ hourglass   Jobs  Timeline  History  Crontab                                            ● cron active · Sun 14:32:07
 
 ╭─ Jobs · 6 ─────────────────────────────────────────╮ ╭─ Sync photos ─────────────────────────────────────────────────╮
 │ / filter…                                          │ │ ● enabled · #photos · s7nc0p                                  │
@@ -8,7 +8,7 @@
 │  ● Nightly backup  At 02:30           in 11h 57m   │ │                                                               │
 │  ● Say hi          Weekdays at 09:00  in 18h 27m   │ │ COMMAND    rsync -a ~/Pictures/ nas:/photos/                  │
 │  ● Prune docker    Sundays at 04:00   in 6d 13h    │ │                                                               │
-│  ○ Weekly ╭─ New job ────────────────────────────────────────────────────────────────────────────────────╮nning      │
+│  ○ Weekly ╭─ New job ────────────────────────────────────────────────────────────────────────────────────╮ running   │
 │           │                                                                                              │           │
 │ UNMANAGED │  Name      defaults to the program's name                                                    │           │
 │  · @reboot│                                                                                              │           │

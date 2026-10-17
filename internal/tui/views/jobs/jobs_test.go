@@ -7,10 +7,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	svc "github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/tui/keys"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	svc "github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/tui/keys"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 var now = time.Date(2026, 10, 11, 14, 32, 7, 0, time.UTC)
@@ -47,16 +47,16 @@ func equal(a, b []string) bool {
 	return true
 }
 
-const tab = `# gocron:job id=aaaaaa name=Daily tags=ops
+const tab = `# hourglass:job id=aaaaaa name=Daily tags=ops
 0 3 * * * daily
 @reboot boot-entry
-# gocron:job id=bbbbbb name=Paused
-#gocron:off * * * * * paused
-# gocron:job id=cccccc name=Hourly
+# hourglass:job id=bbbbbb name=Paused
+#hourglass:off * * * * * paused
+# hourglass:job id=cccccc name=Hourly
 0 * * * * hourly
-# gocron:job id=dddddd name=Never
+# hourglass:job id=dddddd name=Never
 0 0 30 2 * never
-# gocron:job id=eeeeee name=Boot
+# hourglass:job id=eeeeee name=Boot
 @reboot boot
 `
 
@@ -113,10 +113,10 @@ func TestSelectionSurvivesReloads(t *testing.T) {
 		t.Errorf("selection lost after reorder: %q", j.Title())
 	}
 	// When the selected job disappears, the selection stays in place.
-	m2 := model(t, `# gocron:job id=cccccc name=Hourly
+	m2 := model(t, `# hourglass:job id=cccccc name=Hourly
 0 * * * * hourly
-# gocron:job id=bbbbbb name=Paused
-#gocron:off * * * * * paused
+# hourglass:job id=bbbbbb name=Paused
+#hourglass:off * * * * * paused
 `)
 	m.SetSnapshot(m2.snap, now)
 	if j, _ := m.Selected(); j.ID != "bbbbbb" {

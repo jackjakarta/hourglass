@@ -8,8 +8,8 @@ import (
 )
 
 const wrappedTab = `CRON_TZ=Europe/Berlin
-# gocron:job id=abc234 name=A
-0 0 * * * /opt/gocron exec abc234 -- a
+# hourglass:job id=abc234 name=A
+0 0 * * * /opt/hourglass exec abc234 -- a
 `
 
 func TestExportParseRoundTrip(t *testing.T) {
@@ -47,7 +47,7 @@ func TestImportKeepsBinAndWarnsAboutTZ(t *testing.T) {
 		t.Errorf("warnings = %q", plan.Warnings)
 	}
 	got := e.read(t)
-	if !strings.Contains(got, "/opt/gocron exec abc234 -- 'a'") || !strings.Contains(got, "name=Renamed") {
+	if !strings.Contains(got, "/opt/hourglass exec abc234 -- 'a'") || !strings.Contains(got, "name=Renamed") {
 		t.Errorf("the wrapped job lost its binary path:\n%s", got)
 	}
 	// One change: one undo step reverts the whole import.
@@ -57,13 +57,13 @@ func TestImportKeepsBinAndWarnsAboutTZ(t *testing.T) {
 }
 
 func TestPlanImportRefuses(t *testing.T) {
-	e := newEnv(t, tab+"# gocron:job id=abc234 name=Copy\n0 0 * * * a\n")
+	e := newEnv(t, tab+"# hourglass:job id=abc234 name=Copy\n0 0 * * * a\n")
 	doc := ExportDoc{Version: 1, Jobs: []ExportJob{{ID: "abc234", Schedule: "@daily", Command: "a", Enabled: true}}}
 	if _, err := e.svc.PlanImport(doc); err == nil || !strings.Contains(err.Error(), "used twice") {
 		t.Errorf("duplicate id in the crontab: %v", err)
 	}
 	e = newEnv(t, tab)
-	e.svc.opts.Bin = "relative/gocron"
+	e.svc.opts.Bin = "relative/hourglass"
 	doc.Jobs[0] = ExportJob{ID: "zzz234", Schedule: "@daily", Command: "z", Enabled: true, Wrapped: true}
 	if _, err := e.svc.PlanImport(doc); err == nil || !strings.Contains(err.Error(), "tracks its runs") {
 		t.Errorf("wrapped job without a usable binary: %v", err)

@@ -1,8 +1,8 @@
-# gocron — Specification
+# hourglass — Specification
 
 > **A beautiful, safe, keyboard-first home for your cron jobs.**
 
-gocron is a terminal UI (TUI) written in Go for creating, inspecting, and managing cron jobs on your own machine. It manages your **real user crontab**, so jobs keep running whether or not gocron is open. On top of that it adds what cron has always lacked: run history, logs, readable schedules, a timeline, linting, and a safety net for every edit.
+hourglass is a terminal UI (TUI) written in Go for creating, inspecting, and managing cron jobs on your own machine. It manages your **real user crontab**, so jobs keep running whether or not hourglass is open. On top of that it adds what cron has always lacked: run history, logs, readable schedules, a timeline, linting, and a safety net for every edit.
 
 This document is the source of truth for the project. It is built in phases across multiple sessions. **At the start of each session, read this file and the [Progress](#progress) section first. Update the Progress section at the end of each session.**
 
@@ -21,24 +21,24 @@ This document is the source of truth for the project. It is built in phases acro
 
 Session notes (append newest first):
 - _2026-10-12_: **Phase 6 done** (branch `feat/phase-6`), except recording the hero GIF. New: `internal/notify`, `cronexpr.ParseNatural`, `jobs.(*Service).Fix`, `crontab.(*Crontab).ReID`, `store.(*DB).LastFinished`, `theme.Daybreak`, CLI `enable`/`disable`/`rm`, `doctor --fix`, `build.sh`, `install.sh`, `.github/workflows/{release,static-checks}.yml`, `docs/demo.tape` + `docs/demo.crontab`.
-  - **Release (deviation from §2: no goreleaser, user's choice).** It follows the user's other TUI (anchr). A tag `*.*.*` runs `.github/workflows/release.yml`: `go test`, then `./build.sh "${tag#v}"` (CGO off, `-trimpath`, ldflags set `version.Version/Commit/Date`; linux/darwin × amd64/arm64 → `gocron-<os>-<arch>.tar.gz` holding just `gocron`, plus `checksums.txt`), then `softprops/action-gh-release@v2` with generated notes. `static-checks.yml` runs on PRs to main: gofmt, vet, build, test, and a cross-build of the four targets.
-  - **install.sh** sits at the repo root, served by GitHub Pages at `https://gocron.jackjakarta.xyz/install.sh` (CNAME). POSIX sh, adapted from anchr's: `GOCRON_VERSION`, `GOCRON_INSTALL_DIR`, optional `GH_TOKEN`/`GITHUB_TOKEN` (rate limits only; the repo is meant to be public). It verifies sha256 and installs to `/usr/local/bin` (sudo) or `~/.local/bin`. The undocumented `GOCRON_RELEASES_URL` points it at `file://` build output for testing. Homebrew comes later.
-  - **Notifications** fire from `cmd/gocron/exec.go` after `status.Done` (so the TUI pane never waits), **only for `--trigger=cron`**. `notify.Should(on, status, prev)`: failure = failed/timeout/error; always skips `skipped`; change compares failure-ness with the previous finished **cron** run (`LastFinished`, read in `runner.(*run).open` before the insert → `Result.Prev`), and a first run notifies only if it failed. Desktop and webhook are sent concurrently under one 10 s context. Linux uses `notify-send -a gocron -u critical|normal` and sets `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/<uid>/bus` when cron didn't; macOS uses `osascript`. Webhook payload: `notify.Payload` (README documents it), `User-Agent: gocron/<version>`, non-2xx is an error. Errors go to `gocron-errors.log`, never to the exit code. The job's name comes from a best-effort crontab read. Config: `notify.webhook` must be http(s); doctor has a "notifications" check (warns when the desktop tool is missing). CLI tests write a quiet config (`quietConfig`) so failing test runs don't pop up on a developer's desktop.
+  - **Release (deviation from §2: no goreleaser, user's choice).** It follows the user's other TUI (anchr). A tag `*.*.*` runs `.github/workflows/release.yml`: `go test`, then `./build.sh "${tag#v}"` (CGO off, `-trimpath`, ldflags set `version.Version/Commit/Date`; linux/darwin × amd64/arm64 → `hourglass-<os>-<arch>.tar.gz` holding just `hourglass`, plus `checksums.txt`), then `softprops/action-gh-release@v2` with generated notes. `static-checks.yml` runs on PRs to main: gofmt, vet, build, test, and a cross-build of the four targets.
+  - **install.sh** sits at the repo root, served by GitHub Pages at `https://hourglass.jackjakarta.xyz/install.sh` (CNAME). POSIX sh, adapted from anchr's: `HOURGLASS_VERSION`, `HOURGLASS_INSTALL_DIR`, optional `GH_TOKEN`/`GITHUB_TOKEN` (rate limits only; the repo is meant to be public). It verifies sha256 and installs to `/usr/local/bin` (sudo) or `~/.local/bin`. The undocumented `HOURGLASS_RELEASES_URL` points it at `file://` build output for testing. Homebrew comes later.
+  - **Notifications** fire from `cmd/hourglass/exec.go` after `status.Done` (so the TUI pane never waits), **only for `--trigger=cron`**. `notify.Should(on, status, prev)`: failure = failed/timeout/error; always skips `skipped`; change compares failure-ness with the previous finished **cron** run (`LastFinished`, read in `runner.(*run).open` before the insert → `Result.Prev`), and a first run notifies only if it failed. Desktop and webhook are sent concurrently under one 10 s context. Linux uses `notify-send -a hourglass -u critical|normal` and sets `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/<uid>/bus` when cron didn't; macOS uses `osascript`. Webhook payload: `notify.Payload` (README documents it), `User-Agent: hourglass/<version>`, non-2xx is an error. Errors go to `hourglass-errors.log`, never to the exit code. The job's name comes from a best-effort crontab read. Config: `notify.webhook` must be http(s); doctor has a "notifications" check (warns when the desktop tool is missing). CLI tests write a quiet config (`quietConfig`) so failing test runs don't pop up on a developer's desktop.
   - **Natural language:** `cronexpr.ParseNatural(phrase) (Natural{Expr, Note}, error)`, a token scanner with matchers tried in order (unsupported, boot, interval, "N times a", minute offset, hour range, weekdays, day of month, month, frequency, time list). Unsupported phrases return `*NaturalError{Msg, Hint}`: nth-weekday and last-day (with a `date` guard hint), every N days/weeks, every other day/week, seconds, minute steps ≥ 60 that aren't whole hours, mixed minutes and hours. Steps that don't divide the hour or day are allowed with a Note. `between 9am and 5pm` → `9-17` (the preview's description shows 09:00–17:59). No time given → midnight, with a Note. 62 phrasings plus 19 failures are table-tested.
-  - **Editor:** a "say it" row (`stopNatural`) **after** the params/raw row, in both tab order and layout, so the preset flow keeps its tab order. It previews `→ expr  description · ↵ apply` (or ✗ + hint) while typing and changes nothing until `↵`. `applySchedule` picks the matching preset, or else Custom, and focuses its inputs. It isn't part of `Dirty()`. `gocron describe` falls back to `ParseNatural` and prints `Interpreted as: …` (+ `Note:`).
+  - **Editor:** a "say it" row (`stopNatural`) **after** the params/raw row, in both tab order and layout, so the preset flow keeps its tab order. It previews `→ expr  description · ↵ apply` (or ✗ + hint) while typing and changes nothing until `↵`. `applySchedule` picks the matching preset, or else Custom, and focuses its inputs. It isn't part of `Dirty()`. `hourglass describe` falls back to `ParseNatural` and prints `Interpreted as: …` (+ `Note:`).
   - **Themes:** `theme.Select(name, noColor, isDark)`; `build(t)` derives the styles; Daybreak is a sky/rose palette on stone neutrals with a tinted selection. `tui.Options.Theme` comes from `config.theme`; NO_COLOR still wins. Palette items "Theme: X" switch for the session (`Model.applyTheme`; the toast says to set it in config.toml).
   - **Mouse** (`internal/tui/mouse.go`): `View().MouseMode = CellMotion` when `ui.mouse` (new key, default true). Clicks follow the overlay order: the palette (an item runs; a click outside closes it), confirm buttons (`Confirm.Click`), a pane or editor swallows the click, help closes; then header tabs (`tabAt`, sharing `headerLead`/`tabGap` with `header()`), then the view: `Click(x, y)` in body coordinates. Jobs: rows (via `lineOf`), the filter line starts filtering, clicking the selected row opens the detail (narrow layouts). History: a second click opens the log. Timeline: a second click opens the job. Crontab: revisions, and on narrow screens the preview. The wheel moves selections by 1 and scrolls text by 3 (log, crontab preview, run pane). Clicking to focus editor fields isn't done.
   - **doctor --fix** (`Service.Fix`, one `apply` = one backup and one undo step): duplicate ids get `NewID()` through `ReID(line, id)` (meta line plus the wrapped exec id; `metaIndex` only finds the first copy), and wrapped jobs whose `Bin` (symlinks resolved) isn't this binary are rewritten to it, only when `CheckBin` passes (otherwise `BinErr` is reported). Orphan meta lines are left alone. The CLI prints what it fixed, then the usual checks.
-  - **Perf:** `TestStartupBudget` (`GOCRON_PERF=1`) and `BenchmarkStartup`: 100 wrapped jobs, 10k runs, from `crontab.Open` to the first rendered screen with stats. Rewriting `store.Stats` to fetch each job's newest runs through `runs_job_started` (DISTINCT job_id ⨝ `id IN (… LIMIT 20)`) instead of a `ROW_NUMBER` window took it from ~80 ms to ~31–44 ms.
+  - **Perf:** `TestStartupBudget` (`HOURGLASS_PERF=1`) and `BenchmarkStartup`: 100 wrapped jobs, 10k runs, from `crontab.Open` to the first rendered screen with stats. Rewriting `store.Stats` to fetch each job's newest runs through `runs_job_started` (DISTINCT job_id ⨝ `id IN (… LIMIT 20)`) instead of a `ROW_NUMBER` window took it from ~80 ms to ~31–44 ms.
   - Formatting: two pre-existing gofmt misses (`jobs/export.go`, `timeline/build_test.go`) are fixed, since CI now checks gofmt.
-  - **Not done:** the hero GIF (`docs/demo.gif`) needs `vhs docs/demo.tape`, which needs vhs, ttyd, ffmpeg and gocron at `/usr/local/bin`. The header has no stale-binary badge (§12). Editor fields can't be clicked to focus. (MIT LICENSE.md added, same as anchr.)
+  - **Not done:** the hero GIF (`docs/demo.gif`) needs `vhs docs/demo.tape`, which needs vhs, ttyd, ffmpeg and hourglass at `/usr/local/bin`. The header has no stale-binary badge (§12). Editor fields can't be clicked to focus. (MIT LICENSE.md added, same as anchr.)
 - _2026-10-11_: **Phase 5 done** (branch `feat/phase-5`). New: `cronexpr.(*Expr).Between` / `crontab.Job.Between` (bounded `iter.Seq`; `Next` shares the walk), cached `time.LoadLocation`; `jobs` `Revisions`/`Restore`/`Replace`/`Disk`/`ValidateEdit`/`Summarize`/`Export`/`PlanImport`/`Import`, `Snapshot.Content`, `crontab.BackupTime`; `tui/views/timeline`, `tui/views/crontab`, `components.Palette`/`FuzzyMatch`/`UnifiedDiff`/`DiffLines`; CLI `export`, `import`. Deps: `aymanbagabas/go-udiff v0.4.1` (was indirect), `gopkg.in/yaml.v3 v3.0.1`.
   - **Timeline:** day mode spans `[now−3h, now+24h)`; the 3h lead-in shows only ✓/✗ marks from `stats[id].Recent` (+ running). Week mode starts at today's midnight, day columns. Lanes: enabled managed jobs, then unmanaged entries (dimmed); paused jobs are left out. `Fires > cols` → band with a count; no fire in the window → "(next: …)"; @reboot → "at boot". Density = distinct jobs per column. Congestion = distinct jobs per minute ≥ `ui.congestion_threshold`, reported as the first minute "(and N more minutes)". Rebuilt only on snapshot/stats/size/mode change or a new minute. Keys: `↑↓` lane, `←→`/`h l` scroll (6h or a day; never before now), `.` now, `d`/`w`, `↵` opens the job (`jobs.Reveal`).
   - **Palette** (`ctrl+k` anywhere, even while a filter is typing; `:` only from the globals, so it stays text in filters). Items are built when it opens and run closures, never replayed keys: actions on the selected job, tabs, new/undo/filter/tag/sort, history filters, timeline day/week, crontab edit/revisions, help/quit, then "Go to job · X" for every job and "History · X" for managed ones. Hints come from the key map. Key order: ForceQuit → palette → diff overlay → confirm → pane → editor → help → ctrl+k → view capture → globals.
   - **Jobs list:** `s` cycles next → name → crontab (initial from `ui.default_sort`, passed as `tui.Options.UI`); the filter line shows `sort: name` when not next. `#` opens a tag picker (the palette component) for an exact tag filter, ANDed with `/`; `esc` clears detail, then text, then tag. `y`/`Y` copy command/schedule with `tea.SetClipboard` (OSC 52).
   - **Crontab view:** preview (left, 55%) + revisions list (right) at ≥ 120 columns; below that the list, with `↵` opening the preview full-screen. A revision row is `B_i` (content before save i) with `Summarize(B_i, next newer or current)`: "what changed after this point". Its preview is the diff current → revision ("RESTORING WOULD"), `d` toggles full text. `R` restores through `jobs.Restore` (an `apply`, so `u` undoes and Reapply means restore again); revisions with problems restore anyway and the confirm lists them. Revisions load on tab entry, after a mutation and after an outside reload; a load is dropped if `Snapshot.Content` changed meanwhile.
   - **`E` ($EDITOR round-trip):** `$VISUAL`, `$EDITOR`, `vi` on a 0600 temp copy (`tui.Options.RunEditor` lets tests replace `tea.ExecProcess`). Unchanged → "No changes". `jobs.ValidateEdit` rejects only problems the original didn't have, matched by (code, line text), never line number; rejected edits get a confirm with up to 8 `line N: …` lines, **Edit again** (safe, reopens the same file) / Discard. Saving uses `jobs.Replace(base, next)`: a conflict there has **no Retry** (a whole-file replace must not be replayed over someone else's change); the temp file is kept and the toast names it.
-  - **Conflict dialogs** (mutation and editor) gained a third button, **View diff** (`d`): `components.Confirm.Extra/OnExtra`, laid out `[Extra] Safe Action`, focus still starts on Safe. The overlay diffs gocron's loaded copy against `Service.Disk`; `esc` returns to the dialog.
+  - **Conflict dialogs** (mutation and editor) gained a third button, **View diff** (`d`): `components.Confirm.Extra/OnExtra`, laid out `[Extra] Safe Action`, focus still starts on Safe. The overlay diffs hourglass's loaded copy against `Service.Disk`; `esc` returns to the dialog.
   - **export/import:** YAML `version: 1`, `jobs: [{id, name, desc, tags, schedule, command, enabled, wrapped, timeout, no_overlap, tz}]` with a two-line comment header (no timestamp, so re-exports are byte-identical). Env lines aren't exported; `tz` is informational and import warns when a job lands under a different CRON_TZ. Import merges by id (user's choice): new ids are created with that id, differing jobs updated (wrapped lines keep their binary path), identical ones untouched, nothing deleted; one `apply` = one backup and one undo step. `ParseExport` uses `KnownFields(true)`, version 1 only, ids must pass `runner.ValidID` and be unique. Every job is linted with `LintDraft` before anything is written. Exit 1 on bad input, 3 on conflict. `import -` reads stdin (`app.stdin`).
   - **Help overlay** now takes a max width and wraps its six groups onto rows (fits 100×32).
   - **Tests:** the TUI harness waits for the daemon probe before snapshotting (a pre-existing golden flake). Crontab goldens seed fixed-name backups; backups made during a test use the real clock.
@@ -47,25 +47,25 @@ Session notes (append newest first):
   - **Deps:** `modernc.org/sqlite v1.59.0` is pinned because v1.60+ needs Go 1.26. Run `go get`/`go mod tidy` with `GOTOOLCHAIN=go1.25.0`, or tidy will jump to the newest sqlite and bump the `go` line.
   - **Wrapping is on.**
     - `WrapNew` and `adoptWraps` are gone. New and adopted jobs follow `[defaults] wrap/no_overlap/timeout`.
-    - `jobs.CheckBin` refuses to wrap with a binary not named `gocron`, or one under `os.TempDir()` (a `go run` build). The editor greys out the Options row and shows the reason. `add` exits 1 and suggests `--raw`.
+    - `jobs.CheckBin` refuses to wrap with a binary not named `hourglass`, or one under `os.TempDir()` (a `go run` build). The editor greys out the Options row and shows the reason. `add` exits 1 and suggests `--raw`.
     - `add`: config defaults apply unless a flag is set (`fs.Visit`). `--timeout` or `--no-overlap` turns tracking on even if `wrap = false`.
-    - `cmd/gocron` `app.bin` lets tests inject the path.
+    - `cmd/hourglass` `app.bin` lets tests inject the path.
   - **SQLite:**
     - Each connection uses `_busy_timeout=5000&_txlock=immediate&_sync=NORMAL`.
     - Schema creation and the one-time switch to WAL run under a flock on `locks/.db.lock`. Switching the journal mode can fail with BUSY even when a busy timeout is set.
     - Writes are `BEGIN IMMEDIATE`. `INSERT … RETURNING` and `DELETE … RETURNING log_path` are used for prune.
     - A newer `schema_version` is best-effort, not an error.
   - **exec never refuses to run the command.**
-    - Arguments are parsed leniently: unknown flags and a bad `--timeout` are logged to `gocron-errors.log` (rotated at 1 MiB).
+    - Arguments are parsed leniently: unknown flags and a bad `--timeout` are logged to `hourglass-errors.log` (rotated at 1 MiB).
     - An id that isn't path-safe runs unrecorded. The id check is `[A-Za-z0-9][A-Za-z0-9_-]*`, not just base32, because fixtures and hand edits use ids like `k3f9a2`.
     - If the DB is unusable, the job runs unrecorded with its output on stdout, like plain cron.
     - Signals are caught first thing, with `signal.Notify` and never `Ignore`, which the child would inherit. SIGPIPE is caught so a closed `--tee` reader can't kill exec.
     - Exit codes: timeout 124, a shell that won't start 127 (status `error`), a signal 128+n. Stopping a run (`x`) records `failed`/143. `StatusLost = "unknown"` is only computed at read time, through an injectable `Alive`.
     - Hidden flags: `--no-record`, and `--status-fd=N`. On the status fd, exec writes `ready`, `start <id>` and `done <status> <exit> <ms>`.
   - **Runs from the TUI outlive it** (user's choice).
-    - `runner.SpawnLauncher` starts `gocron exec --tee --status-fd=3` with `Setsid`. It passes `GOCRON_STATE_DIR` and `GOCRON_CONFIG` explicitly, and holds back a stop until exec says `ready`.
+    - `runner.SpawnLauncher` starts `hourglass exec --tee --status-fd=3` with `Setsid`. It passes `HOURGLASS_STATE_DIR` and `HOURGLASS_CONFIG` explicitly, and holds back a stop until exec says `ready`.
     - Tests use `runner.InProcessLauncher`, which runs a real shell and a real DB, or a fake built with `runner.NewHandle`.
-    - CLI tests run the test binary as gocron itself (`GOCRON_TEST_MAIN=1` in `TestMain`), so the concurrency, SIGPIPE and spawn tests use separate processes.
+    - CLI tests run the test binary as hourglass itself (`HOURGLASS_TEST_MAIN=1` in `TestMain`), so the concurrency, SIGPIPE and spawn tests use separate processes.
   - **Environments** (`jobs.Plan`):
     - Run now (`RunManual`) uses the user's env plus the crontab's env lines, `SHELL` from the crontab (default `/bin/sh`, never the user's zsh), from `$HOME`.
     - Test (`RunCronEnv`) uses `env -i` style: HOME, LOGNAME, USER, `SHELL=/bin/sh`, `PATH=/usr/bin:/bin`, then the crontab's lines in order (`Snapshot.EnvAt`).
@@ -82,8 +82,8 @@ Session notes (append newest first):
     - Keys: `h` opens the job's history. History: `f` failures, `c` cycles the trigger, `/` filters (job, id, first output line), `↵` opens the log, `o` opens `$PAGER` (default `less -R`). Log viewer: `/` search, `n/N`, `g/G`.
   - **doctor:** `State` holds the paths, config errors and warnings, and home. "State seen by cron" resolves the paths with the crontab's env lines and `$HOME` only (`config.ResolveEnv`), and warns when they differ from the shell's.
   - **Not done:** `exec` doesn't fire notifications (Phase 6). The TUI shows the trigger as plain colored text rather than a badge. The History job filter only comes from `h`; there's no picker yet (the Phase 5 palette could add one).
-- _2026-10-11_: **Phase 3 done** (branch `feat/phase-3`). New: `cronexpr` presets (`Preset`, `DetectPreset`, `FieldAt`, `FieldHelp`); `jobs.Draft`, `Service.Create`/`Update`, `Snapshot.Env` + `CronEnv(line)`, `jobs.LintDraft`/`LintPath`/`PathCache`; `tui/views/editor`; CLI `gocron add`. `crontab.ShellWords` and `crontab.CommandName` are exported.
-  - **No wrapping yet** (`jobs.WrapNew = false`, next to `adoptWraps`). New jobs are plain lines. The editor shows the Options row dimmed, with a note. An already-wrapped job keeps its wrapping, and its Timeout and Skip options stay editable (unchecking Track runs unwraps it). `gocron add --timeout/--no-overlap` exits 2 until then. **Phase 4: flip `WrapNew` and `adoptWraps`.** The editor, `add`, and the help text follow automatically. Then add a config `[defaults]` lookup.
+- _2026-10-11_: **Phase 3 done** (branch `feat/phase-3`). New: `cronexpr` presets (`Preset`, `DetectPreset`, `FieldAt`, `FieldHelp`); `jobs.Draft`, `Service.Create`/`Update`, `Snapshot.Env` + `CronEnv(line)`, `jobs.LintDraft`/`LintPath`/`PathCache`; `tui/views/editor`; CLI `hourglass add`. `crontab.ShellWords` and `crontab.CommandName` are exported.
+  - **No wrapping yet** (`jobs.WrapNew = false`, next to `adoptWraps`). New jobs are plain lines. The editor shows the Options row dimmed, with a note. An already-wrapped job keeps its wrapping, and its Timeout and Skip options stay editable (unchecking Track runs unwraps it). `hourglass add --timeout/--no-overlap` exits 2 until then. **Phase 4: flip `WrapNew` and `adoptWraps`.** The editor, `add`, and the help text follow automatically. Then add a config `[defaults]` lookup.
   - `^t` in the editor shows a "coming in a later release" toast. Phase 4 should handle `editor.TestMsg` (it carries the draft).
   - **Presets:**
     - Detection is semantic (it compares Field bits), so `mon-fri`, `1,2,3,4,5`, `@daily`, and `7` = Sunday all match.
@@ -103,7 +103,7 @@ Session notes (append newest first):
   - A new job with no name gets the program's name (`crontab.CommandName`), in both the editor and `add`. `desc` has no editor field yet; it's preserved on edit.
 - _2026-10-11_: **Phase 2 done** (branch `feat/phase-2`). Packages: `jobs` (Service façade), `tui` (root app, `theme`, `keys`, `components`, `views/jobs`); `cronexpr.Expr.Short`, `crontab.Adopt`/`DefaultAdoptName`, `crontab.Job.Describe`/`Raw`, `doctor.DetectDaemon`.
   - Stack: **Go 1.25**, `charm.land/bubbletea/v2 v2.0.9`, `lipgloss/v2 v2.0.6`, `bubbles/v2 v2.2.1`, `x/exp/teatest/v2`. v2.1.0 of bubbletea needs Go 1.26, so it was skipped. lipgloss v2 has no `AdaptiveColor`: the theme uses `LightDark(isDark)` from `tea.BackgroundColorMsg` and starts dark.
-  - **Adopt doesn't wrap yet** (`jobs.adoptWraps = false`): `gocron exec` arrives in Phase 4, and a wrapped line would fail until then. Phase 4 should flip this to follow `defaults.wrap`. `crontab.Adopt` already supports `wrap=true`.
+  - **Adopt doesn't wrap yet** (`jobs.adoptWraps = false`): `hourglass exec` arrives in Phase 4, and a wrapped line would fail until then. Phase 4 should flip this to follow `defaults.wrap`. `crontab.Adopt` already supports `wrap=true`.
   - Undo: `jobs.Service` keeps a session undo stack (max 50) of the crontab before each change. Undo saves it through the safe path, so undo itself makes a backup. It refuses when the crontab changed since the change (`ErrUndoStale`), and an external reload clears the stack.
   - Conflicts: a save that hits `ErrConflict` returns `*jobs.ConflictError` with a `Retry` that reloads and replays the change. The TUI offers **Reapply / Discard** (Discard is the default). "View diff" waits for the Crontab view (Phase 5).
   - Views return requests (`ToggleMsg`, `DeleteMsg`, …) from `Update` synchronously instead of as Cmds, so a key typed right after (e.g. in the confirm dialog) sees the result.
@@ -114,7 +114,7 @@ Session notes (append newest first):
   - DST rules implemented (match cron daemons): a fixed-time job (minute and hour both non-`*`) in a spring-forward gap fires once right after the jump; in a fall-back overlap it fires only in the first pass. Wildcard jobs skip gap minutes and fire in both overlap passes.
   - `N/step` follows cronie (`N`-max; dow max is 7, so `1/2` in dow = Mon, Wed, Fri, Sun).
   - `crontab.Store.Save` appends a final newline if missing (crontab(1) rejects an unterminated last line). Saving an unchanged crontab is a no-op (no backup).
-  - Known edge: cron cannot express a literal backslash immediately before `%`; gocron's `\%` escaping round-trips in gocron but cron would read it differently. Worth a Phase 3 lint.
+  - Known edge: cron cannot express a literal backslash immediately before `%`; hourglass's `\%` escaping round-trips in hourglass but cron would read it differently. Worth a Phase 3 lint.
   - `crontab.Job` already carries the §5 fields + `Bin`, `TZ`, `Expr`, and `NextRuns()` (honors a preceding `CRON_TZ=` line). Mutations exist: `SetEnabled`, `RemoveJob`, `AddJob`, `UpdateJob` (minimal-diff tested). `Adopt`/`Undo` are still Phase 2.
   - Short schedule phrasing for list rows ("Sundays at 04:00") isn't built yet; `Describe` gives the full form.
 - _2026-10-11_: Spec written. No code yet.
@@ -126,7 +126,7 @@ Session notes (append newest first):
 ### Who it's for
 A single developer or sysadmin managing their own cron jobs on a laptop, workstation, or server. That may be over SSH. There are no accounts, no remote hosts, and no daemon of our own.
 
-### The questions gocron must answer instantly
+### The questions hourglass must answer instantly
 1. **What jobs do I have, and what do they do?** Schedules are shown in plain English, not `*/15 9-17 * * 1-5`.
 2. **When does each one run next?** A ticking countdown and the next N runs.
 3. **Did it run? Did it work?** Run history, exit codes, durations, and logs.
@@ -135,8 +135,8 @@ A single developer or sysadmin managing their own cron jobs on a laptop, worksta
 
 ### Principles
 - **The crontab is the source of truth.** Job definitions and metadata live *in the crontab itself*, so there is no separate job database that can drift from it. SQLite stores only run history.
-- **Never lose a user's crontab.** gocron backs it up before every write, refuses to blindly overwrite external edits, and lets you undo any change. Lines gocron doesn't own are preserved byte-for-byte.
-- **Coexist politely.** People still use `crontab -e`. gocron's format is readable, hand-editable, and tolerant of manual changes.
+- **Never lose a user's crontab.** hourglass backs it up before every write, refuses to blindly overwrite external edits, and lets you undo any change. Lines hourglass doesn't own are preserved byte-for-byte.
+- **Coexist politely.** People still use `crontab -e`. hourglass's format is readable, hand-editable, and tolerant of manual changes.
 - **Keyboard-first, mouse-friendly.** Every action has a key, everything is reachable from the command palette, and the mouse works where it's natural.
 - **Delight is a feature.** The UI should feel alive and calm: live countdowns, smooth state changes, thoughtful empty states, and no flicker.
 
@@ -162,23 +162,23 @@ Remote hosts over SSH, multi-user or auth, systemd timers as a backend, a web UI
 | TUI tests | `charmbracelet/x/exp/teatest/v2` | Golden snapshots. |
 | Release | `build.sh` + GitHub Actions on tags; `install.sh` served via Pages; vhs for demo GIFs | Phase 6 (no goreleaser). |
 
-**Name note:** `go-co-op/gocron` is an unrelated Go scheduling library. Our binary name doesn't collide in practice. The module path is something like `github.com/<user>/gocron`.
+**Name note:** the project started out as `gocron` and was renamed to `hourglass` (`gocron` collided with the unrelated `go-co-op/gocron` scheduling library). The module path is `github.com/jackjakarta/hourglass`.
 
 ### Filesystem layout (XDG)
 | Path | Purpose |
 |---|---|
-| `$XDG_CONFIG_HOME/gocron/config.toml` (default `~/.config/gocron/`) | User config |
-| `$XDG_STATE_HOME/gocron/runs.db` (default `~/.local/state/gocron/`) | Run history (SQLite) |
-| `$XDG_STATE_HOME/gocron/logs/<job-id>/<run-id>.log` | Captured job output |
-| `$XDG_STATE_HOME/gocron/backups/crontab-<RFC3339-ish timestamp>` | Crontab backups / revisions |
-| `$XDG_STATE_HOME/gocron/locks/<job-id>.lock` | Overlap-prevention locks |
+| `$XDG_CONFIG_HOME/hourglass/config.toml` (default `~/.config/hourglass/`) | User config |
+| `$XDG_STATE_HOME/hourglass/runs.db` (default `~/.local/state/hourglass/`) | Run history (SQLite) |
+| `$XDG_STATE_HOME/hourglass/logs/<job-id>/<run-id>.log` | Captured job output |
+| `$XDG_STATE_HOME/hourglass/backups/crontab-<RFC3339-ish timestamp>` | Crontab backups / revisions |
+| `$XDG_STATE_HOME/hourglass/locks/<job-id>.lock` | Overlap-prevention locks |
 
 ### Environment variables
 | Var | Effect |
 |---|---|
-| `GOCRON_CRONTAB_FILE=<path>` | Use a plain file instead of the real crontab (`crontab -l` / `crontab -`). **All tests and day-to-day development use this.** |
-| `GOCRON_STATE_DIR=<path>` | Override the state dir (tests). |
-| `GOCRON_CONFIG=<path>` | Override the config file. |
+| `HOURGLASS_CRONTAB_FILE=<path>` | Use a plain file instead of the real crontab (`crontab -l` / `crontab -`). **All tests and day-to-day development use this.** |
+| `HOURGLASS_STATE_DIR=<path>` | Override the state dir (tests). |
+| `HOURGLASS_CONFIG=<path>` | Override the config file. |
 | `NO_COLOR` | Honored: forces the monochrome theme. |
 
 ---
@@ -190,38 +190,38 @@ This is the most important section. Everything else builds on it.
 ### 3.1 Line kinds
 The parser classifies every line of the crontab into exactly one kind and keeps the **original raw text** for all of them:
 
-| Kind | Example | Owned by gocron? |
+| Kind | Example | Owned by hourglass? |
 |---|---|---|
 | `Blank` | `` | no |
 | `Comment` | `# my notes` | no |
 | `Env` | `MAILTO=me@x.com`, `PATH=/usr/local/bin:/usr/bin:/bin`, `CRON_TZ=Europe/Berlin` | no (read for display and test-runs) |
 | `Entry` (unmanaged) | `*/5 * * * * ~/bin/sync.sh` | no. Shown as **unmanaged**, can be adopted |
-| `JobMeta` | `# gocron:job id=k3f9a2 name="Nightly backup"` | yes |
-| `JobLine` | the cron line directly after a `JobMeta` (enabled or `#gocron:off`) | yes |
+| `JobMeta` | `# hourglass:job id=k3f9a2 name="Nightly backup"` | yes |
+| `JobLine` | the cron line directly after a `JobMeta` (enabled or `#hourglass:off`) | yes |
 
 A managed job is a **`JobMeta` + `JobLine` pair**. If a `JobMeta` isn't followed by a valid cron line (someone hand-edited it), treat the meta as an orphan comment: preserve it, and flag it in `doctor` and in the UI as a warning.
 
 ### 3.2 Managed job example
 ```crontab
-# gocron:job id=k3f9a2 name="Nightly backup" tags=backup,db desc="Dump app DB to /bk"
-30 2 * * * /home/jack/.local/bin/gocron exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\%F).sql.gz'
+# hourglass:job id=k3f9a2 name="Nightly backup" tags=backup,db desc="Dump app DB to /bk"
+30 2 * * * /home/jack/.local/bin/hourglass exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\%F).sql.gz'
 ```
 
-Disabled (paused) job: the cron line is prefixed with `#gocron:off ` and the meta line is unchanged:
+Disabled (paused) job: the cron line is prefixed with `#hourglass:off ` and the meta line is unchanged:
 ```crontab
-# gocron:job id=k3f9a2 name="Nightly backup" tags=backup,db
-#gocron:off 30 2 * * * /home/jack/.local/bin/gocron exec k3f9a2 -- '...'
+# hourglass:job id=k3f9a2 name="Nightly backup" tags=backup,db
+#hourglass:off 30 2 * * * /home/jack/.local/bin/hourglass exec k3f9a2 -- '...'
 ```
 
 Raw (unwrapped) managed job, with no run tracking:
 ```crontab
-# gocron:job id=p7m2qd name="Say hi"
+# hourglass:job id=p7m2qd name="Say hi"
 0 9 * * 1-5 notify-send "hi"
 ```
 
 ### 3.3 Meta line grammar
 ```
-meta     := "# gocron:job" (SP pair)*
+meta     := "# hourglass:job" (SP pair)*
 pair     := key "=" value
 key      := [a-z][a-z0-9_]*
 value    := bare | quoted
@@ -235,12 +235,12 @@ quoted   := Go-style double-quoted string (strconv.Quote / strconv.Unquote)
 
 ### 3.4 Wrapped command grammar
 ```
-<schedule> <abs-path-to-gocron> exec [--timeout=<dur>] [--no-overlap] <id> -- <shell-quoted-command>
+<schedule> <abs-path-to-hourglass> exec [--timeout=<dur>] [--no-overlap] <id> -- <shell-quoted-command>
 ```
 - **Runtime options live on the exec line** (`--timeout`, `--no-overlap`) because `exec` must work without reading the crontab. Descriptive metadata lives in the meta line.
-- The user's command is stored as **one single-quoted shell word** (each `'` becomes `'\''`). `exec` runs it with `$SHELL -c` (default `/bin/sh`). This is essential: without the quoting, pipes and redirects in the user's command would apply to `gocron exec` itself.
-- **`%` escaping:** cron turns an unescaped `%` into a newline. When serializing any job line, gocron escapes `%` → `\%`, and when parsing it unescapes `\%` → `%`. The user always sees and edits the plain command.
-- A line is recognized as wrapped if the first command word's basename is `gocron` and the next word is `exec`. The binary path may differ from the current one. `doctor` detects stale paths and offers to rewrite them.
+- The user's command is stored as **one single-quoted shell word** (each `'` becomes `'\''`). `exec` runs it with `$SHELL -c` (default `/bin/sh`). This is essential: without the quoting, pipes and redirects in the user's command would apply to `hourglass exec` itself.
+- **`%` escaping:** cron turns an unescaped `%` into a newline. When serializing any job line, hourglass escapes `%` → `\%`, and when parsing it unescapes `\%` → `%`. The user always sees and edits the plain command.
+- A line is recognized as wrapped if the first command word's basename is `hourglass` and the next word is `exec`. The binary path may differ from the current one. `doctor` detects stale paths and offers to rewrite them.
 
 ### 3.5 Schedules
 - Supported: 5-field expressions with lists, ranges, steps, and names (`JAN`, `MON`); descriptors `@yearly @annually @monthly @weekly @daily @midnight @hourly @reboot`.
@@ -274,26 +274,26 @@ type Source interface {
 Mutations operate on the parsed model and touch only the affected lines, so unrelated lines never change.
 
 ### 3.7 Adoption
-"Adopt" turns an unmanaged `Entry` into a managed job. gocron inserts a `JobMeta` above it, with a name defaulting to a short form of the command, and optionally (the default is yes) rewrites the command into wrapped form. Comments directly above the entry are kept. If the comment immediately above is a single line, it's offered as the default `name`.
+"Adopt" turns an unmanaged `Entry` into a managed job. hourglass inserts a `JobMeta` above it, with a name defaulting to a short form of the command, and optionally (the default is yes) rewrites the command into wrapped form. Comments directly above the entry are kept. If the comment immediately above is a single line, it's offered as the default `name`.
 
 ---
 
 ## 4. Execution wrapper & run history
 
-### 4.1 `gocron exec`
+### 4.1 `hourglass exec`
 ```
-gocron exec [--timeout=DUR] [--no-overlap] [--trigger=cron|manual|test] [--tee] <id> -- <command>
+hourglass exec [--timeout=DUR] [--no-overlap] [--trigger=cron|manual|test] [--tee] <id> -- <command>
 ```
 Behavior:
 1. Open `runs.db` (create and migrate if needed). Insert a run row with `status=running` and the pid.
 2. If `--no-overlap` is set: try a non-blocking `flock` on `locks/<id>.lock`. If it's held, record `status=skipped` and exit 0.
 3. Run `$SHELL -c <command>` (default `/bin/sh`) in its own process group. Capture combined stdout and stderr to `logs/<id>/<run-id>.log`, capped at `runs.max_log_bytes` (default 1 MiB). After the cap, keep counting bytes, set `truncated=1`, and append a final note.
-4. `--tee` also streams the output to gocron's own stdout (used by "Run now" in the TUI). **By default output is not echoed**, so cron doesn't send an email for every run. The config option `runs.mail_output = "never" | "on_failure" | "always"` controls echoing to stdout so `MAILTO` users can keep cron's email.
+4. `--tee` also streams the output to hourglass's own stdout (used by "Run now" in the TUI). **By default output is not echoed**, so cron doesn't send an email for every run. The config option `runs.mail_output = "never" | "on_failure" | "always"` controls echoing to stdout so `MAILTO` users can keep cron's email.
 5. On timeout: SIGTERM the process group, wait 10s, then SIGKILL. `status=timeout`.
 6. Record `ended_at`, `exit_code`, and `status` (`success` | `failed` | `timeout` | `skipped` | `error`).
 7. Prune runs and logs beyond `runs.retention` per job (default 100).
 8. Fire notifications (`[notify]`; cron-triggered runs only, after the result is recorded).
-9. **Exit with the child's exit code.** If gocron itself fails (e.g. the DB is locked or corrupt), it must **still run the command**. The wrapper failing must never stop the job from running. Log the error to `state/gocron-errors.log`.
+9. **Exit with the child's exit code.** If hourglass itself fails (e.g. the DB is locked or corrupt), it must **still run the command**. The wrapper failing must never stop the job from running. Log the error to `state/hourglass-errors.log`.
 
 Stale `running` rows (whose pid is dead) are shown as `status=unknown` ("lost").
 
@@ -340,7 +340,7 @@ type Job struct {
     Command   string        // user's plain command (unquoted, unescaped)
     Enabled   bool
     Managed   bool          // false = unmanaged crontab entry
-    Wrapped   bool          // runs via gocron exec (has history)
+    Wrapped   bool          // runs via hourglass exec (has history)
     Timeout   time.Duration // 0 = none
     NoOverlap bool
     Line      int           // position in crontab (for stable ordering)
@@ -400,7 +400,7 @@ Additional themes in Phase 6: **Daybreak** (light-optimized), **Mono** (no color
 **Motion:** countdowns tick every second (a single global `tick` msg, not one per job). Spinners run only for running jobs. Toasts slide in at the bottom right and fade (dim) after 3s. Nothing should flicker: render only on state change or tick.
 
 ### 6.2 Layout
-- **Header (1 line):** `◷ gocron`, tabs `Jobs  Timeline  History  Crontab` (active tab in accent with an underline), and on the right the cron daemon status (`● cron active` / `✗ cron not running`) and a live clock.
+- **Header (1 line):** `◷ hourglass`, tabs `Jobs  Timeline  History  Crontab` (active tab in accent with an underline), and on the right the cron daemon status (`● cron active` / `✗ cron not running`) and a live clock.
 - **Body:** the active view.
 - **Footer (1 line):** contextual key hints from `bubbles/help`. `?` expands it to a full help overlay.
 - **Responsive:**
@@ -413,7 +413,7 @@ Additional themes in Phase 6: **Daybreak** (light-optimized), **Mono** (no color
 
 #### 1 · Jobs (home)
 ```
- ◷ gocron   Jobs  Timeline  History  Crontab                         ● cron active · Sat 14:32:07
+ ◷ hourglass   Jobs  Timeline  History  Crontab                         ● cron active · Sat 14:32:07
 
  ╭─ Jobs · 6 ─────────────────────────────────────────╮ ╭─ Nightly backup ───────────────────────────────────╮
  │ / filter…                                          │ │ ● enabled · #backup #db · k3f9a2                   │
@@ -438,7 +438,7 @@ Additional themes in Phase 6: **Daybreak** (light-optimized), **Mono** (no color
 - Row: status dot, name (or a truncated command if there's no name), human schedule, next run (relative; absolute when > 7 days), and the last result glyph.
 - Sort: by next run (default) or by name or crontab order (`s` cycles through them).
 - Unmanaged entries appear in their own section, dimmed, with `a` to adopt.
-- Empty state (no crontab): a short welcome explaining that gocron manages your crontab, what a managed block looks like, and `n` to create your first job.
+- Empty state (no crontab): a short welcome explaining that hourglass manages your crontab, what a managed block looks like, and `n` to create your first job.
 
 #### 2 · Timeline
 ```
@@ -464,9 +464,9 @@ Additional themes in Phase 6: **Daybreak** (light-optimized), **Mono** (no color
 A reverse-chronological feed of all runs across jobs: time, job, trigger badge (`cron`/`manual`/`test`), status glyph, duration, exit code, and the first line of output. Filters: job, status (failures only: `f`), trigger. `enter` opens the **log viewer**: a scrollable viewport with `/` search, `n`/`N` for next and previous match, `g`/`G` for top and bottom, a truncation notice, and `o` to open in `$PAGER`.
 
 #### 4 · Crontab
-- Left: the raw crontab with light syntax highlighting (schedule fields, comments, env lines, gocron meta dimmed).
+- Left: the raw crontab with light syntax highlighting (schedule fields, comments, env lines, hourglass meta dimmed).
 - Right: a **revisions** list from the backups (timestamp + a summary like "+1 job, ~1 edited"). Selecting one shows a unified diff against the current crontab. `R` restores it (through the safe-write path, so the restore itself is undoable).
-- `E` opens the crontab in `$EDITOR` via a temp file. gocron validates the result before saving and shows parse errors inline.
+- `E` opens the crontab in `$EDITOR` via a temp file. hourglass validates the result before saving and shows parse errors inline.
 
 #### Editor (modal, `n` / `e`)
 ```
@@ -508,7 +508,7 @@ A reverse-chronological feed of all runs across jobs: time, job, trigger badge (
 - **Command palette** (`ctrl+k` or `:`): a fuzzy list of every action, plus "Go to job…". It shows each action's key binding so people learn the shortcuts.
 - **Help** (`?`): grouped key bindings for the current view.
 - **Confirm dialogs:** delete, restore, and discarding changes. The default button is the safe one.
-- **Toasts:** e.g. `✓ Saved · backup created · u undo`, `✗ Crontab changed outside gocron · r reload`.
+- **Toasts:** e.g. `✓ Saved · backup created · u undo`, `✗ Crontab changed outside hourglass · r reload`.
 
 ### 6.4 Key map (global unless noted)
 | Key | Action |
@@ -538,38 +538,38 @@ Mouse (Phase 6): click rows and tabs, and scroll wheel in lists and the viewport
 ### 6.5 Feedback & error principles
 - Every write produces a toast. Every failure explains what happened **and what to do next**.
 - Never block the UI on I/O. Crontab reads and writes, DB queries, and runs all happen in `tea.Cmd`s, with a spinner where the wait is noticeable.
-- External changes: on focus or every 5s, gocron re-hashes the crontab (cheaply). If it changed and there are no unsaved edits, it reloads silently and shows `↻ Crontab reloaded (changed outside gocron)`.
+- External changes: on focus or every 5s, hourglass re-hashes the crontab (cheaply). If it changed and there are no unsaved edits, it reloads silently and shows `↻ Crontab reloaded (changed outside hourglass)`.
 
 ---
 
 ## 7. CLI
 
-`gocron` with no arguments launches the TUI. Subcommands are for scripting and cron itself:
+`hourglass` with no arguments launches the TUI. Subcommands are for scripting and cron itself:
 
 | Command | Description |
 |---|---|
-| `gocron list [--json] [--all]` | Table of jobs (`--all` includes unmanaged entries) |
-| `gocron add [--name N] --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD` | Create a job (name defaults to the program's name; quote a pipeline as one argument) |
-| `gocron enable <id>` / `disable <id>` | Resume / pause |
-| `gocron rm <id>` | Delete (backup kept) |
-| `gocron run <id> [--cron-env]` | Run now in the foreground, streaming output, recorded as `manual`/`test` |
-| `gocron logs <id> [-n N] [--run R]` | Print recent run summaries or a run's log |
-| `gocron exec …` | Internal wrapper used in crontab lines (see §4.1) |
-| `gocron describe "<expr>"` | Print the English description and the next 5 runs (handy on its own); plain English like "every weekday at 9am" is interpreted first |
-| `gocron doctor [--fix]` | Health checks (below); `--fix` re-IDs duplicates and repoints stale gocron paths |
-| `gocron export [--file F]` / `import F [--dry-run]` | YAML export/import of managed jobs |
-| `gocron version` | Version, commit, build date |
+| `hourglass list [--json] [--all]` | Table of jobs (`--all` includes unmanaged entries) |
+| `hourglass add [--name N] --schedule S [--tag T]… [--timeout D] [--no-overlap] [--raw] -- CMD` | Create a job (name defaults to the program's name; quote a pipeline as one argument) |
+| `hourglass enable <id>` / `disable <id>` | Resume / pause |
+| `hourglass rm <id>` | Delete (backup kept) |
+| `hourglass run <id> [--cron-env]` | Run now in the foreground, streaming output, recorded as `manual`/`test` |
+| `hourglass logs <id> [-n N] [--run R]` | Print recent run summaries or a run's log |
+| `hourglass exec …` | Internal wrapper used in crontab lines (see §4.1) |
+| `hourglass describe "<expr>"` | Print the English description and the next 5 runs (handy on its own); plain English like "every weekday at 9am" is interpreted first |
+| `hourglass doctor [--fix]` | Health checks (below); `--fix` re-IDs duplicates and repoints stale hourglass paths |
+| `hourglass export [--file F]` / `import F [--dry-run]` | YAML export/import of managed jobs |
+| `hourglass version` | Version, commit, build date |
 
 Exit codes: 0 ok, 1 error, 2 usage error, 3 conflict (crontab changed externally).
 
-**`doctor` checks:** the `crontab` binary exists; the user is allowed to use cron (cron.allow/deny via `crontab -l` behavior); the cron daemon is active (`systemctl is-active cron|cronie|crond`, otherwise check for a process); which daemon it is and whether it honors `CRON_TZ`; wrapped lines point to the current gocron binary (`--fix` rewrites them); orphaned meta lines; duplicate IDs; DB opens and its schema is current; state dirs are writable; `MAILTO` status (informational).
+**`doctor` checks:** the `crontab` binary exists; the user is allowed to use cron (cron.allow/deny via `crontab -l` behavior); the cron daemon is active (`systemctl is-active cron|cronie|crond`, otherwise check for a process); which daemon it is and whether it honors `CRON_TZ`; wrapped lines point to the current hourglass binary (`--fix` rewrites them); orphaned meta lines; duplicate IDs; DB opens and its schema is current; state dirs are writable; `MAILTO` status (informational).
 
 ---
 
 ## 8. Configuration
 
 ```toml
-# ~/.config/gocron/config.toml — every key optional
+# ~/.config/hourglass/config.toml — every key optional
 theme = "nightshift"            # nightshift | daybreak | mono
 
 [ui]
@@ -604,7 +604,7 @@ webhook = ""                    # POST JSON {job, status, exit_code, duration, l
 ## 9. Architecture
 
 ```
-cmd/gocron/main.go         subcommand dispatch (stdlib flag); no args → TUI
+cmd/hourglass/main.go         subcommand dispatch (stdlib flag); no args → TUI
 internal/
   cronexpr/                Parse, Validate, Describe (English), Next(n), presets, Lint
   crontab/                 line-preserving Parse/Serialize, model (Lines, Jobs), meta grammar,
@@ -635,7 +635,7 @@ testdata/crontabs/         golden fixtures
 
 ## 10. Phases & acceptance criteria
 
-Every phase ends with `go vet ./...` and `go test ./...` passing, the Progress table updated, and a commit. **No phase may touch the real crontab in tests.** Manual testing uses `GOCRON_CRONTAB_FILE` unless you intentionally try the real thing.
+Every phase ends with `go vet ./...` and `go test ./...` passing, the Progress table updated, and a commit. **No phase may touch the real crontab in tests.** Manual testing uses `HOURGLASS_CRONTAB_FILE` unless you intentionally try the real thing.
 
 ### Phase 1: Foundations
 Scope: `git init`, `go mod init`, packages `cronexpr`, `crontab`, `config` (paths only), the CLI skeleton with `list`, `describe`, `doctor` (crontab/daemon checks only), `version`.
@@ -647,13 +647,13 @@ Acceptance:
 - [x] The crontab parser round-trips every fixture byte-for-byte. There are ≥ 10 fixtures, covering env lines, `CRON_TZ`, comments, `@reboot`, tabs, CRLF, no trailing newline, managed and disabled jobs, orphan meta, and wrapped commands containing quotes and `%`.
 - [x] Meta grammar encode/decode, wrapped-command encode/decode, and `%` escaping are each property- or fuzz-tested (`go test -fuzz` target for round-trip).
 - [x] `Store.Save` implements the full safe-write protocol. A test proves that an external modification yields `ErrConflict` and that a backup is created on each save.
-- [x] `gocron list`, `gocron describe "*/15 9-17 * * 1-5"`, and `gocron doctor` work against `GOCRON_CRONTAB_FILE` and against the real crontab (read-only).
+- [x] `hourglass list`, `hourglass describe "*/15 9-17 * * 1-5"`, and `hourglass doctor` work against `HOURGLASS_CRONTAB_FILE` and against the real crontab (read-only).
 
 ### Phase 2: TUI shell + Jobs view
 Scope: theme system, root app model, header/footer/help, responsive layout, the Jobs list + detail pane, pause/resume, delete, undo, adopt, external-change reload, and toasts.
 
 Acceptance:
-- [x] `gocron` opens the TUI. The header shows the tabs (other tabs show a tasteful "coming soon"), the daemon status, and the clock.
+- [x] `hourglass` opens the TUI. The header shows the tabs (other tabs show a tasteful "coming soon"), the daemon status, and the clock.
 - [x] The Jobs list shows the human schedule and a ticking next-run countdown. The detail pane shows the schedule, the command, and the next 10 runs.
 - [x] `space`, `x`, `a`, and `u` work through the safe-write path, each with a toast. Undo restores the previous revision.
 - [x] Layout adapts at the 120/80/60 breakpoints. The empty state and the "too small" screen exist.
@@ -661,7 +661,7 @@ Acceptance:
 - [x] teatest golden snapshots for the list (wide + narrow), the empty state, and the help overlay.
 
 ### Phase 3: Editor
-Scope: the new/edit modal, schedule builder (presets + custom with a field ruler), live preview, the full lint list, `^s` save, and unsaved-changes confirmation. Also `gocron add` in the CLI.
+Scope: the new/edit modal, schedule builder (presets + custom with a field ruler), live preview, the full lint list, `^s` save, and unsaved-changes confirmation. Also `hourglass add` in the CLI.
 
 Acceptance:
 - [x] Every preset produces the correct expression, and typing a matching raw expression lights up its preset.
@@ -670,7 +670,7 @@ Acceptance:
 - [x] Saving an edit touches only that job's two lines (diff test).
 
 ### Phase 4: Runs
-Scope: `store` package, `gocron exec`, run now (`r`) and cron-env test (`t`) with streamed output panes, the History view, the log viewer, run strips and sparklines, last-status glyphs, `gocron run` and `gocron logs`.
+Scope: `store` package, `hourglass exec`, run now (`r`) and cron-env test (`t`) with streamed output panes, the History view, the log viewer, run strips and sparklines, last-status glyphs, `hourglass run` and `hourglass logs`.
 
 Acceptance:
 - [x] `exec` records success/failed/timeout/skipped correctly, honors the timeout (process-group kill) and `--no-overlap`, caps logs, prunes by retention, and passes through the exit code. Integration tests use real short-lived shell commands.
@@ -712,7 +712,7 @@ Acceptance:
 - The user is denied by `cron.deny`. Show a clear message and stay read-only.
 - A crontab that is huge or full of junk: parse errors on individual lines must not prevent loading. Mark those lines invalid and preserve them.
 - Duplicate IDs (from copy-pasting) are flagged, and `doctor --fix` re-IDs them.
-- The gocron binary has moved or been reinstalled elsewhere: wrapped lines go stale, which `doctor` catches. The header can show a warning badge.
+- The hourglass binary has moved or been reinstalled elsewhere: wrapped lines go stale, which `doctor` catches. The header can show a warning badge.
 - DST: next-run lists around transitions, and jobs scheduled in the skipped or repeated hour.
 - Timezones: `CRON_TZ` vs the system TZ vs display.
 - Very long commands or names: truncate with `…` in lists, wrap in the detail pane.

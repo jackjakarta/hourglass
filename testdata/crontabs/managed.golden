@@ -1,15 +1,15 @@
   1 env     MAILTO=""
   2 jobmeta id="k3f9a2" name="Nightly backup" tags="backup,db" desc="Dump app DB to /bk"
-  3 jobline sched="30 2 * * *" cmd="/home/jack/.local/bin/gocron exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\\%F).sql.gz'"
+  3 jobline sched="30 2 * * *" cmd="/home/jack/.local/bin/hourglass exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\\%F).sql.gz'"
   4 jobmeta id="p7m2qd" name="Say hi"
   5 jobline sched="0 9 * * 1-5" cmd="notify-send \"hi\""
   6 jobmeta id="zz7aaq" name="Sync" tags="photos" future_key="kept as is"
-  7 jobline sched="*/15 * * * *" cmd="/usr/local/bin/gocron exec zz7aaq -- 'rsync -a ~/Pictures/ nas:/photos/'"
+  7 jobline sched="*/15 * * * *" cmd="/usr/local/bin/hourglass exec zz7aaq -- 'rsync -a ~/Pictures/ nas:/photos/'"
 --- jobs
 line=3 managed=true id="k3f9a2" name="Nightly backup" tags=["backup" "db"] enabled=true wrapped=true sched="30 2 * * *" tz=""
-    cmd="pg_dump app | gzip > /bk/app-$(date +%F).sql.gz" bin="/home/jack/.local/bin/gocron" timeout=30m0s no_overlap=true
+    cmd="pg_dump app | gzip > /bk/app-$(date +%F).sql.gz" bin="/home/jack/.local/bin/hourglass" timeout=30m0s no_overlap=true
 line=5 managed=true id="p7m2qd" name="Say hi" tags=[] enabled=true wrapped=false sched="0 9 * * 1-5" tz=""
     cmd="notify-send \"hi\""
 line=7 managed=true id="zz7aaq" name="Sync" tags=["photos"] enabled=true wrapped=true sched="*/15 * * * *" tz=""
-    cmd="rsync -a ~/Pictures/ nas:/photos/" bin="/usr/local/bin/gocron" timeout=0s no_overlap=false
+    cmd="rsync -a ~/Pictures/ nas:/photos/" bin="/usr/local/bin/hourglass" timeout=0s no_overlap=false
 --- problems

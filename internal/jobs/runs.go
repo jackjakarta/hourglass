@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 // ErrNoHistory means there's no run history to read.
@@ -56,7 +56,7 @@ const (
 	RunUserEnv
 )
 
-// Launched is a run started from gocron.
+// Launched is a run started from hourglass.
 type Launched struct {
 	*runner.Handle
 	Spec    runner.Spec
@@ -105,5 +105,5 @@ func (s *Service) Launch(j crontab.Job, kind RunKind) (*Launched, error) {
 	return &Launched{Handle: h, Spec: spec, Kind: kind, CronEnv: cronEnv}, nil
 }
 
-// UserEnv is the user's own environment, as gocron sees it.
+// UserEnv is the user's own environment, as hourglass sees it.
 func (s *Service) UserEnv() []string { return s.opts.Environ }

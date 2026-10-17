@@ -9,15 +9,15 @@
   9 entry   sched="*/5 * * * *" cmd="~/bin/sync.sh >/dev/null 2>&1"
  10 blank  
  11 jobmeta id="k3f9a2" name="Nightly backup" tags="backup,db" desc="Dump app DB to /bk"
- 12 jobline sched="30 2 * * *" cmd="/home/jack/.local/bin/gocron exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\\%F).sql.gz'"
+ 12 jobline sched="30 2 * * *" cmd="/home/jack/.local/bin/hourglass exec --timeout=30m --no-overlap k3f9a2 -- 'pg_dump app | gzip > /bk/app-$(date +\\%F).sql.gz'"
  13 jobmeta id="s7nc0p" name="Sync photos" tags="photos"
- 14 jobline sched="*/15 * * * *" cmd="/home/jack/.local/bin/gocron exec --no-overlap s7nc0p -- 'rsync -a ~/Pictures/ nas:/photos/'"
+ 14 jobline sched="*/15 * * * *" cmd="/home/jack/.local/bin/hourglass exec --no-overlap s7nc0p -- 'rsync -a ~/Pictures/ nas:/photos/'"
  15 jobmeta id="pdk4r2" name="Prune docker"
- 16 jobline sched="0 4 * * 0" cmd="/home/jack/.local/bin/gocron exec pdk4r2 -- 'docker system prune -af'"
+ 16 jobline sched="0 4 * * 0" cmd="/home/jack/.local/bin/hourglass exec pdk4r2 -- 'docker system prune -af'"
  17 jobmeta id="r0tl6s" name="Rotate logs"
- 18 jobline sched="0 * * * *" cmd="/home/jack/.local/bin/gocron exec r0tl6s -- 'logrotate -s ~/.logrotate.state ~/.logrotate.conf'"
+ 18 jobline sched="0 * * * *" cmd="/home/jack/.local/bin/hourglass exec r0tl6s -- 'logrotate -s ~/.logrotate.state ~/.logrotate.conf'"
  19 jobmeta id="wkrp7t" name="Weekly report"
- 20 jobline sched="0 9 * * 1" cmd="/home/jack/.local/bin/gocron exec wkrp7t -- '~/bin/report --weekly'" disabled
+ 20 jobline sched="0 9 * * 1" cmd="/home/jack/.local/bin/hourglass exec wkrp7t -- '~/bin/report --weekly'" disabled
  21 jobmeta id="p7m2qd" name="Say hi"
  22 jobline sched="0 9 * * 1-5" cmd="notify-send \"hi\""
  23 entry   sched="0 0 1 * 1" cmd="~/bin/first-or-monday.sh"
@@ -27,15 +27,15 @@ line=8 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="@re
 line=9 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="*/5 * * * *" tz=""
     cmd="~/bin/sync.sh >/dev/null 2>&1"
 line=12 managed=true id="k3f9a2" name="Nightly backup" tags=["backup" "db"] enabled=true wrapped=true sched="30 2 * * *" tz=""
-    cmd="pg_dump app | gzip > /bk/app-$(date +%F).sql.gz" bin="/home/jack/.local/bin/gocron" timeout=30m0s no_overlap=true
+    cmd="pg_dump app | gzip > /bk/app-$(date +%F).sql.gz" bin="/home/jack/.local/bin/hourglass" timeout=30m0s no_overlap=true
 line=14 managed=true id="s7nc0p" name="Sync photos" tags=["photos"] enabled=true wrapped=true sched="*/15 * * * *" tz=""
-    cmd="rsync -a ~/Pictures/ nas:/photos/" bin="/home/jack/.local/bin/gocron" timeout=0s no_overlap=true
+    cmd="rsync -a ~/Pictures/ nas:/photos/" bin="/home/jack/.local/bin/hourglass" timeout=0s no_overlap=true
 line=16 managed=true id="pdk4r2" name="Prune docker" tags=[] enabled=true wrapped=true sched="0 4 * * 0" tz=""
-    cmd="docker system prune -af" bin="/home/jack/.local/bin/gocron" timeout=0s no_overlap=false
+    cmd="docker system prune -af" bin="/home/jack/.local/bin/hourglass" timeout=0s no_overlap=false
 line=18 managed=true id="r0tl6s" name="Rotate logs" tags=[] enabled=true wrapped=true sched="0 * * * *" tz=""
-    cmd="logrotate -s ~/.logrotate.state ~/.logrotate.conf" bin="/home/jack/.local/bin/gocron" timeout=0s no_overlap=false
+    cmd="logrotate -s ~/.logrotate.state ~/.logrotate.conf" bin="/home/jack/.local/bin/hourglass" timeout=0s no_overlap=false
 line=20 managed=true id="wkrp7t" name="Weekly report" tags=[] enabled=false wrapped=true sched="0 9 * * 1" tz=""
-    cmd="~/bin/report --weekly" bin="/home/jack/.local/bin/gocron" timeout=0s no_overlap=false
+    cmd="~/bin/report --weekly" bin="/home/jack/.local/bin/hourglass" timeout=0s no_overlap=false
 line=22 managed=true id="p7m2qd" name="Say hi" tags=[] enabled=true wrapped=false sched="0 9 * * 1-5" tz=""
     cmd="notify-send \"hi\""
 line=23 managed=false id="" name="" tags=[] enabled=true wrapped=false sched="0 0 1 * 1" tz=""

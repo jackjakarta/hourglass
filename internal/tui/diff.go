@@ -4,11 +4,11 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jackjakarta/gocron/internal/tui/components"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	"github.com/jackjakarta/hourglass/internal/tui/components"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
-// diffOverlay shows what changed outside gocron, over the conflict dialog
+// diffOverlay shows what changed outside hourglass, over the conflict dialog
 // it came from.
 type diffOverlay struct {
 	lines  []string
@@ -23,7 +23,7 @@ type showDiffMsg struct {
 	err   error
 }
 
-// viewDiff reads the crontab on disk and diffs it against the one gocron
+// viewDiff reads the crontab on disk and diffs it against the one hourglass
 // loaded, then shows it over back.
 func (m Model) viewDiff(back *components.Confirm) tea.Cmd {
 	svc, ctx, loaded, th := m.opts.Service, m.ctx, m.snap.Content, m.th
@@ -32,9 +32,9 @@ func (m Model) viewDiff(back *components.Confirm) tea.Cmd {
 		if err != nil {
 			return showDiffMsg{back: back, err: err}
 		}
-		d := components.UnifiedDiff("as gocron loaded it", "on disk now", loaded, disk)
+		d := components.UnifiedDiff("as hourglass loaded it", "on disk now", loaded, disk)
 		if d == "" {
-			return showDiffMsg{back: back, lines: []string{th.Muted.Render("The crontab on disk is the same as gocron's copy now.")}}
+			return showDiffMsg{back: back, lines: []string{th.Muted.Render("The crontab on disk is the same as hourglass's copy now.")}}
 		}
 		return showDiffMsg{back: back, lines: components.DiffLines(th, d)}
 	}

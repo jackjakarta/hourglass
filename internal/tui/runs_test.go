@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/runner"
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/runner"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 // livePID is the pid seeded "running" rows have; the stubbed liveness
@@ -67,7 +67,7 @@ func seedHistory(t *testing.T) func(context.Context) (*store.DB, error) {
 			log: "sh: 1: docker: not found\n"},
 		seedRun{job: "p7m2qd", trigger: store.TriggerManual, status: store.StatusSuccess, start: at(0, 13, 0), took: time.Second},
 		seedRun{job: "r0tl6s", trigger: store.TriggerCron, status: store.StatusTimeout, start: at(0, 12, 0), took: 10 * time.Minute, exit: 124,
-			log: strings.Repeat("rotating…\n", 3) + "\n[gocron: timed out after 10m0s]\n"},
+			log: strings.Repeat("rotating…\n", 3) + "\n[hourglass: timed out after 10m0s]\n"},
 		seedRun{job: "r0tl6s", trigger: store.TriggerCron, status: store.StatusSuccess, start: at(0, 13, 0), took: 2 * time.Second},
 		seedRun{job: "r0tl6s", trigger: store.TriggerCron, status: store.StatusSkipped, start: at(0, 13, 30)},
 		seedRun{job: "r0tl6s", trigger: store.TriggerCron, status: store.StatusRunning, start: testNow.Add(-41 * time.Second)},
@@ -283,7 +283,7 @@ func TestCronEnvTestSuggestsPATH(t *testing.T) {
 	p := config.Paths{StateDir: state, DB: filepath.Join(state, "runs.db"), LogsDir: filepath.Join(state, "logs"),
 		LocksDir: filepath.Join(state, "locks"), ErrorLog: filepath.Join(state, "errors.log")}
 	home := t.TempDir()
-	hs := startFull(t, "inline:# gocron:job id=abc234 name=Local\n0 0 * * * only-in-local-bin --now\n", 120, 32, func(o *jobs.Options) {
+	hs := startFull(t, "inline:# hourglass:job id=abc234 name=Local\n0 0 * * * only-in-local-bin --now\n", 120, 32, func(o *jobs.Options) {
 		o.Launcher = runner.InProcessLauncher{Paths: p, Config: config.Default()}
 		o.OpenRuns = func(ctx context.Context) (*store.DB, error) {
 			p.EnsureStateDirs()

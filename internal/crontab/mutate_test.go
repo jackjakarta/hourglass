@@ -61,11 +61,11 @@ func TestSetEnabledTouchesOneLine(t *testing.T) {
 }
 
 func TestResumeKeepsIndentation(t *testing.T) {
-	c := Parse([]byte("# gocron:job id=abc234\n  #gocron:off 0 0 * * * x\n"))
+	c := Parse([]byte("# hourglass:job id=abc234\n  #hourglass:off 0 0 * * * x\n"))
 	if err := c.SetEnabled("abc234", true); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(c.Serialize()); got != "# gocron:job id=abc234\n  0 0 * * * x\n" {
+	if got := string(c.Serialize()); got != "# hourglass:job id=abc234\n  0 0 * * * x\n" {
 		t.Errorf("got %q", got)
 	}
 }
@@ -119,7 +119,7 @@ func TestAddJobRoundTripsTrickyCommands(t *testing.T) {
 		c := Parse(loadFixture(t, "realistic_mixed"))
 		for _, cmd := range cmds {
 			in := Job{Name: "Tricky", Schedule: "0 3 * * *", Command: cmd, Enabled: true, Wrapped: wrapped, Timeout: 5 * time.Minute, NoOverlap: true}
-			id, err := c.AddJob(in, "/usr/local/bin/gocron")
+			id, err := c.AddJob(in, "/usr/local/bin/hourglass")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -148,7 +148,7 @@ func TestAddJobLineEndings(t *testing.T) {
 	if _, err := c.AddJob(Job{ID: "new234", Schedule: "@daily", Command: "x", Enabled: true}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(c.Serialize()); !strings.HasSuffix(got, "/usr/bin/tail-job\n# gocron:job id=new234\n@daily x\n") {
+	if got := string(c.Serialize()); !strings.HasSuffix(got, "/usr/bin/tail-job\n# hourglass:job id=new234\n@daily x\n") {
 		t.Errorf("got %q", got)
 	}
 
@@ -156,7 +156,7 @@ func TestAddJobLineEndings(t *testing.T) {
 	if _, err := c.AddJob(Job{ID: "new234", Schedule: "@daily", Command: "x"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(c.Serialize()); !strings.HasSuffix(got, "\r\n# gocron:job id=new234\r\n#gocron:off @daily x\r\n") {
+	if got := string(c.Serialize()); !strings.HasSuffix(got, "\r\n# hourglass:job id=new234\r\n#hourglass:off @daily x\r\n") {
 		t.Errorf("got %q", got)
 	}
 }
@@ -236,7 +236,7 @@ func TestAdoptInsertsOnlyAMetaLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.SplitAfter(string(orig), "\n")
-	want := strings.Join(lines[:8], "") + "# gocron:job id=" + id + " name=Sync\n" + strings.Join(lines[8:], "")
+	want := strings.Join(lines[:8], "") + "# hourglass:job id=" + id + " name=Sync\n" + strings.Join(lines[8:], "")
 	if got := string(c.Serialize()); got != want {
 		t.Errorf("adopt:\n%s\nwant:\n%s", got, want)
 	}
@@ -248,11 +248,11 @@ func TestAdoptInsertsOnlyAMetaLine(t *testing.T) {
 
 func TestAdoptWrapped(t *testing.T) {
 	c := Parse([]byte("0 3 * * * echo 50% > /tmp/x\n"))
-	id, err := c.Adopt(1, "0 3 * * * echo 50% > /tmp/x", "", true, "/usr/bin/gocron")
+	id, err := c.Adopt(1, "0 3 * * * echo 50% > /tmp/x", "", true, "/usr/bin/hourglass")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "# gocron:job id=" + id + "\n0 3 * * * /usr/bin/gocron exec " + id + ` -- 'echo 50\% > /tmp/x'` + "\n"
+	want := "# hourglass:job id=" + id + "\n0 3 * * * /usr/bin/hourglass exec " + id + ` -- 'echo 50\% > /tmp/x'` + "\n"
 	if got := string(c.Serialize()); got != want {
 		t.Errorf("got %q\nwant %q", got, want)
 	}
@@ -267,13 +267,13 @@ func TestAdoptCRLFAndNoTrailingNewline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := string(c.Serialize()); got != "A=1\r\n# gocron:job id="+id+"\r\n@daily x" {
+	if got := string(c.Serialize()); got != "A=1\r\n# hourglass:job id="+id+"\r\n@daily x" {
 		t.Errorf("got %q", got)
 	}
 }
 
 func TestAdoptStale(t *testing.T) {
-	c := Parse([]byte("# c\n@daily x\n# gocron:job id=abc234\n@daily y\n"))
+	c := Parse([]byte("# c\n@daily x\n# hourglass:job id=abc234\n@daily y\n"))
 	for _, tt := range []struct {
 		line int
 		raw  string
@@ -328,10 +328,10 @@ func TestReIDTouchesOnlyThatJob(t *testing.T) {
 }
 
 func TestReIDWrapped(t *testing.T) {
-	orig := "# gocron:job id=aaaaaa name=A\n" +
-		"0 1 * * * /usr/local/bin/gocron exec --no-overlap aaaaaa -- 'echo 50%'\n" +
-		"# gocron:job id=aaaaaa name=B\n" +
-		"#gocron:off 0 2 * * * /usr/local/bin/gocron exec --timeout=5m aaaaaa -- 'echo b'\n"
+	orig := "# hourglass:job id=aaaaaa name=A\n" +
+		"0 1 * * * /usr/local/bin/hourglass exec --no-overlap aaaaaa -- 'echo 50%'\n" +
+		"# hourglass:job id=aaaaaa name=B\n" +
+		"#hourglass:off 0 2 * * * /usr/local/bin/hourglass exec --timeout=5m aaaaaa -- 'echo b'\n"
 	c := Parse([]byte(orig))
 	if err := c.ReID(3, "bbbbbb"); err != nil {
 		t.Fatal(err)

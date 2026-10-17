@@ -4,14 +4,14 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 // FixReport is what Fix changed, or would change.
 type FixReport struct {
 	// ReIDs are jobs that shared an ID with an earlier job and got a new one.
 	ReIDs []ReID
-	// Rebinned are wrapped jobs moved to this gocron binary.
+	// Rebinned are wrapped jobs moved to this hourglass binary.
 	Rebinned []Rebin
 	// BinErr says why wrapped jobs weren't moved to this binary, when there
 	// were some to move but this binary can't be written into job lines.
@@ -25,7 +25,7 @@ type ReID struct {
 	Name, Old, ID string
 }
 
-// Rebin is a wrapped job whose gocron path was rewritten.
+// Rebin is a wrapped job whose hourglass path was rewritten.
 type Rebin struct {
 	ID, Name, From string
 }
@@ -35,7 +35,7 @@ func (r FixReport) Changed() bool { return len(r.ReIDs) > 0 || len(r.Rebinned) >
 
 // Fix repairs what doctor can repair on its own, in one change (one
 // backup, one undo step): duplicate job IDs get new IDs, and wrapped jobs
-// that run another gocron binary are moved to this one. Orphaned meta
+// that run another hourglass binary are moved to this one. Orphaned meta
 // lines are left for a human.
 func (s *Service) Fix(ctx context.Context) (FixReport, error) {
 	var rep FixReport

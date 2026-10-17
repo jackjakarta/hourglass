@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/crontab"
+	"github.com/jackjakarta/hourglass/internal/crontab"
 )
 
 // Revision is a backup of the crontab, taken just before a save.
@@ -46,7 +46,7 @@ func (s *Service) Restore(ctx context.Context, path string) (Result, error) {
 		return Result{}, err
 	}
 	if !slices.Contains(paths, path) {
-		return Result{}, fmt.Errorf("%s is not one of gocron's backups", path)
+		return Result{}, fmt.Errorf("%s is not one of hourglass's backups", path)
 	}
 	content, err := os.ReadFile(path)
 	if err != nil {

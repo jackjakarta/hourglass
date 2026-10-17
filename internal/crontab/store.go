@@ -14,7 +14,7 @@ import (
 )
 
 // ErrConflict means the crontab changed since it was loaded.
-var ErrConflict = errors.New("crontab changed outside gocron")
+var ErrConflict = errors.New("crontab changed outside hourglass")
 
 // VerifyError means the crontab read back after a write didn't match what
 // was written.

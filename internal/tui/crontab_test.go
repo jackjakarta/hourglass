@@ -26,7 +26,7 @@ func startCrontab(t *testing.T, w, h int, edit func(string) string) *harness {
 	t.Helper()
 	orig := mixed(t)
 	revs := map[string]string{
-		"crontab-2026-10-10T09-00-00.000000000Z": strings.Replace(orig, "# gocron:job id=p7m2qd name=\"Say hi\"\n0 9 * * 1-5 notify-send \"hi\"\n", "", 1),
+		"crontab-2026-10-10T09-00-00.000000000Z": strings.Replace(orig, "# hourglass:job id=p7m2qd name=\"Say hi\"\n0 9 * * 1-5 notify-send \"hi\"\n", "", 1),
 		"crontab-2026-10-11T12-00-00.000000000Z": strings.Replace(orig, "30 2 * * *", "30 3 * * *", 1),
 	}
 	return startWith(t, "realistic_mixed", w, h, func(o *Options) {

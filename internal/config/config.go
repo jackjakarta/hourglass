@@ -34,14 +34,14 @@ type UI struct {
 	Mouse bool `toml:"mouse"`
 }
 
-// Runs configures run history and gocron exec.
+// Runs configures run history and hourglass exec.
 type Runs struct {
 	Retention   int    `toml:"retention"`     // runs kept per job
 	MaxLogBytes int64  `toml:"max_log_bytes"` // per run
 	MailOutput  string `toml:"mail_output"`   // never | on_failure | always
 }
 
-// Mail output modes: what gocron exec echoes to stdout, which cron mails.
+// Mail output modes: what hourglass exec echoes to stdout, which cron mails.
 const (
 	MailNever     = "never"
 	MailOnFailure = "on_failure"
@@ -60,7 +60,7 @@ type Defaults struct {
 	Timeout   Duration `toml:"timeout"`
 }
 
-// Notify configures the notifications gocron exec sends when a cron run
+// Notify configures the notifications hourglass exec sends when a cron run
 // ends.
 type Notify struct {
 	On      string `toml:"on"`      // never | failure | always | change
@@ -123,7 +123,7 @@ func Default() Config {
 }
 
 // Load reads the config file at path over the defaults. A missing file is
-// not an error. Keys gocron doesn't know come back as warnings. On error
+// not an error. Keys hourglass doesn't know come back as warnings. On error
 // the defaults are returned, so callers can carry on.
 func Load(path string) (Config, []string, error) {
 	cfg := Default()

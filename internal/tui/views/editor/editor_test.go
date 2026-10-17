@@ -9,11 +9,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	gocfg "github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/cronexpr"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	svc "github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	gocfg "github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	svc "github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // Sun 11 Oct 2026 14:32:07 UTC
@@ -247,11 +247,11 @@ func TestTrackingOptions(t *testing.T) {
 	if d := New(cfg).draft(); !d.Wrapped || !d.NoOverlap || d.Timeout != time.Hour {
 		t.Errorf("draft from defaults = %+v", d)
 	}
-	cfg.WrapErr = errors.New("run tracking needs the binary to be named gocron, not gocron.test")
+	cfg.WrapErr = errors.New("run tracking needs the binary to be named hourglass, not hourglass.test")
 	m = New(cfg)
 	m.SetSize(120, 40)
 	if m.canTrack || m.draft().Wrapped || !strings.Contains(ansi.Strip(m.View()), "Run tracking needs the binary") {
-		t.Errorf("an unwrappable gocron still offers tracking:\n%s", m.View())
+		t.Errorf("an unwrappable hourglass still offers tracking:\n%s", m.View())
 	}
 	j := crontab.Job{ID: "abc234", Schedule: "@daily", Command: "x", Managed: true, Wrapped: true, Timeout: 30 * time.Minute, NoOverlap: true}
 	m = Edit(config(), j)

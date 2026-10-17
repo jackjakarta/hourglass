@@ -11,11 +11,11 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	gocfg "github.com/jackjakarta/gocron/internal/config"
-	"github.com/jackjakarta/gocron/internal/cronexpr"
-	"github.com/jackjakarta/gocron/internal/crontab"
-	svc "github.com/jackjakarta/gocron/internal/jobs"
-	"github.com/jackjakarta/gocron/internal/tui/theme"
+	gocfg "github.com/jackjakarta/hourglass/internal/config"
+	"github.com/jackjakarta/hourglass/internal/cronexpr"
+	"github.com/jackjakarta/hourglass/internal/crontab"
+	svc "github.com/jackjakarta/hourglass/internal/jobs"
+	"github.com/jackjakarta/hourglass/internal/tui/theme"
 )
 
 // Requests the editor returns from Update for the app to act on.

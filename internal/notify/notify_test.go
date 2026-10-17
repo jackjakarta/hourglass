@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackjakarta/gocron/internal/store"
+	"github.com/jackjakarta/hourglass/internal/store"
 )
 
 func TestShould(t *testing.T) {
@@ -99,7 +99,7 @@ func TestDesktop(t *testing.T) {
 	if errs := s.Send(context.Background(), event()); len(errs) > 0 {
 		t.Fatal(errs)
 	}
-	want := []string{"-a", "gocron", "-u", "critical", "gocron: Nightly backup failed", "exit 2 after 12s\npg_dump: connection refused"}
+	want := []string{"-a", "hourglass", "-u", "critical", "hourglass: Nightly backup failed", "exit 2 after 12s\npg_dump: connection refused"}
 	if len(calls) != 1 || calls[0].name != "notify-send" || strings.Join(calls[0].args, "|") != strings.Join(want, "|") {
 		t.Errorf("calls = %+v", calls)
 	}
@@ -110,7 +110,7 @@ func TestDesktop(t *testing.T) {
 	e.Name = `say "hi"`
 	s.Send(context.Background(), e)
 	if len(calls) != 1 || calls[0].name != "osascript" ||
-		calls[0].args[1] != "display notification \"exit 2 after 12s\npg_dump: connection refused\" with title \"gocron: say \\\"hi\\\" failed\"" {
+		calls[0].args[1] != "display notification \"exit 2 after 12s\npg_dump: connection refused\" with title \"hourglass: say \\\"hi\\\" failed\"" {
 		t.Errorf("calls = %q", calls)
 	}
 }
@@ -135,7 +135,7 @@ func TestWebhook(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer srv.Close()
-	s := Sender{Webhook: srv.URL, UserAgent: "gocron/1.2.3"}
+	s := Sender{Webhook: srv.URL, UserAgent: "hourglass/1.2.3"}
 	if errs := s.Send(context.Background(), event()); len(errs) > 0 {
 		t.Fatal(errs)
 	}
@@ -147,7 +147,7 @@ func TestWebhook(t *testing.T) {
 	if got != want {
 		t.Errorf("payload = %+v\nwant      %+v", got, want)
 	}
-	if ua != "gocron/1.2.3" || ctype != "application/json" {
+	if ua != "hourglass/1.2.3" || ctype != "application/json" {
 		t.Errorf("headers: UA %q, Content-Type %q", ua, ctype)
 	}
 }

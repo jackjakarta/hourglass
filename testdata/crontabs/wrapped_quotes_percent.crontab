@@ -1,10 +1,10 @@
-# gocron:job id=q1a2b3 name="Quotes and pipes"
-0 * * * * /opt/gocron/gocron exec q1a2b3 -- 'echo "it'\''s $(date +\%H:\%M)" | tee -a /tmp/o.log >/dev/null'
-# gocron:job id=q4c5d6 name="Percent raw"
+# hourglass:job id=q1a2b3 name="Quotes and pipes"
+0 * * * * /opt/hourglass/hourglass exec q1a2b3 -- 'echo "it'\''s $(date +\%H:\%M)" | tee -a /tmp/o.log >/dev/null'
+# hourglass:job id=q4c5d6 name="Percent raw"
 0 0 * * * printf '\%s\n' "$(date +\%F)" > /tmp/date.txt
-# gocron:job id=q7e8f9 name="Path with spaces"
-5 * * * * '/home/jack/my tools/gocron' exec --timeout=1h30m q7e8f9 -- 'cd ~/proj && make'
-# gocron:job id=qahand name="Hand edited"
-10 * * * * gocron exec qahand -- echo two words
-# gocron:job id=qbflag name="Unknown flag"
-15 * * * * gocron exec --tee qbflag -- 'echo tee'
+# hourglass:job id=q7e8f9 name="Path with spaces"
+5 * * * * '/home/jack/my tools/hourglass' exec --timeout=1h30m q7e8f9 -- 'cd ~/proj && make'
+# hourglass:job id=qahand name="Hand edited"
+10 * * * * hourglass exec qahand -- echo two words
+# hourglass:job id=qbflag name="Unknown flag"
+15 * * * * hourglass exec --tee qbflag -- 'echo tee'
