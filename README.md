@@ -23,8 +23,17 @@ timeline, linting, notifications and a safety net for every edit.
 
 ## Install
 
+### Script (Recommended)
+
 ```sh
 curl -fsSL https://hourglass.jackjakarta.xyz/install.sh | sh
+```
+
+### Homebrew
+
+```sh
+brew tap jackjakarta/hourglass
+brew install hourglass
 ```
 
 Builds are available for Linux and macOS (`amd64` and `arm64`). The script
