@@ -81,12 +81,12 @@ with its exit code.
 
 hourglass's own files follow XDG:
 
-| Path | What |
-|---|---|
-| `~/.config/hourglass/config.toml` | configuration |
-| `~/.local/state/hourglass/runs.db` | run history (SQLite) |
-| `~/.local/state/hourglass/logs/` | captured output, per job and run |
-| `~/.local/state/hourglass/backups/` | crontab revisions |
+| Path                                | What                             |
+| ----------------------------------- | -------------------------------- |
+| `~/.config/hourglass/config.toml`   | configuration                    |
+| `~/.local/state/hourglass/runs.db`  | run history (SQLite)             |
+| `~/.local/state/hourglass/logs/`    | captured output, per job and run |
+| `~/.local/state/hourglass/backups/` | crontab revisions                |
 
 By default hourglass keeps the last 100 runs per job and up to 1 MiB of output
 per run. From the CLI, `hourglass logs ID` lists recent runs and
@@ -163,24 +163,24 @@ and `HOURGLASS_CONFIG` override the crontab, state directory and config file.
 
 ## Keys
 
-| Key | Action |
-|---|---|
-| `1`–`4`, `tab` | Jobs, Timeline, History, Crontab |
-| `↑↓` / `j k`, `g G` | move |
-| `↵` | open |
-| `n` / `e` | new job / edit |
-| `space` | pause / resume |
-| `r` / `t` | run now / test in cron's environment |
-| `x` | delete |
-| `a` | adopt an unmanaged entry |
-| `h` | the job's run history |
-| `/` / `#` / `s` | filter / filter by tag / cycle sort |
-| `y` / `Y` | copy command / schedule |
-| `u` | undo the last change |
-| `E` / `R` | edit the crontab in `$EDITOR` / restore a revision |
-| `ctrl+k` | command palette |
-| `?` | help |
-| `q`, `ctrl+c` | quit |
+| Key                 | Action                                             |
+| ------------------- | -------------------------------------------------- |
+| `1`–`4`, `tab`      | Jobs, Timeline, History, Crontab                   |
+| `↑↓` / `j k`, `g G` | move                                               |
+| `↵`                 | open                                               |
+| `n` / `e`           | new job / edit                                     |
+| `space`             | pause / resume                                     |
+| `r` / `t`           | run now / test in cron's environment               |
+| `x`                 | delete                                             |
+| `a`                 | adopt an unmanaged entry                           |
+| `h`                 | the job's run history                              |
+| `/` / `#` / `s`     | filter / filter by tag / cycle sort                |
+| `y` / `Y`           | copy command / schedule                            |
+| `u`                 | undo the last change                               |
+| `E` / `R`           | edit the crontab in `$EDITOR` / restore a revision |
+| `ctrl+k`            | command palette                                    |
+| `?`                 | help                                               |
+| `q`, `ctrl+c`       | quit                                               |
 
 In the editor: `tab` moves between fields, `^s` saves, `^t` tests the draft
 in cron's environment, and `↵` on the "say it" line applies an English
