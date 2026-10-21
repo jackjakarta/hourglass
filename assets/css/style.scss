@@ -1,0 +1,77 @@
+---
+---
+
+// GitHub Pages renders README.md with the default Primer theme, which is
+// light-only. Import it, then force a dark palette on top.
+@import "{{ site.theme }}";
+
+$bg: #0d1117;
+$bg-subtle: #161b22;
+$border: #30363d;
+$border-muted: #21262d;
+$fg: #e6edf3;
+$fg-muted: #8b949e;
+$link: #4493f8;
+
+:root { color-scheme: dark; }
+
+body { background-color: $bg; color: $fg; }
+
+a { color: $link; }
+
+.markdown-body {
+  h1, h2 { border-bottom-color: $border-muted; }
+  h6 { color: $fg-muted; }
+  .octicon-link { color: $fg; }
+  hr { background-color: $border; }
+  blockquote { color: $fg-muted; border-left-color: $border; }
+  img { background-color: transparent; }
+
+  code, tt { background-color: rgba(110, 118, 129, 0.4); }
+  pre, .highlight pre { background-color: $bg-subtle; color: $fg; }
+  pre code, pre tt { background-color: transparent; }
+
+  kbd {
+    color: $fg;
+    background-color: $bg-subtle;
+    border-color: $border;
+    border-bottom-color: $border;
+    box-shadow: inset 0 -1px 0 $border;
+  }
+
+  table {
+    th, td { border-color: $border; }
+    tr { background-color: $bg; border-top-color: $border-muted; }
+    tr:nth-child(2n) { background-color: $bg-subtle; }
+  }
+}
+
+.border-gray-light { border-color: $border-muted !important; }
+.text-gray, .text-gray-light { color: $fg-muted !important; }
+
+// Rouge syntax highlighting, GitHub dark colors.
+.highlight {
+  color: $fg;
+  background-color: $bg-subtle;
+
+  .c, .ch, .cd, .cm, .cpf, .c1, .cs { color: #8b949e; font-style: italic; }
+  .cp { color: #8b949e; font-weight: bold; }
+  .err { color: #f85149; background-color: transparent; }
+  .k, .kc, .kd, .kn, .kp, .kr, .kt, .kv { color: #ff7b72; font-weight: normal; }
+  .o, .ow { color: #ff7b72; font-weight: normal; }
+  .m, .mb, .mf, .mh, .mi, .il, .mo, .mx { color: #79c0ff; }
+  .s, .sa, .sb, .sc, .dl, .sd, .s2, .se, .sh, .si, .sx, .s1 { color: #a5d6ff; }
+  .sr { color: #7ee787; }
+  .ss { color: #79c0ff; }
+  .na, .nb, .bp, .nc, .no, .nd, .ni, .ne, .nl, .nn, .py { color: #79c0ff; font-weight: normal; }
+  .nf, .fm { color: #d2a8ff; font-weight: normal; }
+  .nt { color: #7ee787; }
+  .nv, .vc, .vg, .vi, .vm { color: #ffa657; }
+  .n, .nx, .p, .w, .x { color: $fg; }
+  .gd { color: #ffdcd7; background-color: #67060c; }
+  .gi { color: #aff5b4; background-color: #033a16; }
+  .ge { color: $fg; }
+  .gh, .gu { color: #79c0ff; font-weight: bold; }
+  .go, .gp { color: $fg-muted; }
+  .gr, .gt { color: #f85149; }
+}
