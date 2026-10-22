@@ -2,6 +2,8 @@ module github.com/jackjakarta/hourglass
 
 go 1.25.0
 
+toolchain go1.27.3
+
 require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.9
