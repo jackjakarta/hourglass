@@ -194,12 +194,16 @@ func TestSpawnLauncher(t *testing.T) {
 	// The status pipe stays out of the job's process. The job should see
 	// the same descriptors as a plain child of this process: the test may
 	// itself inherit stray ones (CI runners leak some), and those pass
-	// through to every child.
-	base, err := exec.Command("ls", "/proc/self/fd").Output()
+	// through to every child. macOS has no /proc; /dev/fd is its equivalent.
+	fdDir := "/proc/self/fd"
+	if runtime.GOOS == "darwin" {
+		fdDir = "/dev/fd"
+	}
+	base, err := exec.Command("ls", fdDir).Output()
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, _ = l.Launch(runner.Spec{Command: "ls /proc/self/fd", Trigger: runs.TriggerTest, Env: env})
+	h, _ = l.Launch(runner.Spec{Command: "ls " + fdDir, Trigger: runs.TriggerTest, Env: env})
 	got, _ = io.ReadAll(h.Output)
 	<-h.Done
 	if fds, want := strings.Fields(string(got)), strings.Fields(string(base)); !slices.Equal(fds, want) {

@@ -41,7 +41,7 @@ func TestCreateWrapsOnlyWithAStableBinary(t *testing.T) {
 	}
 
 	cstore, _ := crontab.Open(context.Background(), crontab.FileSource{Path: e.path}, crontab.Options{BackupDir: e.backups})
-	bad := New(cstore, Options{Bin: "/tmp/go-build1/exe/hourglass"})
+	bad := New(cstore, Options{Bin: filepath.Join(os.TempDir(), "go-build1/exe/hourglass")})
 	if bad.WrapError() == nil {
 		t.Fatal("a temporary build should not be wrappable")
 	}

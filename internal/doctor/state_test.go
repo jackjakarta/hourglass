@@ -63,7 +63,7 @@ func TestStateChecksProblems(t *testing.T) {
 	os.WriteFile(p.ConfigFile, []byte("x = 1\n"), 0o600)
 
 	env := debianBox.env(fakeSource{content: "# hourglass:job id=abc234\n0 0 * * * /usr/local/bin/hourglass exec abc234 -- 'x'\n"})
-	env.SelfPath = "/tmp/go-build1/exe/hourglass"
+	env.SelfPath = filepath.Join(os.TempDir(), "go-build1/exe/hourglass")
 	// The shell points hourglass at p; cron, without that variable, would use
 	// ~/.local/state/hourglass.
 	env.State = &State{Paths: p, Home: "/home/u", ConfigWarnings: []string{"unknown key \"x\""}}
