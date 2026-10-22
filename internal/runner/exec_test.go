@@ -105,8 +105,13 @@ func TestExecTeeAndUsesShellFromEnv(t *testing.T) {
 	o.Command = "pwd"
 	tee.Reset()
 	Exec(context.Background(), o)
-	if strings.TrimSpace(tee.String()) != o.Dir {
-		t.Errorf("pwd = %q, want %q", tee.String(), o.Dir)
+	// pwd prints the physical path; macOS's temp dir sits behind /var -> /private/var.
+	want, err := filepath.EvalSymlinks(o.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(tee.String()) != want {
+		t.Errorf("pwd = %q, want %q", tee.String(), want)
 	}
 }
 

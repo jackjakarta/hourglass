@@ -275,7 +275,13 @@ func TestRunPaneHideKeepsRunning(t *testing.T) {
 // the user's own bin directory fails in cron's environment, the pane
 // suggests the PATH fix, and c reruns it in the user's shell.
 func TestCronEnvTestSuggestsPATH(t *testing.T) {
-	bin := t.TempDir()
+	// A short directory keeps the PATH hint on one line of the pane; macOS's
+	// default temp dir is long enough to wrap it.
+	bin, err := os.MkdirTemp("/tmp", "hg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(bin) })
 	if err := os.WriteFile(filepath.Join(bin, "only-in-local-bin"), []byte("#!/bin/sh\necho it works\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
